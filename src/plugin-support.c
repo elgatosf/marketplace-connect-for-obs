@@ -1,0 +1,41 @@
+/*
+Elgato Deep-Linking OBS Plug-In
+Copyright (C) 2024 Corsair Memory Inc. oss.elgato@corsair.com
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along
+with this program. If not, see <https://www.gnu.org/licenses/>
+*/
+
+#include <plugin-support.h>
+
+extern void blogva(int log_level, const char *format, va_list args);
+
+const char *PLUGIN_NAME = "deeplinking";
+const char *PLUGIN_VERSION = "0.0.1";
+
+void obs_log(int log_level, const char *format, ...)
+{
+	size_t length = 4 + strlen(PLUGIN_NAME) + strlen(format);
+
+	char *template = malloc(length + 1);
+
+	snprintf(template, length, "[%s] %s", PLUGIN_NAME, format);
+
+	va_list(args);
+
+	va_start(args, format);
+	blogva(log_level, template, args);
+	va_end(args);
+
+	free(template);
+}
