@@ -120,6 +120,10 @@ target_include_directories(${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/
 
 add_executable(${PROJECT_NAME}-loader loader/main.cpp)
 
+install(
+  TARGETS ${PROJECT_NAME}-loader
+  RUNTIME DESTINATION data/obs-plugins/${PROJECT_NAME})
+
 setup_obs_lib_dependency(${PROJECT_NAME})
 if(BUILD_OUT_OF_TREE)
   set_target_properties_plugin(${PROJECT_NAME} PROPERTIES OUTPUT_NAME ${_name})
