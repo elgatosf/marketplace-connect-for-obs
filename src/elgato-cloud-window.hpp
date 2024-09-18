@@ -45,11 +45,14 @@ public:
 	void UpdateDownload(bool downloading, int progress);
 	void updateImage();
 	void resetDownload();
+	void disableDownload();
+	void enableDownload();
 
 private:
 	ElgatoProduct *_product;
 	QStackedWidget *_downloadWidget;
 	QProgressBar *_downloadProgress;
+	QPushButton* _downloadButton;
 	QLabel *_labelImg;
 	QStackedWidget *_labelDownload;
 	QPixmap _setupImage(std::string imagePath);
@@ -83,7 +86,8 @@ public:
 	ProductGrid(QWidget *parent);
 	~ProductGrid();
 	void loadProducts();
-
+	void disableDownload();
+	void enableDownload();
 private:
 	FlowLayout *_layout;
 };

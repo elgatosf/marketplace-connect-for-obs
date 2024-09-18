@@ -38,6 +38,7 @@ private:
 	std::map<std::string, std::string> _fileMap;
 	// [0]: Source, [1]: Filter
 	std::vector<std::pair<std::string, std::string>> _skippedFilters;
+	std::map<std::string, std::string> _videoCaptureDevices;
 	nlohmann::json _collection;
 	nlohmann::json _bundleInfo;
 	std::string _packPath;
@@ -52,9 +53,11 @@ public:
 	void ToCollection(std::string collection_name,
 			  std::string videoSettings, std::string audioSettings,
 			  QDialog *dialog);
-	void ToElgatoCloudFile(std::string file_path);
+	void ToElgatoCloudFile(std::string file_path, std::vector<std::string> plugins, std::map<std::string, std::string> videoDeviceDescriptions);
 
 	bool FileCheckDialog();
+	std::vector<std::string> FileList();
+	std::map<std::string, std::string> VideoCaptureDevices();
 
 private:
 	void _ProcessJsonObj(nlohmann::json &obj);

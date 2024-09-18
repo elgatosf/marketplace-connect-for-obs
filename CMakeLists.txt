@@ -107,6 +107,8 @@ target_sources(
           src/scene-bundle.hpp
           src/setup-wizard.cpp
           src/setup-wizard.hpp
+          src/export-wizard.cpp
+          src/export-wizard.hpp
           src/elgato-product.cpp
           src/elgato-product.hpp
           src/elgato-cloud-data.cpp

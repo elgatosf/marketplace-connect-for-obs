@@ -28,9 +28,6 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <QLabel>
 #include <QComboBox>
 #include <QStackedWidget>
-#include <obs-frontend-api.h>
-#include <obs-module.h>
-#include <obs.hpp>
 
 #include "elgato-cloud-config.hpp"
 #include "qt-display.hpp"

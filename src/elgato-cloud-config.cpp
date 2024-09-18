@@ -162,6 +162,7 @@ ElgatoCloudConfig::ElgatoCloudConfig(QWidget *parent) : QWidget(parent)
 	auto spacer = new QWidget(this);
 	spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 	layout->addWidget(spacer);
+	setStyleSheet("QWidget {background-color: #151515}");
 	setLayout(layout);
 	_SetupTmpSources();
 }

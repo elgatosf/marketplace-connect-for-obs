@@ -78,7 +78,7 @@ WindowToolBar::WindowToolBar(QWidget *parent) : QWidget(parent)
 	_settingsButton->setIcon(settingsIcon);
 	_settingsButton->setIconSize(QSize(22, 22));
 	_settingsButton->setStyleSheet(
-		"QPushButton {background: transparent; }");
+		"QPushButton {background: transparent; border: none; }");
 	connect(_settingsButton, &QPushButton::pressed, this,
 		[this]() { emit settingsClicked(); });
 	_layout->addWidget(_settingsButton);
@@ -90,7 +90,7 @@ WindowToolBar::WindowToolBar(QWidget *parent) : QWidget(parent)
 	_storeButton = new QPushButton(this);
 	_storeButton->setIcon(storeIcon);
 	_storeButton->setIconSize(QSize(22, 22));
-	_storeButton->setStyleSheet("QPushButton {background: transparent; }");
+	_storeButton->setStyleSheet("QPushButton {background: transparent; border: none; }");
 	_layout->addWidget(_storeButton);
 
 	_logInButton = new QPushButton(this);
@@ -162,6 +162,22 @@ void ProductGrid::loadProducts()
 	repaint();
 }
 
+void ProductGrid::disableDownload()
+{
+	for (int i = 0; i < layout()->count(); ++i) {
+		auto item = dynamic_cast<ElgatoProductItem*>(layout()->itemAt(i)->widget());
+		item->disableDownload();
+	}
+}
+
+void ProductGrid::enableDownload()
+{
+	for (int i = 0; i < layout()->count(); ++i) {
+		auto item = dynamic_cast<ElgatoProductItem*>(layout()->itemAt(i)->widget());
+		item->enableDownload();
+	}
+}
+
 OwnedProducts::OwnedProducts(QWidget *parent) : QWidget(parent)
 {
 	_layout = new QHBoxLayout(this);
@@ -186,11 +202,21 @@ OwnedProducts::OwnedProducts(QWidget *parent) : QWidget(parent)
 	_content = new QStackedWidget(this);
 	_installed = new Placeholder(this, "Installed, not yet implemented...");
 
+	auto scroll = new QScrollArea(this);
+	scroll->setWidgetResizable(true);
+	scroll->setStyleSheet("border: none;");
+
 	_purchased = new ProductGrid(this);
+	_purchased->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 	if (elgatoCloud->loggedIn) {
 		_purchased->loadProducts();
 	}
-	_content->addWidget(_purchased);
+	//auto test = new QWidget(this);
+	//test->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+	//test->setStyleSheet("QWidget {background-color: #AAAAAA;}");
+	//scroll->setWidget(test);
+	scroll->setWidget(_purchased);
+	_content->addWidget(scroll);
 	_content->addWidget(_installed);
 	_layout->addWidget(_sideMenu);
 	_layout->addWidget(_content);
@@ -227,8 +253,7 @@ ElgatoCloudWindow::~ElgatoCloudWindow()
 void ElgatoCloudWindow::initialize()
 {
 	setWindowTitle(QString("Elgato Cloud"));
-	setMinimumWidth(1000);
-	setMinimumHeight(560);
+	setFixedSize(1140, 600);
 
 	QPalette pal = QPalette();
 	pal.setColor(QPalette::Window, "#151515");
@@ -345,19 +370,23 @@ ElgatoProductItem::ElgatoProductItem(QWidget *parent, ElgatoProduct *product)
 	_labelDownload = new QStackedWidget(this);
 
 	std::string downloadIconPath = imageBaseDir + "download.png";
-	QPushButton *downloadButton = new QPushButton(this);
+	_downloadButton = new QPushButton(this);
 
 	QIcon downloadIcon = QIcon();
 	downloadIcon.addFile(downloadIconPath.c_str(), QSize(), QIcon::Normal,
 			     QIcon::Off);
-	downloadButton->setIcon(downloadIcon);
-	downloadButton->setIconSize(QSize(22, 22));
-	downloadButton->setStyleSheet(
+	_downloadButton->setIcon(downloadIcon);
+	_downloadButton->setIconSize(QSize(22, 22));
+	_downloadButton->setStyleSheet(
 		"QPushButton { background: transparent; }");
-	downloadButton->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
-	connect(downloadButton, &QPushButton::clicked, [this]() {
+	_downloadButton->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+	//downloadButton->setDisabled(true);
+	connect(_downloadButton, &QPushButton::clicked, [this]() {
+		auto p = dynamic_cast<ProductGrid*>(parentWidget());
+		p->disableDownload();
 		_labelDownload->setCurrentIndex(1);
 		_product->DownloadProduct();
+
 	});
 
 	_downloadProgress = new QProgressBar(this);
@@ -372,7 +401,7 @@ ElgatoProductItem::ElgatoProductItem(QWidget *parent, ElgatoProduct *product)
 	spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 	//spacer->setStyleSheet("QWidget { border: 1px solid #FFFFFF; }");
 	labelLayout->addWidget(spacer);
-	labelLayout->addWidget(downloadButton);
+	labelLayout->addWidget(_downloadButton);
 	auto labelWidget = new QWidget(this);
 	labelWidget->setLayout(labelLayout);
 
@@ -394,6 +423,18 @@ ElgatoProductItem::~ElgatoProductItem() {}
 void ElgatoProductItem::resetDownload()
 {
 	_labelDownload->setCurrentIndex(0);
+	auto pw = dynamic_cast<ProductGrid*>(parentWidget());
+	pw->enableDownload();
+}
+
+void ElgatoProductItem::disableDownload()
+{
+	_downloadButton->setVisible(false);
+}
+
+void ElgatoProductItem::enableDownload()
+{
+	_downloadButton->setVisible(true);
 }
 
 void ElgatoProductItem::updateImage()

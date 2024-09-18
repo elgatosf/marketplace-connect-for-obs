@@ -175,6 +175,13 @@ void ElgatoProduct::Install(std::string filename_utf8, void *data)
 	auto ep = static_cast<ElgatoProduct *>(data);
 	const auto mainWindow =
 		static_cast<QMainWindow *>(obs_frontend_get_main_window());
+	if (ep->_productItem) {
+		QMetaObject::invokeMethod(
+			QCoreApplication::instance()->thread(),
+			[ep]() {
+				ep->_productItem->resetDownload();
+			});
+	}
 	const QRect &hostRect = mainWindow->geometry();
 	if (GetSetupWizard()) {
 		obs_log(LOG_INFO, "Setup Wizard already active.");
