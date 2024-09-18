@@ -27,45 +27,49 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <QDialog>
 
 #include <scene-bundle.hpp>
+#include <export-wizard.hpp>
 
 OBS_DECLARE_MODULE()
 OBS_MODULE_USE_DEFAULT_LOCALE(PLUGIN_NAME, "en-US")
 
 namespace elgatocloud {
 extern void InitElgatoCloud(obs_module_t *);
+extern void OpenExportWizard();
 }
 
 void save_pack()
 {
+	elgatocloud::OpenExportWizard();
 	// First, get the json data for the current scene collection
-	char *current_collection = obs_frontend_get_current_scene_collection();
-	std::string collection_name = current_collection;
-	bfree(current_collection);
+	// 
+	//char *current_collection = obs_frontend_get_current_scene_collection();
+	//std::string collection_name = current_collection;
+	//bfree(current_collection);
 
-	SceneBundle bundle;
-	if (!bundle.FromCollection(collection_name)) {
-		return;
-	}
+	//SceneBundle bundle;
+	//if (!bundle.FromCollection(collection_name)) {
+	//	return;
+	//}
 
-	if (!bundle.FileCheckDialog()) {
-		return;
-	}
+	//if (!bundle.FileCheckDialog()) {
+	//	return;
+	//}
 
-	QWidget *window = (QWidget *)obs_frontend_get_main_window();
-	QString filename = QFileDialog::getSaveFileName(
-		window, "Save As...", QString(), "*.elgatoscene");
-	if (filename == "") {
-		return;
-	}
-	if (!filename.endsWith(".elgatoscene")) {
-		filename += ".elgatoscene";
-	}
+	//QWidget *window = (QWidget *)obs_frontend_get_main_window();
+	//QString filename = QFileDialog::getSaveFileName(
+	//	window, "Save As...", QString(), "*.elgatoscene");
+	//if (filename == "") {
+	//	return;
+	//}
+	//if (!filename.endsWith(".elgatoscene")) {
+	//	filename += ".elgatoscene";
+	//}
 
-	std::string filename_utf8 = filename.toUtf8().constData();
+	//std::string filename_utf8 = filename.toUtf8().constData();
 
-	bundle.ToElgatoCloudFile(filename_utf8);
+	//bundle.ToElgatoCloudFile(filename_utf8);
 
-	blog(LOG_INFO, "Saved to %s", filename_utf8.c_str());
+	//blog(LOG_INFO, "Saved to %s", filename_utf8.c_str());
 }
 
 void export_collection(void *)

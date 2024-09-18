@@ -178,7 +178,7 @@ void SceneBundle::ToCollection(std::string collection_name,
 	}
 }
 
-void SceneBundle::ToElgatoCloudFile(std::string file_path)
+void SceneBundle::ToElgatoCloudFile(std::string file_path, std::vector<std::string> plugins, std::map<std::string, std::string> videoDeviceDescriptions)
 {
 	miniz_cpp::zip_file ecFile;
 
@@ -193,7 +193,8 @@ void SceneBundle::ToElgatoCloudFile(std::string file_path)
 	bundleInfo["version"] = "1.0";
 	bundleInfo["ec_version"] = "1.0";
 	bundleInfo["id"] = gen_uuid();
-	bundleInfo["plugins_required"] = {};
+	bundleInfo["plugins_required"] = plugins;
+	bundleInfo["video_devices"] = videoDeviceDescriptions;
 
 	// Write the scene collection json file to zip archive.
 	std::string collection_json = _collection.dump(2);
@@ -220,6 +221,20 @@ void SceneBundle::ToElgatoCloudFile(std::string file_path)
 	}
 
 	ecFile.save(file_path);
+}
+
+std::vector<std::string> SceneBundle::FileList()
+{
+	std::vector<std::string> files;
+	for (auto const& [key, val] : _fileMap) {
+		files.push_back(key);
+	}
+	return files;
+}
+
+std::map<std::string, std::string> SceneBundle::VideoCaptureDevices()
+{
+	return _videoCaptureDevices;
 }
 
 bool SceneBundle::FileCheckDialog()
@@ -258,6 +273,7 @@ void SceneBundle::_ProcessJsonObj(nlohmann::json &obj)
 		if (obj[idKey] == "dshow_input") {
 			obj.erase("settings");
 			obj["settings"] = "{VIDEO_CAPTURE_SETTINGS}";
+			_videoCaptureDevices[obj["uuid"]] = obj["name"];
 		} else if (obj[idKey] == "wasapi_input_capture") {
 			obj.erase("settings");
 			obj["settings"] = "{AUDIO_CAPTURE_SETTINGS}";
