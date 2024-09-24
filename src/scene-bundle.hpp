@@ -53,7 +53,9 @@ public:
 	void ToCollection(std::string collection_name,
 			  std::string videoSettings, std::string audioSettings,
 			  QDialog *dialog);
-	void ToElgatoCloudFile(std::string file_path, std::vector<std::string> plugins, std::map<std::string, std::string> videoDeviceDescriptions);
+	void ToElgatoCloudFile(
+		std::string file_path, std::vector<std::string> plugins,
+		std::map<std::string, std::string> videoDeviceDescriptions);
 
 	bool FileCheckDialog();
 	std::vector<std::string> FileList();

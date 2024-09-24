@@ -475,8 +475,8 @@ void AudioVideoSetup::DrawVideoPreview(void *data, uint32_t cx, uint32_t cy)
 	if (!config->_videoCaptureSource)
 		return;
 
-	uint32_t sourceCX = std::max(
-		obs_source_get_width(config->_videoCaptureSource), 1u);
+	uint32_t sourceCX =
+		std::max(obs_source_get_width(config->_videoCaptureSource), 1u);
 	uint32_t sourceCY = std::max(
 		obs_source_get_height(config->_videoCaptureSource), 1u);
 

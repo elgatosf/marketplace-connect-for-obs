@@ -35,13 +35,13 @@ OBS_MODULE_USE_DEFAULT_LOCALE(PLUGIN_NAME, "en-US")
 namespace elgatocloud {
 extern void InitElgatoCloud(obs_module_t *);
 extern void OpenExportWizard();
-}
+} // namespace elgatocloud
 
 void save_pack()
 {
 	elgatocloud::OpenExportWizard();
 	// First, get the json data for the current scene collection
-	// 
+	//
 	//char *current_collection = obs_frontend_get_current_scene_collection();
 	//std::string collection_name = current_collection;
 	//bfree(current_collection);
@@ -82,7 +82,7 @@ bool obs_module_load(void)
 	obs_log(LOG_INFO, "plugin loaded successfully (version %s)",
 		PLUGIN_VERSION);
 	elgatocloud::InitElgatoCloud(obs_current_module());
-	obs_frontend_add_tools_menu_item("Elgato Cloud Plugin Save",
+	obs_frontend_add_tools_menu_item("Elgato Deep Link Export",
 					 export_collection, NULL);
 	return true;
 }

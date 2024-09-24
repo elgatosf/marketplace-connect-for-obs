@@ -52,7 +52,7 @@ private:
 	ElgatoProduct *_product;
 	QStackedWidget *_downloadWidget;
 	QProgressBar *_downloadProgress;
-	QPushButton* _downloadButton;
+	QPushButton *_downloadButton;
 	QLabel *_labelImg;
 	QStackedWidget *_labelDownload;
 	QPixmap _setupImage(std::string imagePath);
@@ -88,6 +88,7 @@ public:
 	void loadProducts();
 	void disableDownload();
 	void enableDownload();
+
 private:
 	FlowLayout *_layout;
 };

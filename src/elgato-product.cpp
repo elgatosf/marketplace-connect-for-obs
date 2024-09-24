@@ -154,7 +154,6 @@ void ElgatoProduct::DownloadProgress(void *ptr, bool finished, bool downloading,
 					  self._productItem->UpdateDownload(
 						  downloading, pct);
 				  });
-
 }
 
 void ElgatoProduct::SetThumbnail(std::string filename, void *data)
@@ -178,9 +177,7 @@ void ElgatoProduct::Install(std::string filename_utf8, void *data)
 	if (ep->_productItem) {
 		QMetaObject::invokeMethod(
 			QCoreApplication::instance()->thread(),
-			[ep]() {
-				ep->_productItem->resetDownload();
-			});
+			[ep]() { ep->_productItem->resetDownload(); });
 	}
 	const QRect &hostRect = mainWindow->geometry();
 	if (GetSetupWizard()) {

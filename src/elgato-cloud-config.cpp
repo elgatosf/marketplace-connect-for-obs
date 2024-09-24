@@ -316,8 +316,8 @@ void ElgatoCloudConfig::DrawVideoPreview(void *data, uint32_t cx, uint32_t cy)
 	if (!window->_videoCaptureSource)
 		return;
 
-	uint32_t sourceCX = std::max(
-		obs_source_get_width(window->_videoCaptureSource), 1u);
+	uint32_t sourceCX =
+		std::max(obs_source_get_width(window->_videoCaptureSource), 1u);
 	uint32_t sourceCY = std::max(
 		obs_source_get_height(window->_videoCaptureSource), 1u);
 

@@ -90,7 +90,8 @@ WindowToolBar::WindowToolBar(QWidget *parent) : QWidget(parent)
 	_storeButton = new QPushButton(this);
 	_storeButton->setIcon(storeIcon);
 	_storeButton->setIconSize(QSize(22, 22));
-	_storeButton->setStyleSheet("QPushButton {background: transparent; border: none; }");
+	_storeButton->setStyleSheet(
+		"QPushButton {background: transparent; border: none; }");
 	_layout->addWidget(_storeButton);
 
 	_logInButton = new QPushButton(this);
@@ -165,7 +166,8 @@ void ProductGrid::loadProducts()
 void ProductGrid::disableDownload()
 {
 	for (int i = 0; i < layout()->count(); ++i) {
-		auto item = dynamic_cast<ElgatoProductItem*>(layout()->itemAt(i)->widget());
+		auto item = dynamic_cast<ElgatoProductItem *>(
+			layout()->itemAt(i)->widget());
 		item->disableDownload();
 	}
 }
@@ -173,7 +175,8 @@ void ProductGrid::disableDownload()
 void ProductGrid::enableDownload()
 {
 	for (int i = 0; i < layout()->count(); ++i) {
-		auto item = dynamic_cast<ElgatoProductItem*>(layout()->itemAt(i)->widget());
+		auto item = dynamic_cast<ElgatoProductItem *>(
+			layout()->itemAt(i)->widget());
 		item->enableDownload();
 	}
 }
@@ -207,7 +210,8 @@ OwnedProducts::OwnedProducts(QWidget *parent) : QWidget(parent)
 	scroll->setStyleSheet("border: none;");
 
 	_purchased = new ProductGrid(this);
-	_purchased->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+	_purchased->setSizePolicy(QSizePolicy::Expanding,
+				  QSizePolicy::Expanding);
 	if (elgatoCloud->loggedIn) {
 		_purchased->loadProducts();
 	}
@@ -382,11 +386,10 @@ ElgatoProductItem::ElgatoProductItem(QWidget *parent, ElgatoProduct *product)
 	_downloadButton->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
 	//downloadButton->setDisabled(true);
 	connect(_downloadButton, &QPushButton::clicked, [this]() {
-		auto p = dynamic_cast<ProductGrid*>(parentWidget());
+		auto p = dynamic_cast<ProductGrid *>(parentWidget());
 		p->disableDownload();
 		_labelDownload->setCurrentIndex(1);
 		_product->DownloadProduct();
-
 	});
 
 	_downloadProgress = new QProgressBar(this);
@@ -423,7 +426,7 @@ ElgatoProductItem::~ElgatoProductItem() {}
 void ElgatoProductItem::resetDownload()
 {
 	_labelDownload->setCurrentIndex(0);
-	auto pw = dynamic_cast<ProductGrid*>(parentWidget());
+	auto pw = dynamic_cast<ProductGrid *>(parentWidget());
 	pw->enableDownload();
 }
 
@@ -609,9 +612,9 @@ extern void InitElgatoCloud(obs_module_t *module)
 	obs_log(LOG_INFO, "version: %s", "0.0.1");
 
 	elgatoCloud = new ElgatoCloud(module);
-	QAction *action = (QAction *)obs_frontend_add_tools_menu_qaction(
-		"Elgato Cloud Window");
-	action->connect(action, &QAction::triggered, OpenElgatoCloudWindow);
+	//QAction *action = (QAction *)obs_frontend_add_tools_menu_qaction(
+	//	"Elgato Cloud Window");
+	//action->connect(action, &QAction::triggered, OpenElgatoCloudWindow);
 }
 
 } // namespace elgatocloud

@@ -178,7 +178,9 @@ void SceneBundle::ToCollection(std::string collection_name,
 	}
 }
 
-void SceneBundle::ToElgatoCloudFile(std::string file_path, std::vector<std::string> plugins, std::map<std::string, std::string> videoDeviceDescriptions)
+void SceneBundle::ToElgatoCloudFile(
+	std::string file_path, std::vector<std::string> plugins,
+	std::map<std::string, std::string> videoDeviceDescriptions)
 {
 	miniz_cpp::zip_file ecFile;
 
@@ -226,7 +228,7 @@ void SceneBundle::ToElgatoCloudFile(std::string file_path, std::vector<std::stri
 std::vector<std::string> SceneBundle::FileList()
 {
 	std::vector<std::string> files;
-	for (auto const& [key, val] : _fileMap) {
+	for (auto const &[key, val] : _fileMap) {
 		files.push_back(key);
 	}
 	return files;
