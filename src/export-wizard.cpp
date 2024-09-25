@@ -88,43 +88,57 @@ VideoSourceLabels::VideoSourceLabels(QWidget *parent,
 	description->setWordWrap(true);
 	layout->addWidget(description);
 
-	auto formGrid = new QGridLayout(this);
-	formGrid->setColumnMinimumWidth(0, 200);
-	auto nameHeader = new QLabel("Source Name", this);
-	nameHeader->setStyleSheet(
-		"QLabel { font-size: 14pt; font-weight: bold; text-decoration: underline;}");
-	auto descriptionHeader = new QLabel("Description", this);
-	descriptionHeader->setStyleSheet(
-		"QLabel { font-size: 14pt; font-weight: bold; text-decoration: underline;}");
-	formGrid->addWidget(nameHeader, 0, 0);
-	formGrid->addWidget(descriptionHeader, 0, 1);
-	int i = 1;
-
 	// Declare continue button so we can enable/disable it
 	// on keypress in label list.
 	auto continueButton = new QPushButton(this);
-	continueButton->setDisabled(true);
-	for (auto const &[key, val] : devices) {
-		auto label = new QLabel(val.c_str(), this);
-		auto field = new QLineEdit(this);
-		formGrid->addWidget(label, i, 0);
-		formGrid->addWidget(field, i, 1);
-		_labels[val] = "";
-		connect(field, &QLineEdit::textChanged, this,
-			[this, val, continueButton](const QString &text) {
-				_labels[val] = text.toStdString();
-				bool enable = true;
-				for (auto const &[n, l] : _labels) {
-					if (l.size() == 0) {
-						enable = false;
-						break;
+
+	if (devices.size() > 0) {
+		auto formGrid = new QGridLayout(this);
+		formGrid->setColumnMinimumWidth(0, 200);
+		auto nameHeader = new QLabel("Source Name", this);
+		nameHeader->setStyleSheet(
+			"QLabel { font-size: 14pt; font-weight: bold; text-decoration: underline;}");
+		auto descriptionHeader = new QLabel("Description", this);
+		descriptionHeader->setStyleSheet(
+			"QLabel { font-size: 14pt; font-weight: bold; text-decoration: underline;}");
+		formGrid->addWidget(nameHeader, 0, 0);
+		formGrid->addWidget(descriptionHeader, 0, 1);
+		continueButton->setDisabled(true);
+		int i = 1;
+		for (auto const &[key, val] : devices) {
+			auto label = new QLabel(val.c_str(), this);
+			auto field = new QLineEdit(this);
+			formGrid->addWidget(label, i, 0);
+			formGrid->addWidget(field, i, 1);
+			_labels[val] = "";
+			connect(field, &QLineEdit::textChanged, this,
+				[this, val,
+				 continueButton](const QString &text) {
+					_labels[val] = text.toStdString();
+					bool enable = true;
+					for (auto const &[n, l] : _labels) {
+						if (l.size() == 0) {
+							enable = false;
+							break;
+						}
 					}
-				}
-				continueButton->setDisabled(!enable);
-			});
-		i += 1;
+					continueButton->setDisabled(!enable);
+				});
+			i += 1;
+		}
+		layout->addLayout(formGrid);
+	} else {
+		continueButton->setDisabled(false);
+		auto topSpace = new QWidget(this);
+		topSpace->setSizePolicy(QSizePolicy::Preferred,
+					QSizePolicy::Expanding);
+		layout->addWidget(topSpace);
+		auto noVCDevices =
+			new QLabel("No video capture devices found.", this);
+		noVCDevices->setAlignment(Qt::AlignCenter);
+		noVCDevices->setStyleSheet("QLabel{font-size: 18pt;}");
+		layout->addWidget(noVCDevices);
 	}
-	layout->addLayout(formGrid);
 
 	auto spacer = new QWidget(this);
 	spacer->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
@@ -165,28 +179,43 @@ RequiredPlugins::RequiredPlugins(QWidget *parent,
 	subTitle->setWordWrap(true);
 	layout->addWidget(subTitle);
 
-	auto pluginList = new QListWidget(this);
-	for (auto module : installedPlugins) {
-		std::string filename = obs_get_module_file_name(module);
-		_pluginStatus[filename] = false;
-		pluginList->addItem(filename.c_str());
+	if (installedPlugins.size() > 0) {
+		auto pluginList = new QListWidget(this);
+		pluginList->setSizePolicy(QSizePolicy::Preferred,
+					  QSizePolicy::Expanding);
+		for (auto module : installedPlugins) {
+			std::string filename = obs_get_module_file_name(module);
+			_pluginStatus[filename] = false;
+			pluginList->addItem(filename.c_str());
+		}
+
+		QListWidgetItem *item = nullptr;
+		for (int i = 0; i < pluginList->count(); ++i) {
+			item = pluginList->item(i);
+			item->setFlags(item->flags() | Qt::ItemIsUserCheckable);
+			item->setCheckState(Qt::Unchecked);
+		}
+
+		connect(pluginList, &QListWidget::itemChanged, this,
+			[this](QListWidgetItem *item) {
+				std::string filename =
+					item->text().toStdString();
+				_pluginStatus[filename] = item->checkState() ==
+							  Qt::Checked;
+			});
+
+		layout->addWidget(pluginList);
+	} else {
+		auto topSpace = new QWidget(this);
+		topSpace->setSizePolicy(QSizePolicy::Preferred,
+					QSizePolicy::Expanding);
+		layout->addWidget(topSpace);
+		auto noPlugins =
+			new QLabel("No installed plugins found.", this);
+		noPlugins->setAlignment(Qt::AlignCenter);
+		noPlugins->setStyleSheet("QLabel{font-size: 18pt;}");
+		layout->addWidget(noPlugins);
 	}
-
-	QListWidgetItem *item = nullptr;
-	for (int i = 0; i < pluginList->count(); ++i) {
-		item = pluginList->item(i);
-		item->setFlags(item->flags() | Qt::ItemIsUserCheckable);
-		item->setCheckState(Qt::Unchecked);
-	}
-
-	connect(pluginList, &QListWidget::itemChanged, this,
-		[this](QListWidgetItem *item) {
-			std::string filename = item->text().toStdString();
-			_pluginStatus[filename] = item->checkState() ==
-						  Qt::Checked;
-		});
-
-	layout->addWidget(pluginList);
 
 	auto spacer = new QWidget(this);
 	spacer->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
