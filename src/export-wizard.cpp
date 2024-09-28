@@ -6,6 +6,7 @@
 #include <QPushButton>
 #include <QListWidget>
 #include <QLineEdit>
+#include <QDir>
 
 namespace elgatocloud {
 
@@ -32,16 +33,17 @@ FileCollectionCheck::FileCollectionCheck(QWidget *parent,
 
 	auto title = new QLabel(this);
 	title->setText("Media File Check");
+	title->setAlignment(Qt::AlignCenter);
 	title->setStyleSheet("QLabel{ font-size: 18pt; font-weight: bold;}");
 	layout->addWidget(title);
-
+	layout->setSpacing(20);
 	std::string titleText =
 		std::to_string(_files.size()) +
-		" media files were found to bundle. If this is correct, click 'Next' below.";
+		" media files were found to bundle.\nIf this is correct, click 'Next' below.";
 	auto subTitle = new QLabel(this);
 	subTitle->setText(titleText.c_str());
-	subTitle->setStyleSheet(
-		"QLabel {font-size: 11pt; font-style: italic;}");
+	subTitle->setStyleSheet("QLabel {font-size: 12pt;}");
+	subTitle->setAlignment(Qt::AlignCenter);
 	subTitle->setWordWrap(true);
 	layout->addWidget(subTitle);
 
@@ -50,21 +52,51 @@ FileCollectionCheck::FileCollectionCheck(QWidget *parent,
 		fileList->addItem(fileName.c_str());
 	}
 
+	fileList->setStyleSheet("QListWidget {"
+				"border: none;"
+				"background: #151515;"
+				"border-radius: 8px;"
+				"}"
+				"QListWidget::item {"
+				"border: none;"
+				"padding: 8px;"
+				"background-color: #232323;"
+				"border-radius: 8px;"
+				"}"
+				"QListWidget::item:selected {"
+				"border: none;"
+				"}");
+	fileList->setSpacing(4);
+	fileList->setSelectionMode(QAbstractItemView::NoSelection);
+	fileList->setFocusPolicy(Qt::FocusPolicy::NoFocus);
+
 	layout->addWidget(fileList);
 
 	QHBoxLayout *buttons = new QHBoxLayout(this);
-	QPushButton *cancelButton = new QPushButton(this);
-	cancelButton->setText("Cancel");
-	connect(cancelButton, &QPushButton::released, this,
-		[this]() { emit cancelPressed(); });
 
 	QPushButton *continueButton = new QPushButton(this);
 	continueButton->setText("Next");
+	continueButton->setStyleSheet("QPushButton {"
+				      "font-size: 12pt;"
+				      "padding: 8px 36px 8px 36px;"
+				      "background-color: #204cfe;"
+				      "border-radius: 8px;"
+				      "border: none;"
+				      "}"
+				      "QPushButton:hover {"
+				      "background-color: #193ed4;"
+				      "}"
+				      "QPushButton:disabled {"
+				      "background-color: #1c1c1c;"
+				      "border: none;"
+				      "}");
 	connect(continueButton, &QPushButton::released, this,
 		[this]() { emit continuePressed(); });
-	buttons->addWidget(cancelButton);
-	buttons->addWidget(continueButton);
 
+	auto spacer = new QWidget(this);
+	spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+	buttons->addWidget(spacer);
+	buttons->addWidget(continueButton);
 	layout->addLayout(buttons);
 }
 
@@ -76,40 +108,43 @@ VideoSourceLabels::VideoSourceLabels(QWidget *parent,
 
 	std::string titleText = "Video Source Labels";
 	auto title = new QLabel(this);
+	title->setAlignment(Qt::AlignCenter);
 	title->setStyleSheet("QLabel{ font-size: 18pt; font-weight: bold;}");
 	title->setText(titleText.c_str());
+	layout->setSpacing(20);
 	layout->addWidget(title);
 
 	auto description = new QLabel(this);
-	description->setText(
-		"Please add a description for each video capture source in your scene collection. These descriptions will help the user set up their video capture devices when they install the bundle.");
+	description->setText("Now go ahead and label your video sources.");
 	description->setStyleSheet(
-		"QLabel {font-size: 11pt; font-style: italic;}");
-	description->setWordWrap(true);
+		"QLabel {font-size: 12pt; margin-bottom: 10px;}");
+	description->setAlignment(Qt::AlignCenter);
 	layout->addWidget(description);
 
 	// Declare continue button so we can enable/disable it
 	// on keypress in label list.
 	auto continueButton = new QPushButton(this);
-
+	auto formLayout = new QVBoxLayout();
+	formLayout->setSpacing(4);
 	if (devices.size() > 0) {
-		auto formGrid = new QGridLayout(this);
-		formGrid->setColumnMinimumWidth(0, 200);
-		auto nameHeader = new QLabel("Source Name", this);
-		nameHeader->setStyleSheet(
-			"QLabel { font-size: 14pt; font-weight: bold; text-decoration: underline;}");
-		auto descriptionHeader = new QLabel("Description", this);
-		descriptionHeader->setStyleSheet(
-			"QLabel { font-size: 14pt; font-weight: bold; text-decoration: underline;}");
-		formGrid->addWidget(nameHeader, 0, 0);
-		formGrid->addWidget(descriptionHeader, 0, 1);
 		continueButton->setDisabled(true);
 		int i = 1;
 		for (auto const &[key, val] : devices) {
 			auto label = new QLabel(val.c_str(), this);
+			label->setStyleSheet(
+				"QLabel {font-size: 12pt; padding: 12px 0px 8px 0px; }");
+
 			auto field = new QLineEdit(this);
-			formGrid->addWidget(label, i, 0);
-			formGrid->addWidget(field, i, 1);
+			field->setPlaceholderText("Description text goes here");
+			field->setStyleSheet("QLineEdit {"
+					     "background-color: #151515;"
+					     "border: none;"
+					     "padding: 12px;"
+					     "font-size: 11pt;"
+					     "border-radius: 8px;"
+					     "}");
+			formLayout->addWidget(label);
+			formLayout->addWidget(field);
 			_labels[val] = "";
 			connect(field, &QLineEdit::textChanged, this,
 				[this, val,
@@ -124,9 +159,8 @@ VideoSourceLabels::VideoSourceLabels(QWidget *parent,
 					}
 					continueButton->setDisabled(!enable);
 				});
-			i += 1;
 		}
-		layout->addLayout(formGrid);
+		layout->addLayout(formLayout);
 	} else {
 		continueButton->setDisabled(false);
 		auto topSpace = new QWidget(this);
@@ -145,15 +179,44 @@ VideoSourceLabels::VideoSourceLabels(QWidget *parent,
 
 	layout->addWidget(spacer);
 
+	auto buttonSpacer = new QWidget(this);
+	buttonSpacer->setSizePolicy(QSizePolicy::Expanding,
+				    QSizePolicy::Preferred);
 	auto buttons = new QHBoxLayout(this);
 	auto backButton = new QPushButton(this);
 	backButton->setText("Back");
+	backButton->setStyleSheet("QPushButton {"
+				  "font-size: 12pt;"
+				  "padding: 8px 36px 8px 36px;"
+				  "background-color: #204cfe;"
+				  "border-radius: 8px;"
+				  "border: none;"
+				  "}"
+				  "QPushButton:hover {"
+				  "background-color: #193ed4;"
+				  "}");
 	connect(backButton, &QPushButton::released, this,
 		[this]() { emit backPressed(); });
 
-	continueButton->setText("Continue");
+	continueButton->setText("Next");
+	continueButton->setStyleSheet("QPushButton {"
+				      "font-size: 12pt;"
+				      "padding: 8px 36px 8px 36px;"
+				      "background-color: #204cfe;"
+				      "border-radius: 8px;"
+				      "border: none;"
+				      "}"
+				      "QPushButton:hover {"
+				      "background-color: #193ed4;"
+				      "}"
+				      "QPushButton:disabled {"
+				      "background-color: #1c1c1c;"
+				      "border: none;"
+				      "}");
+
 	connect(continueButton, &QPushButton::released, this,
 		[this]() { emit continuePressed(); });
+	buttons->addWidget(buttonSpacer);
 	buttons->addWidget(backButton);
 	buttons->addWidget(continueButton);
 	layout->addLayout(buttons);
@@ -168,14 +231,16 @@ RequiredPlugins::RequiredPlugins(QWidget *parent,
 	std::string titleText = "Required Plug-ins";
 	auto title = new QLabel(this);
 	title->setText(titleText.c_str());
+	title->setAlignment(Qt::AlignCenter);
 	title->setStyleSheet("QLabel{ font-size: 18pt; font-weight: bold;}");
 	layout->addWidget(title);
+	layout->setSpacing(20);
 
 	auto subTitle = new QLabel(this);
 	subTitle->setText(
-		"Please select all of the plugins that are required to use this bundle.");
-	subTitle->setStyleSheet(
-		"QLabel{ font-size: 11pt; font-style: italic; }");
+		"Please select all plugins that are required to use this scene collection.");
+	subTitle->setStyleSheet("QLabel {font-size: 12pt;}");
+	subTitle->setAlignment(Qt::AlignCenter);
 	subTitle->setWordWrap(true);
 	layout->addWidget(subTitle);
 
@@ -183,6 +248,36 @@ RequiredPlugins::RequiredPlugins(QWidget *parent,
 		auto pluginList = new QListWidget(this);
 		pluginList->setSizePolicy(QSizePolicy::Preferred,
 					  QSizePolicy::Expanding);
+		pluginList->setSpacing(8);
+		pluginList->setStyleSheet("QListWidget {"
+					  "border: none;"
+					  "background: #151515;"
+					  "border-radius: 8px;"
+					  "}"
+					  "QListWidget::item {"
+					  "border: none;"
+					  "padding: 8px;"
+					  "background-color: #232323;"
+					  "border-radius: 8px;"
+					  "}"
+					  "QListWidget::item:selected {"
+					  "border: none;"
+					  "}"
+					  "QListWidget::indicator {"
+					  "width: 18px;"
+					  "height: 18px;"
+					  "border: 2px solid #555555;"
+					  "border-radius: 4px;"
+					  "background: none;"
+					  "}"
+					  "QListWidget::indicator:checked {"
+					  "background-color: #204cfe;"
+					  "border: 2px solid #204cfe;"
+					  "}"
+					  "QListWidget::indicator:unchecked {"
+					  "background: none;"
+					  "}");
+
 		for (auto module : installedPlugins) {
 			std::string filename = obs_get_module_file_name(module);
 			_pluginStatus[filename] = false;
@@ -217,21 +312,50 @@ RequiredPlugins::RequiredPlugins(QWidget *parent,
 		layout->addWidget(noPlugins);
 	}
 
-	auto spacer = new QWidget(this);
-	spacer->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
+	//auto spacer = new QWidget(this);
+	//spacer->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
 
-	layout->addWidget(spacer);
+	//layout->addWidget(spacer);
 
 	auto buttons = new QHBoxLayout(this);
+	auto buttonSpacer = new QWidget(this);
+	buttonSpacer->setSizePolicy(QSizePolicy::Expanding,
+				    QSizePolicy::Preferred);
 	auto backButton = new QPushButton(this);
 	backButton->setText("Back");
+	backButton->setStyleSheet("QPushButton {"
+				  "font-size: 12pt;"
+				  "padding: 8px 36px 8px 36px;"
+				  "background-color: #204cfe;"
+				  "border-radius: 8px;"
+				  "border: none;"
+				  "}"
+				  "QPushButton:hover {"
+				  "background-color: #193ed4;"
+				  "}");
 	connect(backButton, &QPushButton::released, this,
 		[this]() { emit backPressed(); });
 
 	auto continueButton = new QPushButton(this);
-	continueButton->setText("Save Bundle As...");
+	continueButton->setText("Next");
+	continueButton->setStyleSheet("QPushButton {"
+				      "font-size: 12pt;"
+				      "padding: 8px 36px 8px 36px;"
+				      "background-color: #204cfe;"
+				      "border-radius: 8px;"
+				      "border: none;"
+				      "}"
+				      "QPushButton:hover {"
+				      "background-color: #193ed4;"
+				      "}"
+				      "QPushButton:disabled {"
+				      "background-color: #1c1c1c;"
+				      "border: none;"
+				      "}");
+
 	connect(continueButton, &QPushButton::released, this,
 		[this]() { emit continuePressed(); });
+	buttons->addWidget(buttonSpacer);
 	buttons->addWidget(backButton);
 	buttons->addWidget(continueButton);
 	layout->addLayout(buttons);
@@ -287,6 +411,9 @@ StreamPackageExportWizard::StreamPackageExportWizard(QWidget *parent)
 	  _steps(nullptr)
 {
 	obs_enum_modules(StreamPackageExportWizard::AddModule, this);
+	setWindowTitle("Elgato Deep Linking Export");
+	setStyleSheet("background-color: #232323");
+	std::string homeDir = QDir::homePath().toStdString();
 
 	char *currentCollection = obs_frontend_get_current_scene_collection();
 	std::string collectionName = currentCollection;
@@ -301,7 +428,6 @@ StreamPackageExportWizard::StreamPackageExportWizard(QWidget *parent)
 
 	QVBoxLayout *layout = new QVBoxLayout(this);
 	_steps = new QStackedWidget(this);
-
 	// Step 1- check the media files to be bundled (step index: 0)
 	auto fileCheck = new FileCollectionCheck(this, fileList);
 	connect(fileCheck, &FileCollectionCheck::continuePressed, this,
