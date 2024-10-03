@@ -44,7 +44,8 @@ const std::map<std::string, std::string> extensionMap{
 	{".mov", "/video/"},      {".mp4", "/video/"},
 	{".mkv", "/video/"},      {".mp3", "/audio/"},
 	{".wav", "/aduio/"},      {".effect", "/shaders/"},
-	{".shader", "/shaders/"}, {".hlsl", "/shaders/"}};
+	{".shader", "/shaders/"}, {".hlsl", "/shaders/"},
+	{".lua", "/scripts/"}, {".py", "/scripts/"}};
 
 // Filter IDs of incompatible filter types, e.g. filters
 // that require external libraries or executables.
@@ -86,6 +87,10 @@ bool SceneBundle::FromCollection(std::string collection_name)
 
 	bfree(collection_str);
 
+	for (auto& script : _collection["modules"]["scripts-tool"]) {
+		_ProcessJsonObj(script);
+	}
+
 	for (auto &source : _collection["sources"]) {
 		_ProcessJsonObj(source);
 	}
@@ -105,13 +110,18 @@ bool SceneBundle::FromElgatoCloudFile(std::string filePath,
 	clear_dir(this_pack_dir);
 
 	// TODO: Probe for a valid manifest.json and collection.json before extraction
-
 	file.extractall(packPath);
 	return true;
 }
 
+std::string SceneBundle::ExtractBundleInfo(std::string filePath)
+{
+	miniz_cpp::zip_file file(filePath);
+	return file.read("bundle_info.json");
+}
+
 void SceneBundle::ToCollection(std::string collection_name,
-			       std::string videoSettings,
+			       std::map<std::string, std::string> videoSettings,
 			       std::string audioSettings, QDialog *dialog)
 {
 	dialog->close();
@@ -128,8 +138,10 @@ void SceneBundle::ToCollection(std::string collection_name,
 	std::string word = _packPath + "/";
 	replace_all(collectionData, needle, word);
 
-	needle = "\"{VIDEO_CAPTURE_SETTINGS}\"";
-	replace_all(collectionData, needle, videoSettings);
+	for (auto const& [sourceName, settings] : videoSettings) {
+		needle = "\"{" + sourceName +"}\"";
+		replace_all(collectionData, needle, settings);
+	}
 
 	needle = "\"{AUDIO_CAPTURE_SETTINGS}\"";
 	replace_all(collectionData, needle, audioSettings);
@@ -271,10 +283,12 @@ void SceneBundle::_ProcessJsonObj(nlohmann::json &obj)
 {
 	std::string settingsRepalce = "";
 	std::string idKey = "id";
+	std::string nameKey = "name";
 	if (obj.contains(std::string{idKey})) {
+		std::string name = obj[nameKey];
 		if (obj[idKey] == "dshow_input") {
 			obj.erase("settings");
-			obj["settings"] = "{VIDEO_CAPTURE_SETTINGS}";
+			obj["settings"] = "{"+name+"}";
 			_videoCaptureDevices[obj["uuid"]] = obj["name"];
 		} else if (obj[idKey] == "wasapi_input_capture") {
 			obj.erase("settings");

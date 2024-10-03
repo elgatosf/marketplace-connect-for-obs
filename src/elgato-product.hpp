@@ -36,6 +36,7 @@ public:
 	std::string variantId;
 
 	ElgatoProduct(nlohmann::json &productData);
+	ElgatoProduct(std::string name);
 	inline void SetProductItem(ElgatoProductItem *item)
 	{
 		_productItem = item;

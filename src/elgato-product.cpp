@@ -43,6 +43,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 namespace elgatocloud {
 
 ElgatoProduct::ElgatoProduct(nlohmann::json &productData)
+	: _fileSize(0)
 {
 	thumbnailPath = obs_get_module_data_path(obs_current_module());
 	thumbnailPath += "/image_cache";
@@ -70,6 +71,14 @@ ElgatoProduct::ElgatoProduct(nlohmann::json &productData)
 		obs_log(LOG_INFO, "Thumbnail Exists %s", filename.c_str());
 		_thumbnailReady = true;
 	}
+}
+
+ElgatoProduct::ElgatoProduct(std::string collectionName)
+	: name(collectionName), thumbnailUrl(""), variantId(""), _fileSize(0)
+{
+	thumbnailPath = obs_get_module_data_path(obs_current_module());
+	thumbnailPath += "/images/thumbnail-holder.png";
+	_thumbnailReady = true;
 }
 
 void ElgatoProduct::DownloadProduct()

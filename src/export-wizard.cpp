@@ -1,6 +1,8 @@
 #include <algorithm>
 
 #include "export-wizard.hpp"
+#include "elgato-styles.hpp"
+#include "plugins.hpp"
 #include <QMainWindow>
 #include <QVBoxLayout>
 #include <QPushButton>
@@ -52,20 +54,7 @@ FileCollectionCheck::FileCollectionCheck(QWidget *parent,
 		fileList->addItem(fileName.c_str());
 	}
 
-	fileList->setStyleSheet("QListWidget {"
-				"border: none;"
-				"background: #151515;"
-				"border-radius: 8px;"
-				"}"
-				"QListWidget::item {"
-				"border: none;"
-				"padding: 8px;"
-				"background-color: #232323;"
-				"border-radius: 8px;"
-				"}"
-				"QListWidget::item:selected {"
-				"border: none;"
-				"}");
+	fileList->setStyleSheet(EListStyle);
 	fileList->setSpacing(4);
 	fileList->setSelectionMode(QAbstractItemView::NoSelection);
 	fileList->setFocusPolicy(Qt::FocusPolicy::NoFocus);
@@ -76,20 +65,7 @@ FileCollectionCheck::FileCollectionCheck(QWidget *parent,
 
 	QPushButton *continueButton = new QPushButton(this);
 	continueButton->setText("Next");
-	continueButton->setStyleSheet("QPushButton {"
-				      "font-size: 12pt;"
-				      "padding: 8px 36px 8px 36px;"
-				      "background-color: #204cfe;"
-				      "border-radius: 8px;"
-				      "border: none;"
-				      "}"
-				      "QPushButton:hover {"
-				      "background-color: #193ed4;"
-				      "}"
-				      "QPushButton:disabled {"
-				      "background-color: #1c1c1c;"
-				      "border: none;"
-				      "}");
+	continueButton->setStyleSheet(EPushButtonStyle);
 	connect(continueButton, &QPushButton::released, this,
 		[this]() { emit continuePressed(); });
 
@@ -109,7 +85,7 @@ VideoSourceLabels::VideoSourceLabels(QWidget *parent,
 	std::string titleText = "Video Source Labels";
 	auto title = new QLabel(this);
 	title->setAlignment(Qt::AlignCenter);
-	title->setStyleSheet("QLabel{ font-size: 18pt; font-weight: bold;}");
+	title->setStyleSheet(ETitleStyle);
 	title->setText(titleText.c_str());
 	layout->setSpacing(20);
 	layout->addWidget(title);
@@ -136,13 +112,7 @@ VideoSourceLabels::VideoSourceLabels(QWidget *parent,
 
 			auto field = new QLineEdit(this);
 			field->setPlaceholderText("Description text goes here");
-			field->setStyleSheet("QLineEdit {"
-					     "background-color: #151515;"
-					     "border: none;"
-					     "padding: 12px;"
-					     "font-size: 11pt;"
-					     "border-radius: 8px;"
-					     "}");
+			field->setStyleSheet(ELineEditStyle);
 			formLayout->addWidget(label);
 			formLayout->addWidget(field);
 			_labels[val] = "";
@@ -185,34 +155,12 @@ VideoSourceLabels::VideoSourceLabels(QWidget *parent,
 	auto buttons = new QHBoxLayout(this);
 	auto backButton = new QPushButton(this);
 	backButton->setText("Back");
-	backButton->setStyleSheet("QPushButton {"
-				  "font-size: 12pt;"
-				  "padding: 8px 36px 8px 36px;"
-				  "background-color: #204cfe;"
-				  "border-radius: 8px;"
-				  "border: none;"
-				  "}"
-				  "QPushButton:hover {"
-				  "background-color: #193ed4;"
-				  "}");
+	backButton->setStyleSheet(EPushButtonStyle);
 	connect(backButton, &QPushButton::released, this,
 		[this]() { emit backPressed(); });
 
 	continueButton->setText("Next");
-	continueButton->setStyleSheet("QPushButton {"
-				      "font-size: 12pt;"
-				      "padding: 8px 36px 8px 36px;"
-				      "background-color: #204cfe;"
-				      "border-radius: 8px;"
-				      "border: none;"
-				      "}"
-				      "QPushButton:hover {"
-				      "background-color: #193ed4;"
-				      "}"
-				      "QPushButton:disabled {"
-				      "background-color: #1c1c1c;"
-				      "border: none;"
-				      "}");
+	continueButton->setStyleSheet(EPushButtonStyle);
 
 	connect(continueButton, &QPushButton::released, this,
 		[this]() { emit continuePressed(); });
@@ -226,13 +174,25 @@ RequiredPlugins::RequiredPlugins(QWidget *parent,
 				 std::vector<obs_module_t *> installedPlugins)
 	: QWidget(parent)
 {
-	QVBoxLayout *layout = new QVBoxLayout(this);
+	PluginInfo pi;
 
+	auto installed = pi.installed();
+	// Set up the paths for checked/unchecked images.
+	// TODO: Refactor this, there must be a better way.
+	std::string imagesPath = obs_get_module_data_path(obs_current_module());
+	imagesPath += "/images/";
+	std::string checkedImage = imagesPath + "checkbox_checked.png";
+	std::string uncheckedImage = imagesPath + "checkbox_unchecked.png";
+	QString checklistStyle = EChecklistStyleTemplate;
+	checklistStyle.replace("${checked-img}", checkedImage.c_str());
+	checklistStyle.replace("${unchecked-img}", uncheckedImage.c_str());
+
+	QVBoxLayout *layout = new QVBoxLayout(this);
 	std::string titleText = "Required Plug-ins";
 	auto title = new QLabel(this);
 	title->setText(titleText.c_str());
 	title->setAlignment(Qt::AlignCenter);
-	title->setStyleSheet("QLabel{ font-size: 18pt; font-weight: bold;}");
+	title->setStyleSheet(ETitleStyle);
 	layout->addWidget(title);
 	layout->setSpacing(20);
 
@@ -244,44 +204,19 @@ RequiredPlugins::RequiredPlugins(QWidget *parent,
 	subTitle->setWordWrap(true);
 	layout->addWidget(subTitle);
 
-	if (installedPlugins.size() > 0) {
+	if (installed.size() > 0) {
 		auto pluginList = new QListWidget(this);
 		pluginList->setSizePolicy(QSizePolicy::Preferred,
 					  QSizePolicy::Expanding);
 		pluginList->setSpacing(8);
-		pluginList->setStyleSheet("QListWidget {"
-					  "border: none;"
-					  "background: #151515;"
-					  "border-radius: 8px;"
-					  "}"
-					  "QListWidget::item {"
-					  "border: none;"
-					  "padding: 8px;"
-					  "background-color: #232323;"
-					  "border-radius: 8px;"
-					  "}"
-					  "QListWidget::item:selected {"
-					  "border: none;"
-					  "}"
-					  "QListWidget::indicator {"
-					  "width: 18px;"
-					  "height: 18px;"
-					  "border: 2px solid #555555;"
-					  "border-radius: 4px;"
-					  "background: none;"
-					  "}"
-					  "QListWidget::indicator:checked {"
-					  "background-color: #204cfe;"
-					  "border: 2px solid #204cfe;"
-					  "}"
-					  "QListWidget::indicator:unchecked {"
-					  "background: none;"
-					  "}");
+		pluginList->setStyleSheet(checklistStyle);
+		pluginList->setSelectionMode(QAbstractItemView::NoSelection);
+		pluginList->setFocusPolicy(Qt::FocusPolicy::NoFocus);
 
-		for (auto module : installedPlugins) {
-			std::string filename = obs_get_module_file_name(module);
-			_pluginStatus[filename] = false;
-			pluginList->addItem(filename.c_str());
+		for (auto module : installed) {
+			
+			_pluginStatus[module.name] = std::pair<bool, std::string>(false, module.files[0]);
+			pluginList->addItem(module.name.c_str());
 		}
 
 		QListWidgetItem *item = nullptr;
@@ -295,7 +230,7 @@ RequiredPlugins::RequiredPlugins(QWidget *parent,
 			[this](QListWidgetItem *item) {
 				std::string filename =
 					item->text().toStdString();
-				_pluginStatus[filename] = item->checkState() ==
+				_pluginStatus[filename].first = item->checkState() ==
 							  Qt::Checked;
 			});
 
@@ -323,35 +258,13 @@ RequiredPlugins::RequiredPlugins(QWidget *parent,
 				    QSizePolicy::Preferred);
 	auto backButton = new QPushButton(this);
 	backButton->setText("Back");
-	backButton->setStyleSheet("QPushButton {"
-				  "font-size: 12pt;"
-				  "padding: 8px 36px 8px 36px;"
-				  "background-color: #204cfe;"
-				  "border-radius: 8px;"
-				  "border: none;"
-				  "}"
-				  "QPushButton:hover {"
-				  "background-color: #193ed4;"
-				  "}");
+	backButton->setStyleSheet(EPushButtonStyle);
 	connect(backButton, &QPushButton::released, this,
 		[this]() { emit backPressed(); });
 
 	auto continueButton = new QPushButton(this);
 	continueButton->setText("Next");
-	continueButton->setStyleSheet("QPushButton {"
-				      "font-size: 12pt;"
-				      "padding: 8px 36px 8px 36px;"
-				      "background-color: #204cfe;"
-				      "border-radius: 8px;"
-				      "border: none;"
-				      "}"
-				      "QPushButton:hover {"
-				      "background-color: #193ed4;"
-				      "}"
-				      "QPushButton:disabled {"
-				      "background-color: #1c1c1c;"
-				      "border: none;"
-				      "}");
+	continueButton->setStyleSheet(EPushButtonStyle);
 
 	connect(continueButton, &QPushButton::released, this,
 		[this]() { emit continuePressed(); });
@@ -368,7 +281,7 @@ ExportComplete::ExportComplete(QWidget *parent) : QWidget(parent)
 	std::string titleText = "Scene Bundle Exported";
 	auto title = new QLabel(this);
 	title->setText(titleText.c_str());
-	title->setStyleSheet("QLabel{ font-size: 18pt; font-weight: bold;}");
+	title->setStyleSheet(ETitleStyle);
 	layout->addWidget(title);
 
 	std::string subText =
@@ -388,6 +301,7 @@ ExportComplete::ExportComplete(QWidget *parent) : QWidget(parent)
 
 	auto closeButton = new QPushButton(this);
 	closeButton->setText("Close");
+	closeButton->setStyleSheet(EPushButtonStyle);
 	connect(closeButton, &QPushButton::released, this,
 		[this]() { emit closePressed(); });
 
@@ -399,8 +313,8 @@ std::vector<std::string> RequiredPlugins::RequiredPluginList()
 {
 	std::vector<std::string> reqList;
 	for (auto const &[key, val] : _pluginStatus) {
-		if (val) {
-			reqList.push_back(key);
+		if (val.first) {
+			reqList.push_back(val.second);
 		}
 	}
 	return reqList;

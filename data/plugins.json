@@ -1,0 +1,151 @@
+{
+    "supported_plugins": [
+        {
+            "name": "Move",
+            "url": "https://obsproject.com/forum/resources/move.913/",
+            "files" :[
+                "move-transition.dll"
+            ]
+        },
+        {
+            "name": "Replay Source",
+            "url": "https://obsproject.com/forum/resources/replay-source.686/",
+            "files" :[
+                "replay-source.dll"
+            ]
+        },
+        {
+            "name": "Source Clone",
+            "url": "https://obsproject.com/forum/resources/source-clone.1632/",
+            "files" :[
+                "source-clone.dll"
+            ]
+        },
+        {
+            "name": "obs-shaderfilter",
+            "url": "https://obsproject.com/forum/resources/obs-shaderfilter.1736/",
+            "files" :[
+                "obs-shaderfilter"
+            ]
+        },
+        {
+            "name": "Downstream Keyer",
+            "url": "https://obsproject.com/forum/resources/downstream-keyer.1254/",
+            "files" :[
+                "downstream-keyer.dll"
+            ]
+        },
+        {
+            "name": "Browser Transition",
+            "url": "https://obsproject.com/forum/resources/browser-transition.1653/",
+            "files" :[
+                "browser-transition.dll"
+            ]
+        },
+        {
+            "name": "Recursion Effect",
+            "url": "https://obsproject.com/forum/resources/recursion-effect.1008/",
+            "files" :[
+                "recursion-effect.dll"
+            ]
+        },
+        {
+            "name": "3D Effect",
+            "url": "https://obsproject.com/forum/resources/3d-effect.1692/",
+            "files" :[
+                "3d-effect.dll"
+            ]
+        },
+        {
+            "name": "Gradient Source",
+            "url": "https://obsproject.com/forum/resources/gradient-source.1172/",
+            "files" :[
+                "gradient-source.dll"
+            ]
+        },
+        {
+            "name": "Dynamic Delay",
+            "url": "https://obsproject.com/forum/resources/dynamic-delay.1035/",
+            "files" :[
+                "dynamic-delay.dll"
+            ]
+        },
+        {
+            "name": "Time Warp Scan",
+            "url": "https://obsproject.com/forum/resources/time-warp-scan.1167/",
+            "files" :[
+                "time-warp-scan.dll"
+            ]
+        },
+        {
+            "name": "Freeze Filter",
+            "url": "https://obsproject.com/forum/resources/freeze-filter.950/",
+            "files" :[
+                "freeze-filter.dll"
+            ]
+        },
+        {
+            "name": "Composite Blur",
+            "url": "https://obsproject.com/forum/resources/composite-blur.1780/",
+            "files" :[
+                "obs-composite-blur.dll"
+            ]
+        },
+        {
+            "name": "Stroke Glow Shadow",
+            "url": "https://obsproject.com/forum/resources/stroke-glow-shadow.1800/",
+            "files" :[
+                "obs-stroke-glow-shadow.dll"
+            ]
+        },
+        {
+            "name": "Advanced Masks",
+            "url": "https://obsproject.com/forum/resources/advanced-masks.1856/",
+            "files" :[
+                "obs-advanced-masks.dll"
+            ]
+        },
+        {
+            "name": "Noise",
+            "url": "https://obsproject.com/forum/resources/noise.1916/",
+            "files" :[
+                "obs-noise.dll"
+            ]
+        },
+        {
+            "name": "Retro Effects",
+            "url": "https://obsproject.com/forum/resources/retro-effects.1972/",
+            "files" :[
+                "obs-retro-effects.dll"
+            ]
+        },
+        {
+            "name": "Advanced Scene Switcher",
+            "url": "https://obsproject.com/forum/resources/advanced-scene-switcher.395/",
+            "files" :[
+                "advanced-scene-switcher.dll"
+            ]
+        },
+        {
+            "name": "Scene as Transition",
+            "url": "https://obsproject.com/forum/resources/scene-as-transition.1704/",
+            "files" :[
+                "scene-as-transition.dll"
+            ]
+        },
+        {
+            "name": "Pixel Art",
+            "url": "https://obsproject.com/forum/resources/pixel-art.1789/",
+            "files" :[
+                "pixel-art.dll"
+            ]
+        },
+        {
+            "name": "Waveform",
+            "url": "https://obsproject.com/forum/resources/waveform.1423/",
+            "files" :[
+                "waveform.dll"
+            ]
+        }
+    ]
+}

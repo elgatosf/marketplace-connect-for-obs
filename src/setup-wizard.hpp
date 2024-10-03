@@ -18,6 +18,10 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 
 #pragma once
 
+#include <map>
+#include <string>
+#include <vector>
+
 #include <obs-module.h>
 #include <obs-frontend-api.h>
 #include <util/config-file.h>
@@ -29,8 +33,12 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <QComboBox>
 #include <QStackedWidget>
 
+#include <nlohmann/json.hpp>
+
 #include "elgato-cloud-config.hpp"
+#include "elgato-widgets.hpp"
 #include "qt-display.hpp"
+#include "plugins.hpp"
 
 namespace elgatocloud {
 
@@ -46,7 +54,7 @@ enum class InstallTypes {
 struct Setup {
 	InstallTypes installType;
 	std::string collectionName;
-	std::string videoSettings;
+	std::map<std::string, std::string> videoSettings;
 	std::string audioSettings;
 };
 
@@ -58,6 +66,19 @@ public:
 
 private:
 	QLabel *_thumbnail(std::string thumbnailPath);
+};
+
+class MissingPlugins : public QWidget {
+	Q_OBJECT
+public:
+	MissingPlugins(QWidget* parent, std::string name,
+		std::string thumbnailPath, std::vector<PluginDetails>& missing);
+};
+
+class MissingPluginItem : public QWidget {
+	Q_OBJECT
+public:
+	MissingPluginItem(QWidget* parent, std::string label, std::string url);
 };
 
 class InstallType : public QWidget {
@@ -83,41 +104,57 @@ signals:
 	void proceedPressed(std::string name);
 };
 
-class AudioVideoSetup : public QWidget {
+class VideoSetup : public QWidget {
 	Q_OBJECT
 public:
-	AudioVideoSetup(QWidget *parent, std::string name,
-			std::string thumbnailPath);
-	~AudioVideoSetup();
+	VideoSetup(QWidget *parent, std::string name,
+			std::string thumbnailPath,
+			std::map<std::string, std::string> videoSourceLabels);
+	~VideoSetup();
+
+	void OpenConfigVideoSource();
+	static void DefaultVideoUpdated(void *data, calldata_t *params);
+
+private:
+	obs_source_t *_videoCaptureSource = nullptr;
+	OBSQTDisplay *_videoPreview = nullptr;
+	QComboBox *_videoSources = nullptr;
+	std::vector<std::string> _videoSourceIds;
+	std::vector<VideoCaptureSourceSelector*> _videoSelectors;
+
+signals:
+	void proceedPressed(std::map<std::string, std::string> settings);
+	void backPressed();
+};
+
+class AudioSetup : public QWidget {
+	Q_OBJECT
+public:
+	AudioSetup(QWidget* parent, std::string name,
+		std::string thumbnailPath);
+	~AudioSetup();
 
 	void SetupVolMeter();
-	void OpenConfigVideoSource();
 	void OpenConfigAudioSource();
-	static void DrawVideoPreview(void *data, uint32_t cx, uint32_t cy);
 
-	static void OBSVolumeLevel(void *data,
-				   const float magnitude[MAX_AUDIO_CHANNELS],
-				   const float peak[MAX_AUDIO_CHANNELS],
-				   const float inputPeak[MAX_AUDIO_CHANNELS]);
+	static void OBSVolumeLevel(void* data,
+		const float magnitude[MAX_AUDIO_CHANNELS],
+		const float peak[MAX_AUDIO_CHANNELS],
+		const float inputPeak[MAX_AUDIO_CHANNELS]);
 
-	static void DefaultVideoUpdated(void *data, calldata_t *params);
-	static void DefaultAudioUpdated(void *data, calldata_t *params);
+	static void DefaultAudioUpdated(void* data, calldata_t* params);
 
 private:
 	void _setupTempSources();
-	SimpleVolumeMeter *_levelsWidget = nullptr;
-	obs_source_t *_videoCaptureSource = nullptr;
-	obs_source_t *_audioCaptureSource = nullptr;
-	obs_volmeter_t *_volmeter = nullptr;
-	OBSQTDisplay *_videoPreview = nullptr;
-	QComboBox *_videoSources = nullptr;
-	QComboBox *_audioSources = nullptr;
-	std::vector<std::string> _videoSourceIds;
+	SimpleVolumeMeter* _levelsWidget = nullptr;
+	obs_source_t* _audioCaptureSource = nullptr;
+	obs_volmeter_t* _volmeter = nullptr;
+	QComboBox* _audioSources = nullptr;
 	std::vector<std::string> _audioSourceIds;
 
 signals:
-	void proceedPressed(std::string videoSettings,
-			    std::string audioSettings);
+	void proceedPressed(std::string settings);
+	void backPressed();
 };
 
 class StreamPackageSetupWizard : public QDialog {
@@ -130,6 +167,8 @@ public:
 	void install();
 
 private:
+	void _buildMissingPluginsUI(std::vector<PluginDetails>& missing);
+	void _buildSetupUI(std::map<std::string, std::string>& videoSourceLabels);
 	std::string _productName;
 	std::string _thumbnailPath;
 	std::string _filename;

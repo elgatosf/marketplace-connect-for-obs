@@ -23,6 +23,9 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <QHBoxLayout>
 #include <QVBoxLayout>
 #include <QPushButton>
+#include <QListWidget>
+#include <QScrollArea>
+#include <QDesktopServices>
 #include <QPixmap>
 #include <QPainter>
 #include <QString>
@@ -33,6 +36,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <QThread>
 #include <QMetaObject>
 
+#include "elgato-styles.hpp"
 #include "plugin-support.h"
 #include "setup-wizard.hpp"
 #include "elgato-product.hpp"
@@ -54,27 +58,24 @@ StreamPackageHeader::StreamPackageHeader(QWidget *parent, std::string name,
 	: QWidget(parent)
 {
 	QVBoxLayout *layout = new QVBoxLayout(this);
-	QHBoxLayout *titleLayout = new QHBoxLayout(this);
+	layout->setSpacing(16);
+	layout->setContentsMargins(0, 0, 0, 0);
 	QLabel *nameLabel = new QLabel(this);
 	nameLabel->setText(name.c_str());
 	nameLabel->setSizePolicy(QSizePolicy::Expanding,
 				 QSizePolicy::Preferred);
-	QLabel *installType = new QLabel(this);
-	installType->setText("Stream Package");
-	installType->setSizePolicy(QSizePolicy::Expanding,
-				   QSizePolicy::Preferred);
-	installType->setAlignment(Qt::AlignRight);
-	titleLayout->addWidget(nameLabel);
-	titleLayout->addWidget(installType);
-	layout->addLayout(titleLayout);
+	nameLabel->setStyleSheet("QLabel {font-size: 18pt;}");
+	layout->addWidget(nameLabel);
 	if (thumbnailPath != "") {
-		layout->addWidget(_thumbnail(thumbnailPath));
+		auto thumbnail = _thumbnail(thumbnailPath);
+		thumbnail->setAlignment(Qt::AlignCenter);
+		layout->addWidget(thumbnail);
 	}
 }
 
 QLabel *StreamPackageHeader::_thumbnail(std::string thumbnailPath)
 {
-	int targetHeight = 120;
+	int targetHeight = 140;
 	int cornerRadius = 8;
 
 	QPixmap img;
@@ -103,6 +104,70 @@ QLabel *StreamPackageHeader::_thumbnail(std::string thumbnailPath)
 	return labelImg;
 }
 
+MissingPlugins::MissingPlugins(QWidget* parent, std::string name,
+	std::string thumbnailPath, std::vector<PluginDetails>& missing)
+	: QWidget(parent)
+{
+	QVBoxLayout* layout = new QVBoxLayout(this);
+	StreamPackageHeader* header =
+		new StreamPackageHeader(parent, name);
+	layout->addWidget(header);
+	QLabel* title = new QLabel(this);
+	title->setText("Missing Plugins");
+	title->setAlignment(Qt::AlignCenter);
+	title->setStyleSheet("QLabel {font-size: 14pt;}");
+	layout->addWidget(title);
+
+	QLabel* subTitle = new QLabel(this);
+	subTitle->setText(
+		"The following plugins are required to use this scene collection, "
+		"but are not installed. Please install these plugins, restart "
+		"OBS and attempt to install again.");
+	subTitle->setAlignment(Qt::AlignCenter);
+	subTitle->setWordWrap(true);
+	subTitle->setStyleSheet("QLabel {font-size: 12pt;}");
+	layout->addWidget(subTitle);
+
+	auto pluginList = new QListWidget(this);
+	for (auto& plugin : missing) {
+		auto item = new QListWidgetItem();
+		item->setSizeHint(QSize(0, 60));
+		auto itemWidget = new MissingPluginItem(this, plugin.name.c_str(), plugin.url.c_str());
+		pluginList->addItem(item);
+		pluginList->setItemWidget(item, itemWidget);
+	}
+
+	pluginList->setStyleSheet(EMissingPluginsStyle);
+	pluginList->setSpacing(4);
+	pluginList->setSelectionMode(QAbstractItemView::NoSelection);
+	pluginList->setFocusPolicy(Qt::FocusPolicy::NoFocus);
+
+	layout->addWidget(pluginList);
+}
+
+MissingPluginItem::MissingPluginItem(QWidget* parent, std::string label, std::string url)
+	: QWidget(parent)
+{
+	auto layout = new QHBoxLayout(this);
+	auto itemLabel = new QLabel(this);
+	itemLabel->setText(label.c_str());
+	itemLabel->setStyleSheet("QLabel {font-size: 12pt;}");
+	layout->addWidget(itemLabel);
+
+	auto spacer = new QWidget(this);
+	spacer->setSizePolicy(QSizePolicy::Expanding,
+		QSizePolicy::Preferred);
+	layout->addWidget(spacer);
+
+	auto downloadButton = new QPushButton(this);
+	downloadButton->setText("Download");
+	downloadButton->setStyleSheet(EPushButtonStyle);
+
+	connect(downloadButton, &QPushButton::released, this,
+		[url]() { QDesktopServices::openUrl(QUrl(url.c_str())); });
+	layout->addWidget(downloadButton);
+}
+
 InstallType::InstallType(QWidget *parent, std::string name,
 			 std::string thumbnailPath)
 	: QWidget(parent)
@@ -111,19 +176,23 @@ InstallType::InstallType(QWidget *parent, std::string name,
 	StreamPackageHeader *header =
 		new StreamPackageHeader(parent, name, thumbnailPath);
 	layout->addWidget(header);
-
 	QLabel *selectInstall = new QLabel(this);
 	selectInstall->setText("Select Install");
+	selectInstall->setAlignment(Qt::AlignCenter);
+	selectInstall->setStyleSheet("QLabel {font-size: 14pt;}");
 	layout->addWidget(selectInstall);
 
 	// Setup New and Existing buttons.
 	QHBoxLayout *buttons = new QHBoxLayout(this);
 	QPushButton *newButton = new QPushButton(this);
 	newButton->setText("New");
+	newButton->setStyleSheet(EPushButtonDarkStyle);
+
 	connect(newButton, &QPushButton::released, this,
 		[this]() { emit newCollectionPressed(); });
 	QPushButton *existingButton = new QPushButton(this);
 	existingButton->setText("Existing");
+	existingButton->setStyleSheet(EPushButtonDarkStyle);
 	existingButton->setDisabled(true);
 	connect(existingButton, &QPushButton::released, this,
 		[this]() { emit existingCollectionPressed(); });
@@ -141,13 +210,14 @@ NewCollectionName::NewCollectionName(QWidget *parent, std::string name,
 	StreamPackageHeader *header =
 		new StreamPackageHeader(parent, name, thumbnailPath);
 	layout->addWidget(header);
-
 	QLabel *nameCollection = new QLabel(this);
-	nameCollection->setText("Name Scene Collection");
+	nameCollection->setText("Create Scene Collection");
+	nameCollection->setStyleSheet("QLabel {font-size: 12pt; margin-top: 16px;}");
 	layout->addWidget(nameCollection);
 
 	_nameField = new QLineEdit(this);
-	_nameField->setPlaceholderText("Name");
+	_nameField->setPlaceholderText("Collection Name");
+	_nameField->setStyleSheet(ELineEditStyle);
 	layout->addWidget(_nameField);
 	connect(_nameField, &QLineEdit::textChanged,
 		[this](const QString text) {
@@ -156,240 +226,105 @@ NewCollectionName::NewCollectionName(QWidget *parent, std::string name,
 
 	QWidget *spacer = new QWidget(this);
 	spacer->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
-
+	layout->addWidget(spacer);
+	auto buttons = new QHBoxLayout();
+	auto hSpacer = new QWidget(this);
+	spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+	buttons->addWidget(hSpacer);
 	_proceedButton = new QPushButton(this);
-	_proceedButton->setText("Proceed");
+	_proceedButton->setText("Next");
+	_proceedButton->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+	_proceedButton->setStyleSheet(EPushButtonStyle);
 	_proceedButton->setDisabled(true);
 	connect(_proceedButton, &QPushButton::released, this, [this]() {
 		QString qName = _nameField->text();
 		emit proceedPressed(qName.toStdString());
 	});
-	layout->addWidget(_proceedButton);
+	buttons->addWidget(_proceedButton);
+	layout->addLayout(buttons);
 }
 
-AudioVideoSetup::AudioVideoSetup(QWidget *parent, std::string name,
-				 std::string thumbnailPath)
+VideoSetup::VideoSetup(QWidget *parent, std::string name,
+				 std::string thumbnailPath,
+				 std::map<std::string, std::string> videoSourceLabels)
+	: QWidget(parent)
 {
-	std::string imageBaseDir =
-		obs_get_module_data_path(obs_current_module());
-	imageBaseDir += "/images/";
+	auto layout = new QVBoxLayout(this);
+	setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+	//StreamPackageHeader *header = new StreamPackageHeader(this, name, "");
+	//layout->addWidget(header);
+	layout->setContentsMargins(0, 0, 0, 0);
 
-	QVBoxLayout *layout = new QVBoxLayout(this);
-	StreamPackageHeader *header = new StreamPackageHeader(parent, name, "");
-	layout->addWidget(header);
+	auto sourceWidget = new QWidget(this);
+	sourceWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+	sourceWidget->setContentsMargins(0, 0, 0, 0);
+	auto sourceGrid = new QGridLayout(sourceWidget);
+	sourceGrid->setContentsMargins(0, 0, 0, 0);
+	sourceGrid->setSpacing(18);
 
-	QHBoxLayout *inputs = new QHBoxLayout(this);
-	QVBoxLayout *leftLayout = new QVBoxLayout(this);
-	QLabel *videoDeviceLabel = new QLabel(this);
-	videoDeviceLabel->setText("Video Device");
-	_videoSources = new QComboBox(this);
+	int i = 0;
+	int j = 0;
+	for (auto const& [sourceName, label] : videoSourceLabels) {
+		auto vSource = new VideoCaptureSourceSelector(sourceWidget, label, sourceName);
+		sourceGrid->addWidget(vSource, i, j);
+		i += j % 2;
+		j += 1;
+		j %= 2;
+		_videoSelectors.push_back(vSource);
+	}
 
-	_videoPreview = new OBSQTDisplay(this);
-	_videoPreview->setMinimumHeight(200);
-	_videoPreview->hide();
+	auto scrollArea = new QScrollArea(this);
+	scrollArea->setContentsMargins(0, 0, 0, 0);
+	scrollArea->setWidget(sourceWidget);
+	scrollArea->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+	scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+	scrollArea->setStyleSheet("QScrollArea { border: none; }");
+	layout->addWidget(scrollArea);
 
-	QWidget *spacerLeft = new QWidget(this);
-	spacerLeft->setSizePolicy(QSizePolicy::Preferred,
-				  QSizePolicy::Expanding);
-	leftLayout->addWidget(videoDeviceLabel);
-	auto videoSettings = new QHBoxLayout(this);
-	videoSettings->addWidget(_videoSources);
+	auto buttons = new QHBoxLayout();
 
-	auto configButton = new QPushButton(this);
-	std::string settingsIconPath = imageBaseDir + "icon-settings.svg";
-	QIcon settingsIcon = QIcon();
-	settingsIcon.addFile(settingsIconPath.c_str(), QSize(), QIcon::Normal,
-			     QIcon::Off);
-	configButton->setIcon(settingsIcon);
-	configButton->setIconSize(QSize(22, 22));
-	configButton->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
-	configButton->setStyleSheet("QPushButton {background: transparent; }");
-	connect(configButton, &QPushButton::released, this, [this]() {
-		obs_frontend_open_source_properties(_videoCaptureSource);
-	});
-	videoSettings->addWidget(configButton);
+	auto spacer = new QWidget(this);
+	spacer->setSizePolicy(QSizePolicy::Expanding,
+				  QSizePolicy::Preferred);
 
-	leftLayout->addLayout(videoSettings);
-	leftLayout->addWidget(_videoPreview);
-	leftLayout->addWidget(spacerLeft);
+	QPushButton* backButton = new QPushButton(this);
+	backButton->setText("Back");
+	backButton->setStyleSheet(EPushButtonStyle);
 
-	QVBoxLayout *rightLayout = new QVBoxLayout(this);
-	QLabel *audioDeviceLabel = new QLabel(this);
-	audioDeviceLabel->setText("Audio Device");
-	_audioSources = new QComboBox(this);
-
-	_levelsWidget = new SimpleVolumeMeter(this, _volmeter);
-	// Add Dropdown and meter
-	QWidget *spacerRight = new QWidget(this);
-	spacerRight->setSizePolicy(QSizePolicy::Preferred,
-				   QSizePolicy::Expanding);
 	QPushButton *proceedButton = new QPushButton(this);
-	proceedButton->setText("Proceed");
+	proceedButton->setText("Next");
+	proceedButton->setStyleSheet(EPushButtonStyle);
 
+	buttons->addWidget(spacer);
+	buttons->addWidget(backButton);
+	buttons->addWidget(proceedButton);
 	connect(proceedButton, &QPushButton::released, this, [this]() {
-		obs_data_t *vSettings =
-			obs_source_get_settings(_videoCaptureSource);
-		std::string vJson = obs_data_get_json(vSettings);
-		obs_data_release(vSettings);
-		obs_data_t *aSettings =
-			obs_source_get_settings(_audioCaptureSource);
-		std::string aJson = obs_data_get_json(aSettings);
-		emit proceedPressed(vJson, aJson);
+		std::map<std::string, std::string> res;
+		int i = 0;
+		for (auto const& source : this->_videoSelectors) {
+			std::string settings = source->GetSettings();
+			std::string sourceName = source->GetSourceName();
+			res[sourceName] = settings;
+		}
+		emit proceedPressed(res);
+	});
+	connect(backButton, &QPushButton::released, this, [this]() {
+		emit backPressed();
 	});
 
-	rightLayout->addWidget(audioDeviceLabel);
-	rightLayout->addWidget(_audioSources);
-	rightLayout->addWidget(_levelsWidget);
-	rightLayout->addWidget(spacerRight);
-	rightLayout->addWidget(proceedButton);
-
-	inputs->addLayout(leftLayout, 50);
-	inputs->addLayout(rightLayout, 50);
-	layout->addLayout(inputs);
-	_setupTempSources();
-	SetupVolMeter();
-
-	connect(_videoSources, &QComboBox::currentIndexChanged, this,
-		[this](int index) {
-			auto vSettings = obs_data_create();
-			std::string id = _videoSourceIds[index];
-			obs_data_set_string(vSettings, "video_device_id",
-					    id.c_str());
-			obs_source_reset_settings(_videoCaptureSource,
-						  vSettings);
-			obs_data_release(vSettings);
-		});
-
-	connect(_audioSources, &QComboBox::currentIndexChanged, this,
-		[this](int index) {
-			obs_data_t *aSettings =
-				obs_source_get_settings(_audioCaptureSource);
-			std::string id = _audioSourceIds[index];
-			obs_data_set_string(aSettings, "device_id", id.c_str());
-			obs_source_update(_audioCaptureSource, aSettings);
-			obs_data_release(aSettings);
-		});
+	layout->addLayout(buttons);
 }
 
-void AudioVideoSetup::_setupTempSources()
+VideoSetup::~VideoSetup()
 {
-	// Get settings
-	config_t *const global_config = obs_frontend_get_global_config();
-	config_set_default_string(global_config, "ElgatoCloud",
-				  "DefaultVideoCaptureSettings", "");
-	config_set_default_string(global_config, "ElgatoCloud",
-				  "DefaultAudioCaptureSettings", "");
 
-	std::string videoSettingsJson = config_get_string(
-		global_config, "ElgatoCloud", "DefaultVideoCaptureSettings");
-	std::string audioSettingsJson = config_get_string(
-		global_config, "ElgatoCloud", "DefaultAudioCaptureSettings");
-
-	obs_data_t *videoSettings =
-		videoSettingsJson != ""
-			? obs_data_create_from_json(videoSettingsJson.c_str())
-			: nullptr;
-	obs_data_t *audioSettings =
-		audioSettingsJson != ""
-			? obs_data_create_from_json(audioSettingsJson.c_str())
-			: nullptr;
-
-	const char *videoSourceId = "dshow_input";
-	const char *vId = obs_get_latest_input_type_id(videoSourceId);
-	_videoCaptureSource = obs_source_create_private(
-		vId, "elgato-cloud-video-config", videoSettings);
-
-	obs_properties_t *vProps = obs_source_properties(_videoCaptureSource);
-	obs_property_t *vDevices =
-		obs_properties_get(vProps, "video_device_id");
-	for (size_t i = 0; i < obs_property_list_item_count(vDevices); i++) {
-		std::string name = obs_property_list_item_name(vDevices, i);
-		std::string id = obs_property_list_item_string(vDevices, i);
-		_videoSourceIds.push_back(id);
-		_videoSources->addItem(name.c_str());
-	}
-	obs_properties_destroy(vProps);
-
-	obs_data_t *vSettings = obs_source_get_settings(_videoCaptureSource);
-	std::string vDevice = obs_data_get_string(vSettings, "video_device_id");
-	if (vDevice != "") {
-		auto it = std::find(_videoSourceIds.begin(),
-				    _videoSourceIds.end(), vDevice);
-		if (it != _videoSourceIds.end()) {
-			_videoSources->setCurrentIndex(
-				static_cast<int>(it - _videoSourceIds.begin()));
-		}
-	}
-	obs_data_release(vSettings);
-
-	auto addDrawCallback = [this]() {
-		obs_display_add_draw_callback(_videoPreview->GetDisplay(),
-					      AudioVideoSetup::DrawVideoPreview,
-					      this);
-	};
-	connect(_videoPreview, &OBSQTDisplay::DisplayCreated, addDrawCallback);
-	_videoPreview->show();
-	signal_handler_t *videoSigHandler =
-		obs_source_get_signal_handler(_videoCaptureSource);
-	signal_handler_connect_ref(videoSigHandler, "update",
-				   AudioVideoSetup::DefaultVideoUpdated, this);
-	obs_data_release(videoSettings);
-
-	const char *audioSourceId = "wasapi_input_capture";
-	const char *aId = obs_get_latest_input_type_id(audioSourceId);
-	_audioCaptureSource = obs_source_create_private(
-		aId, "elgato-cloud-audio-config", audioSettings);
-
-	obs_properties_t *aProps = obs_source_properties(_audioCaptureSource);
-	obs_property_t *aDevices = obs_properties_get(aProps, "device_id");
-	for (size_t i = 0; i < obs_property_list_item_count(aDevices); i++) {
-		std::string name = obs_property_list_item_name(aDevices, i);
-		std::string id = obs_property_list_item_string(aDevices, i);
-		_audioSourceIds.push_back(id);
-		_audioSources->addItem(name.c_str());
-	}
-	obs_properties_destroy(aProps);
-
-	obs_data_t *aSettings = obs_source_get_settings(_audioCaptureSource);
-	std::string aDevice = obs_data_get_string(aSettings, "device_id");
-	if (aDevice != "") {
-		auto it = std::find(_audioSourceIds.begin(),
-				    _audioSourceIds.end(), aDevice);
-		if (it != _audioSourceIds.end()) {
-			_audioSources->setCurrentIndex(
-				static_cast<int>(it - _audioSourceIds.begin()));
-		}
-	}
-	obs_data_release(aSettings);
-
-	_levelsWidget->show();
-	signal_handler_t *audioSigHandler =
-		obs_source_get_signal_handler(_audioCaptureSource);
-	signal_handler_connect_ref(audioSigHandler, "update",
-				   AudioVideoSetup::DefaultAudioUpdated, this);
-	obs_data_release(audioSettings);
 }
 
-void AudioVideoSetup::SetupVolMeter()
-{
-	obs_log(LOG_INFO, "SetupVolMeter");
-	if (_volmeter) {
-		obs_volmeter_remove_callback(
-			_volmeter, AudioVideoSetup::OBSVolumeLevel, this);
-		obs_volmeter_destroy(_volmeter);
-		_volmeter = nullptr;
-	}
-	_volmeter = obs_volmeter_create(OBS_FADER_LOG);
-	obs_volmeter_attach_source(_volmeter, _audioCaptureSource);
-	obs_volmeter_add_callback(_volmeter, AudioVideoSetup::OBSVolumeLevel,
-				  this);
-}
-
-void AudioVideoSetup::DefaultVideoUpdated(void *data, calldata_t *params)
+void VideoSetup::DefaultVideoUpdated(void *data, calldata_t *params)
 {
 	UNUSED_PARAMETER(params);
 	UNUSED_PARAMETER(data);
-	// auto config = static_cast<AudioVideoSetup*>(data);
+	// auto config = static_cast<VideoSetup*>(data);
 	// config_t *const global_config = obs_frontend_get_global_config();
 	// auto settings = obs_source_get_settings(config->_video_capture_source);
 	// auto dataStr = obs_data_get_json(settings);
@@ -398,21 +333,7 @@ void AudioVideoSetup::DefaultVideoUpdated(void *data, calldata_t *params)
 	// obs_data_release(settings);
 }
 
-void AudioVideoSetup::DefaultAudioUpdated(void *data, calldata_t *params)
-{
-	UNUSED_PARAMETER(params);
-	auto config = static_cast<AudioVideoSetup *>(data);
-	config->SetupVolMeter();
-	// auto config = static_cast<AudioVideoSetup*>(data);
-	// config_t *const global_config = obs_frontend_get_global_config();
-	// auto settings = obs_source_get_settings(config->_audio_capture_source);
-	// auto dataStr = obs_data_get_json(settings);
-	// config_set_string(global_config, "ElgatoCloud", "DefaultAudioCaptureSettings", dataStr);
-
-	// obs_data_release(settings);
-}
-
-void AudioVideoSetup::OpenConfigVideoSource()
+void VideoSetup::OpenConfigVideoSource()
 {
 	if (!_videoCaptureSource) {
 		return;
@@ -430,7 +351,155 @@ void AudioVideoSetup::OpenConfigVideoSource()
 	obs_properties_destroy(props);
 }
 
-void AudioVideoSetup::OpenConfigAudioSource()
+
+AudioSetup::AudioSetup(QWidget* parent, std::string name,
+	std::string thumbnailPath)
+	: QWidget(parent)
+{
+	auto layout = new QVBoxLayout(this);
+	setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+	layout->setContentsMargins(0, 0, 0, 0);
+
+	QLabel *audioDeviceLabel = new QLabel(this);
+	audioDeviceLabel->setText("Audio Device");
+	_audioSources = new QComboBox(this);
+	_audioSources->setStyleSheet(EComboBoxStyle);
+
+	_levelsWidget = new SimpleVolumeMeter(this, _volmeter);
+	// Add Dropdown and meter
+	QWidget *spacer = new QWidget(this);
+	spacer->setSizePolicy(QSizePolicy::Preferred,
+				   QSizePolicy::Expanding);
+
+
+	layout->addWidget(audioDeviceLabel);
+	layout->addWidget(_audioSources);
+	layout->addWidget(_levelsWidget);
+	layout->addWidget(spacer);
+
+	_setupTempSources();
+	SetupVolMeter();
+
+	connect(_audioSources, &QComboBox::currentIndexChanged, this,
+		[this](int index) {
+			obs_data_t *aSettings =
+				obs_source_get_settings(_audioCaptureSource);
+			std::string id = _audioSourceIds[index];
+			obs_data_set_string(aSettings, "device_id", id.c_str());
+			obs_source_update(_audioCaptureSource, aSettings);
+			obs_data_release(aSettings);
+		});
+
+	auto buttons = new QHBoxLayout();
+
+	auto bSpacer = new QWidget(this);
+	bSpacer->setSizePolicy(QSizePolicy::Expanding,
+		QSizePolicy::Preferred);
+
+	QPushButton* backButton = new QPushButton(this);
+	backButton->setText("Back");
+	backButton->setStyleSheet(EPushButtonStyle);
+
+	QPushButton* proceedButton = new QPushButton(this);
+	proceedButton->setText("Next");
+	proceedButton->setStyleSheet(EPushButtonStyle);
+
+	buttons->addWidget(bSpacer);
+	buttons->addWidget(backButton);
+	buttons->addWidget(proceedButton);
+	connect(proceedButton, &QPushButton::released, this, [this]() {
+		obs_data_t* aSettings =
+			obs_source_get_settings(_audioCaptureSource);
+		std::string aJson = obs_data_get_json(aSettings);
+		obs_data_release(aSettings);
+		emit proceedPressed(aJson);
+	});
+	connect(backButton, &QPushButton::released, this, [this]() {
+		emit backPressed();
+	});
+	layout->addLayout(buttons);
+}
+
+void AudioSetup::_setupTempSources()
+{
+	// Get settings
+	config_t* const global_config = obs_frontend_get_global_config();
+	config_set_default_string(global_config, "ElgatoCloud",
+		"DefaultAudioCaptureSettings", "");
+
+	std::string audioSettingsJson = config_get_string(
+		global_config, "ElgatoCloud", "DefaultAudioCaptureSettings");
+
+	obs_data_t* audioSettings =
+		audioSettingsJson != ""
+		? obs_data_create_from_json(audioSettingsJson.c_str())
+		: nullptr;
+
+	const char* audioSourceId = "wasapi_input_capture";
+	const char* aId = obs_get_latest_input_type_id(audioSourceId);
+	_audioCaptureSource = obs_source_create_private(
+		aId, "elgato-cloud-audio-config", audioSettings);
+
+	obs_properties_t* aProps = obs_source_properties(_audioCaptureSource);
+	obs_property_t* aDevices = obs_properties_get(aProps, "device_id");
+	for (size_t i = 0; i < obs_property_list_item_count(aDevices); i++) {
+		std::string name = obs_property_list_item_name(aDevices, i);
+		std::string id = obs_property_list_item_string(aDevices, i);
+		_audioSourceIds.push_back(id);
+		_audioSources->addItem(name.c_str());
+	}
+	obs_properties_destroy(aProps);
+
+	obs_data_t* aSettings = obs_source_get_settings(_audioCaptureSource);
+	std::string aDevice = obs_data_get_string(aSettings, "device_id");
+	if (aDevice != "") {
+		auto it = std::find(_audioSourceIds.begin(),
+			_audioSourceIds.end(), aDevice);
+		if (it != _audioSourceIds.end()) {
+			_audioSources->setCurrentIndex(
+				static_cast<int>(it - _audioSourceIds.begin()));
+		}
+	}
+	obs_data_release(aSettings);
+
+	_levelsWidget->show();
+	signal_handler_t* audioSigHandler =
+		obs_source_get_signal_handler(_audioCaptureSource);
+	signal_handler_connect_ref(audioSigHandler, "update",
+		AudioSetup::DefaultAudioUpdated, this);
+	obs_data_release(audioSettings);
+}
+
+void AudioSetup::SetupVolMeter()
+{
+	obs_log(LOG_INFO, "SetupVolMeter");
+	if (_volmeter) {
+		obs_volmeter_remove_callback(
+			_volmeter, AudioSetup::OBSVolumeLevel, this);
+		obs_volmeter_destroy(_volmeter);
+		_volmeter = nullptr;
+	}
+	_volmeter = obs_volmeter_create(OBS_FADER_LOG);
+	obs_volmeter_attach_source(_volmeter, _audioCaptureSource);
+	obs_volmeter_add_callback(_volmeter, AudioSetup::OBSVolumeLevel,
+		this);
+}
+
+void AudioSetup::DefaultAudioUpdated(void* data, calldata_t* params)
+{
+	UNUSED_PARAMETER(params);
+	auto config = static_cast<AudioSetup*>(data);
+	config->SetupVolMeter();
+	// auto config = static_cast<VideoSetup*>(data);
+	// config_t *const global_config = obs_frontend_get_global_config();
+	// auto settings = obs_source_get_settings(config->_audio_capture_source);
+	// auto dataStr = obs_data_get_json(settings);
+	// config_set_string(global_config, "ElgatoCloud", "DefaultAudioCaptureSettings", dataStr);
+
+	// obs_data_release(settings);
+}
+
+void AudioSetup::OpenConfigAudioSource()
 {
 	if (!_audioCaptureSource) {
 		return;
@@ -446,15 +515,15 @@ void AudioVideoSetup::OpenConfigAudioSource()
 	obs_properties_destroy(props);
 }
 
-void AudioVideoSetup::OBSVolumeLevel(void *data,
+void AudioSetup::OBSVolumeLevel(void *data,
 				     const float magnitude[MAX_AUDIO_CHANNELS],
 				     const float peak[MAX_AUDIO_CHANNELS],
 				     const float inputPeak[MAX_AUDIO_CHANNELS])
 {
 	UNUSED_PARAMETER(peak);
 	UNUSED_PARAMETER(inputPeak);
-	obs_log(LOG_INFO, "OBS Volume Level");
-	auto config = static_cast<AudioVideoSetup *>(data);
+	//obs_log(LOG_INFO, "OBS Volume Level");
+	auto config = static_cast<AudioSetup *>(data);
 	float mag = magnitude[0];
 	float pk = peak[0];
 	float ip = inputPeak[0];
@@ -468,58 +537,12 @@ void AudioVideoSetup::OBSVolumeLevel(void *data,
 				  });
 }
 
-void AudioVideoSetup::DrawVideoPreview(void *data, uint32_t cx, uint32_t cy)
+AudioSetup::~AudioSetup()
 {
-	auto config = static_cast<AudioVideoSetup *>(data);
-
-	if (!config->_videoCaptureSource)
-		return;
-
-	uint32_t sourceCX =
-		std::max(obs_source_get_width(config->_videoCaptureSource), 1u);
-	uint32_t sourceCY = std::max(
-		obs_source_get_height(config->_videoCaptureSource), 1u);
-
-	int x, y;
-	int newCX, newCY;
-	float scale;
-
-	GetScaleAndCenterPos(sourceCX, sourceCY, cx, cy, x, y, scale);
-
-	newCX = int(scale * float(sourceCX));
-	newCY = int(scale * float(sourceCY));
-
-	gs_viewport_push();
-	gs_projection_push();
-	const bool previous = gs_set_linear_srgb(true);
-
-	gs_ortho(0.0f, float(sourceCX), 0.0f, float(sourceCY), -100.0f, 100.0f);
-	gs_set_viewport(x, y, newCX, newCY);
-	obs_source_video_render(config->_videoCaptureSource);
-
-	gs_set_linear_srgb(previous);
-	gs_projection_pop();
-	gs_viewport_pop();
-}
-
-AudioVideoSetup::~AudioVideoSetup()
-{
-	obs_display_remove_draw_callback(_videoPreview->GetDisplay(),
-					 AudioVideoSetup::DrawVideoPreview,
-					 this);
-	if (_videoCaptureSource) {
-		obs_source_release(_videoCaptureSource);
-		obs_source_remove(_videoCaptureSource);
-		signal_handler_t *videoSigHandler =
-			obs_source_get_signal_handler(_videoCaptureSource);
-		signal_handler_disconnect(videoSigHandler, "update",
-					  AudioVideoSetup::DefaultVideoUpdated,
-					  this);
-	}
 	if (_volmeter) {
 		obs_volmeter_detach_source(_volmeter);
 		obs_volmeter_remove_callback(
-			_volmeter, AudioVideoSetup::OBSVolumeLevel, this);
+			_volmeter, AudioSetup::OBSVolumeLevel, this);
 		obs_volmeter_destroy(_volmeter);
 	}
 	if (_audioCaptureSource) {
@@ -528,7 +551,7 @@ AudioVideoSetup::~AudioVideoSetup()
 		signal_handler_t *audioSigHandler =
 			obs_source_get_signal_handler(_audioCaptureSource);
 		signal_handler_disconnect(audioSigHandler, "update",
-					  AudioVideoSetup::DefaultAudioUpdated,
+					  AudioSetup::DefaultAudioUpdated,
 					  this);
 	}
 }
@@ -541,55 +564,118 @@ StreamPackageSetupWizard::StreamPackageSetupWizard(QWidget *parent,
 	  _productName(product->name),
 	  _filename(filename)
 {
-	setupWizard = this;
 
-	QVBoxLayout *layout = new QVBoxLayout(this);
+	SceneBundle bundle;
+	auto bundleInfoStr = bundle.ExtractBundleInfo(filename);
+	nlohmann::json bundleInfo;
+	bool error = false;
+	try {
+		bundleInfo = nlohmann::json::parse(bundleInfoStr);
+	}
+	catch (const nlohmann::json::parse_error& e) {
+		obs_log(LOG_ERROR, "Parsing Error.\n  message: %s\n  id: %i",
+			e.what(), e.id);
+		error = true;
+	}
+
+	std::map<std::string, std::string> videoSourceLabels = bundleInfo["video_devices"];
+	std::vector<std::string> requiredPlugins = bundleInfo["plugins_required"];
+
+	setupWizard = this;
+	setWindowTitle("Install Scene Collection");
+	setStyleSheet("background-color: #232323");
+
+	PluginInfo pi;
+	std::vector<PluginDetails> missing = pi.missing(requiredPlugins);
+	if (missing.size() > 0) {
+		_buildMissingPluginsUI(missing);
+	} else {
+		_buildSetupUI(videoSourceLabels);
+	}
+}
+
+StreamPackageSetupWizard::~StreamPackageSetupWizard()
+{
+	setupWizard = nullptr;
+}
+
+void StreamPackageSetupWizard::_buildMissingPluginsUI(std::vector<PluginDetails>& missing)
+{
+	setFixedSize(500, 350);
+	QVBoxLayout* layout = new QVBoxLayout(this);
+
+	auto missingPlugins = new MissingPlugins(this, _productName, _thumbnailPath, missing);
+	layout->addWidget(missingPlugins);
+}
+
+void StreamPackageSetupWizard::_buildSetupUI(std::map<std::string, std::string> &videoSourceLabels)
+{
+	setFixedSize(320, 350);
+	QVBoxLayout* layout = new QVBoxLayout(this);
 	_steps = new QStackedWidget(this);
 
 	// Step 1- select a new or existing install (step index: 0)
-	InstallType *installerType =
+	InstallType* installerType =
 		new InstallType(this, _productName, _thumbnailPath);
 	connect(installerType, &InstallType::newCollectionPressed, this,
 		[this]() {
 			_setup.installType = InstallTypes::NewCollection;
 			_steps->setCurrentIndex(1);
+			setFixedSize(320, 384);
 		});
 	connect(installerType, &InstallType::existingCollectionPressed, this,
 		[this]() {
 			_setup.installType = InstallTypes::AddToCollection;
 			_steps->setCurrentIndex(2);
+			setFixedSize(320, 384);
 		});
 	_steps->addWidget(installerType);
 
 	// Step 2a- Provide a name for the new collection (step index: 1)
-	auto *newName =
+	auto* newName =
 		new NewCollectionName(this, _productName, _thumbnailPath);
 	connect(newName, &NewCollectionName::proceedPressed, this,
 		[this](std::string name) {
 			_setup.collectionName = name;
 			_steps->setCurrentIndex(3);
+			setFixedSize(554, 440);
 		});
 	_steps->addWidget(newName);
 
 	// Step 2b- Select an existing collection (step index: 2)
 	_steps->addWidget(new QWidget(this));
 
-	// Step 3- Set up A/V source (step index: 3)
-	auto *avSetup = new AudioVideoSetup(this, _productName, _thumbnailPath);
-	_steps->addWidget(avSetup);
-	connect(avSetup, &AudioVideoSetup::proceedPressed, this,
-		[this](std::string vSettings, std::string aSettings) {
-			_setup.videoSettings = vSettings;
-			_setup.audioSettings = aSettings;
+	// Step 3- Set up Video inputs (step index: 3)
+	auto vSetup = new VideoSetup(this, _productName, _thumbnailPath, videoSourceLabels);
+	_steps->addWidget(vSetup);
+	connect(vSetup, &VideoSetup::proceedPressed, this,
+		[this](std::map<std::string, std::string> settings) {
+			//blog(LOG_INFO, "%s", settings.c_str());
+			_setup.videoSettings = settings;
+			_steps->setCurrentIndex(4);
+			setFixedSize(320, 384);
+		});
+	connect(vSetup, &VideoSetup::backPressed, this,
+		[this]() {
+			_steps->setCurrentIndex(1);
+			setFixedSize(320, 384);
+		});
+	// Step 4- Setup Audio Inputs (step index: 4)
+
+	auto aSetup = new AudioSetup(this, _productName, _thumbnailPath);
+	_steps->addWidget(aSetup);
+	connect(aSetup, &AudioSetup::proceedPressed, this,
+		[this](std::string settings) {
+			_setup.audioSettings = settings;
 			install();
+		});
+	connect(aSetup, &AudioSetup::backPressed, this,
+		[this]() {
+			_steps->setCurrentIndex(3);
+			setFixedSize(554, 440);
 		});
 
 	layout->addWidget(_steps);
-}
-
-StreamPackageSetupWizard::~StreamPackageSetupWizard()
-{
-	setupWizard = nullptr;
 }
 
 void StreamPackageSetupWizard::install()

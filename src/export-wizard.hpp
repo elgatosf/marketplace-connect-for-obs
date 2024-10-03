@@ -76,7 +76,7 @@ signals:
 	void backPressed();
 
 private:
-	std::map<std::string, bool> _pluginStatus;
+	std::map<std::string, std::pair<bool, std::string>> _pluginStatus;
 };
 
 class ExportComplete : public QWidget {
