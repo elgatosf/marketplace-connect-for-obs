@@ -104,21 +104,21 @@ QLabel *StreamPackageHeader::_thumbnail(std::string thumbnailPath)
 	return labelImg;
 }
 
-MissingPlugins::MissingPlugins(QWidget* parent, std::string name,
-	std::string thumbnailPath, std::vector<PluginDetails>& missing)
+MissingPlugins::MissingPlugins(QWidget *parent, std::string name,
+			       std::string thumbnailPath,
+			       std::vector<PluginDetails> &missing)
 	: QWidget(parent)
 {
-	QVBoxLayout* layout = new QVBoxLayout(this);
-	StreamPackageHeader* header =
-		new StreamPackageHeader(parent, name);
+	QVBoxLayout *layout = new QVBoxLayout(this);
+	StreamPackageHeader *header = new StreamPackageHeader(parent, name);
 	layout->addWidget(header);
-	QLabel* title = new QLabel(this);
+	QLabel *title = new QLabel(this);
 	title->setText("Missing Plugins");
 	title->setAlignment(Qt::AlignCenter);
 	title->setStyleSheet("QLabel {font-size: 14pt;}");
 	layout->addWidget(title);
 
-	QLabel* subTitle = new QLabel(this);
+	QLabel *subTitle = new QLabel(this);
 	subTitle->setText(
 		"The following plugins are required to use this scene collection, "
 		"but are not installed. Please install these plugins, restart "
@@ -129,10 +129,11 @@ MissingPlugins::MissingPlugins(QWidget* parent, std::string name,
 	layout->addWidget(subTitle);
 
 	auto pluginList = new QListWidget(this);
-	for (auto& plugin : missing) {
+	for (auto &plugin : missing) {
 		auto item = new QListWidgetItem();
 		item->setSizeHint(QSize(0, 60));
-		auto itemWidget = new MissingPluginItem(this, plugin.name.c_str(), plugin.url.c_str());
+		auto itemWidget = new MissingPluginItem(
+			this, plugin.name.c_str(), plugin.url.c_str());
 		pluginList->addItem(item);
 		pluginList->setItemWidget(item, itemWidget);
 	}
@@ -145,7 +146,8 @@ MissingPlugins::MissingPlugins(QWidget* parent, std::string name,
 	layout->addWidget(pluginList);
 }
 
-MissingPluginItem::MissingPluginItem(QWidget* parent, std::string label, std::string url)
+MissingPluginItem::MissingPluginItem(QWidget *parent, std::string label,
+				     std::string url)
 	: QWidget(parent)
 {
 	auto layout = new QHBoxLayout(this);
@@ -155,8 +157,7 @@ MissingPluginItem::MissingPluginItem(QWidget* parent, std::string label, std::st
 	layout->addWidget(itemLabel);
 
 	auto spacer = new QWidget(this);
-	spacer->setSizePolicy(QSizePolicy::Expanding,
-		QSizePolicy::Preferred);
+	spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
 	layout->addWidget(spacer);
 
 	auto downloadButton = new QPushButton(this);
@@ -212,7 +213,8 @@ NewCollectionName::NewCollectionName(QWidget *parent, std::string name,
 	layout->addWidget(header);
 	QLabel *nameCollection = new QLabel(this);
 	nameCollection->setText("Create Scene Collection");
-	nameCollection->setStyleSheet("QLabel {font-size: 12pt; margin-top: 16px;}");
+	nameCollection->setStyleSheet(
+		"QLabel {font-size: 12pt; margin-top: 16px;}");
 	layout->addWidget(nameCollection);
 
 	_nameField = new QLineEdit(this);
@@ -245,8 +247,8 @@ NewCollectionName::NewCollectionName(QWidget *parent, std::string name,
 }
 
 VideoSetup::VideoSetup(QWidget *parent, std::string name,
-				 std::string thumbnailPath,
-				 std::map<std::string, std::string> videoSourceLabels)
+		       std::string thumbnailPath,
+		       std::map<std::string, std::string> videoSourceLabels)
 	: QWidget(parent)
 {
 	auto layout = new QVBoxLayout(this);
@@ -256,7 +258,8 @@ VideoSetup::VideoSetup(QWidget *parent, std::string name,
 	layout->setContentsMargins(0, 0, 0, 0);
 
 	auto sourceWidget = new QWidget(this);
-	sourceWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+	sourceWidget->setSizePolicy(QSizePolicy::Expanding,
+				    QSizePolicy::Preferred);
 	sourceWidget->setContentsMargins(0, 0, 0, 0);
 	auto sourceGrid = new QGridLayout(sourceWidget);
 	sourceGrid->setContentsMargins(0, 0, 0, 0);
@@ -264,8 +267,9 @@ VideoSetup::VideoSetup(QWidget *parent, std::string name,
 
 	int i = 0;
 	int j = 0;
-	for (auto const& [sourceName, label] : videoSourceLabels) {
-		auto vSource = new VideoCaptureSourceSelector(sourceWidget, label, sourceName);
+	for (auto const &[sourceName, label] : videoSourceLabels) {
+		auto vSource = new VideoCaptureSourceSelector(
+			sourceWidget, label, sourceName);
 		sourceGrid->addWidget(vSource, i, j);
 		i += j % 2;
 		j += 1;
@@ -276,7 +280,8 @@ VideoSetup::VideoSetup(QWidget *parent, std::string name,
 	auto scrollArea = new QScrollArea(this);
 	scrollArea->setContentsMargins(0, 0, 0, 0);
 	scrollArea->setWidget(sourceWidget);
-	scrollArea->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+	scrollArea->setSizePolicy(QSizePolicy::Expanding,
+				  QSizePolicy::Expanding);
 	scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 	scrollArea->setStyleSheet("QScrollArea { border: none; }");
 	layout->addWidget(scrollArea);
@@ -284,10 +289,9 @@ VideoSetup::VideoSetup(QWidget *parent, std::string name,
 	auto buttons = new QHBoxLayout();
 
 	auto spacer = new QWidget(this);
-	spacer->setSizePolicy(QSizePolicy::Expanding,
-				  QSizePolicy::Preferred);
+	spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
 
-	QPushButton* backButton = new QPushButton(this);
+	QPushButton *backButton = new QPushButton(this);
 	backButton->setText("Back");
 	backButton->setStyleSheet(EPushButtonStyle);
 
@@ -301,24 +305,20 @@ VideoSetup::VideoSetup(QWidget *parent, std::string name,
 	connect(proceedButton, &QPushButton::released, this, [this]() {
 		std::map<std::string, std::string> res;
 		int i = 0;
-		for (auto const& source : this->_videoSelectors) {
+		for (auto const &source : this->_videoSelectors) {
 			std::string settings = source->GetSettings();
 			std::string sourceName = source->GetSourceName();
 			res[sourceName] = settings;
 		}
 		emit proceedPressed(res);
 	});
-	connect(backButton, &QPushButton::released, this, [this]() {
-		emit backPressed();
-	});
+	connect(backButton, &QPushButton::released, this,
+		[this]() { emit backPressed(); });
 
 	layout->addLayout(buttons);
 }
 
-VideoSetup::~VideoSetup()
-{
-
-}
+VideoSetup::~VideoSetup() {}
 
 void VideoSetup::DefaultVideoUpdated(void *data, calldata_t *params)
 {
@@ -351,9 +351,8 @@ void VideoSetup::OpenConfigVideoSource()
 	obs_properties_destroy(props);
 }
 
-
-AudioSetup::AudioSetup(QWidget* parent, std::string name,
-	std::string thumbnailPath)
+AudioSetup::AudioSetup(QWidget *parent, std::string name,
+		       std::string thumbnailPath)
 	: QWidget(parent)
 {
 	auto layout = new QVBoxLayout(this);
@@ -368,9 +367,7 @@ AudioSetup::AudioSetup(QWidget* parent, std::string name,
 	_levelsWidget = new SimpleVolumeMeter(this, _volmeter);
 	// Add Dropdown and meter
 	QWidget *spacer = new QWidget(this);
-	spacer->setSizePolicy(QSizePolicy::Preferred,
-				   QSizePolicy::Expanding);
-
+	spacer->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
 
 	layout->addWidget(audioDeviceLabel);
 	layout->addWidget(_audioSources);
@@ -393,14 +390,13 @@ AudioSetup::AudioSetup(QWidget* parent, std::string name,
 	auto buttons = new QHBoxLayout();
 
 	auto bSpacer = new QWidget(this);
-	bSpacer->setSizePolicy(QSizePolicy::Expanding,
-		QSizePolicy::Preferred);
+	bSpacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
 
-	QPushButton* backButton = new QPushButton(this);
+	QPushButton *backButton = new QPushButton(this);
 	backButton->setText("Back");
 	backButton->setStyleSheet(EPushButtonStyle);
 
-	QPushButton* proceedButton = new QPushButton(this);
+	QPushButton *proceedButton = new QPushButton(this);
 	proceedButton->setText("Next");
 	proceedButton->setStyleSheet(EPushButtonStyle);
 
@@ -408,40 +404,39 @@ AudioSetup::AudioSetup(QWidget* parent, std::string name,
 	buttons->addWidget(backButton);
 	buttons->addWidget(proceedButton);
 	connect(proceedButton, &QPushButton::released, this, [this]() {
-		obs_data_t* aSettings =
+		obs_data_t *aSettings =
 			obs_source_get_settings(_audioCaptureSource);
 		std::string aJson = obs_data_get_json(aSettings);
 		obs_data_release(aSettings);
 		emit proceedPressed(aJson);
 	});
-	connect(backButton, &QPushButton::released, this, [this]() {
-		emit backPressed();
-	});
+	connect(backButton, &QPushButton::released, this,
+		[this]() { emit backPressed(); });
 	layout->addLayout(buttons);
 }
 
 void AudioSetup::_setupTempSources()
 {
 	// Get settings
-	config_t* const global_config = obs_frontend_get_global_config();
+	config_t *const global_config = obs_frontend_get_global_config();
 	config_set_default_string(global_config, "ElgatoCloud",
-		"DefaultAudioCaptureSettings", "");
+				  "DefaultAudioCaptureSettings", "");
 
 	std::string audioSettingsJson = config_get_string(
 		global_config, "ElgatoCloud", "DefaultAudioCaptureSettings");
 
-	obs_data_t* audioSettings =
+	obs_data_t *audioSettings =
 		audioSettingsJson != ""
-		? obs_data_create_from_json(audioSettingsJson.c_str())
-		: nullptr;
+			? obs_data_create_from_json(audioSettingsJson.c_str())
+			: nullptr;
 
-	const char* audioSourceId = "wasapi_input_capture";
-	const char* aId = obs_get_latest_input_type_id(audioSourceId);
+	const char *audioSourceId = "wasapi_input_capture";
+	const char *aId = obs_get_latest_input_type_id(audioSourceId);
 	_audioCaptureSource = obs_source_create_private(
 		aId, "elgato-cloud-audio-config", audioSettings);
 
-	obs_properties_t* aProps = obs_source_properties(_audioCaptureSource);
-	obs_property_t* aDevices = obs_properties_get(aProps, "device_id");
+	obs_properties_t *aProps = obs_source_properties(_audioCaptureSource);
+	obs_property_t *aDevices = obs_properties_get(aProps, "device_id");
 	for (size_t i = 0; i < obs_property_list_item_count(aDevices); i++) {
 		std::string name = obs_property_list_item_name(aDevices, i);
 		std::string id = obs_property_list_item_string(aDevices, i);
@@ -450,11 +445,11 @@ void AudioSetup::_setupTempSources()
 	}
 	obs_properties_destroy(aProps);
 
-	obs_data_t* aSettings = obs_source_get_settings(_audioCaptureSource);
+	obs_data_t *aSettings = obs_source_get_settings(_audioCaptureSource);
 	std::string aDevice = obs_data_get_string(aSettings, "device_id");
 	if (aDevice != "") {
 		auto it = std::find(_audioSourceIds.begin(),
-			_audioSourceIds.end(), aDevice);
+				    _audioSourceIds.end(), aDevice);
 		if (it != _audioSourceIds.end()) {
 			_audioSources->setCurrentIndex(
 				static_cast<int>(it - _audioSourceIds.begin()));
@@ -463,10 +458,10 @@ void AudioSetup::_setupTempSources()
 	obs_data_release(aSettings);
 
 	_levelsWidget->show();
-	signal_handler_t* audioSigHandler =
+	signal_handler_t *audioSigHandler =
 		obs_source_get_signal_handler(_audioCaptureSource);
 	signal_handler_connect_ref(audioSigHandler, "update",
-		AudioSetup::DefaultAudioUpdated, this);
+				   AudioSetup::DefaultAudioUpdated, this);
 	obs_data_release(audioSettings);
 }
 
@@ -474,21 +469,20 @@ void AudioSetup::SetupVolMeter()
 {
 	obs_log(LOG_INFO, "SetupVolMeter");
 	if (_volmeter) {
-		obs_volmeter_remove_callback(
-			_volmeter, AudioSetup::OBSVolumeLevel, this);
+		obs_volmeter_remove_callback(_volmeter,
+					     AudioSetup::OBSVolumeLevel, this);
 		obs_volmeter_destroy(_volmeter);
 		_volmeter = nullptr;
 	}
 	_volmeter = obs_volmeter_create(OBS_FADER_LOG);
 	obs_volmeter_attach_source(_volmeter, _audioCaptureSource);
-	obs_volmeter_add_callback(_volmeter, AudioSetup::OBSVolumeLevel,
-		this);
+	obs_volmeter_add_callback(_volmeter, AudioSetup::OBSVolumeLevel, this);
 }
 
-void AudioSetup::DefaultAudioUpdated(void* data, calldata_t* params)
+void AudioSetup::DefaultAudioUpdated(void *data, calldata_t *params)
 {
 	UNUSED_PARAMETER(params);
-	auto config = static_cast<AudioSetup*>(data);
+	auto config = static_cast<AudioSetup *>(data);
 	config->SetupVolMeter();
 	// auto config = static_cast<VideoSetup*>(data);
 	// config_t *const global_config = obs_frontend_get_global_config();
@@ -516,9 +510,9 @@ void AudioSetup::OpenConfigAudioSource()
 }
 
 void AudioSetup::OBSVolumeLevel(void *data,
-				     const float magnitude[MAX_AUDIO_CHANNELS],
-				     const float peak[MAX_AUDIO_CHANNELS],
-				     const float inputPeak[MAX_AUDIO_CHANNELS])
+				const float magnitude[MAX_AUDIO_CHANNELS],
+				const float peak[MAX_AUDIO_CHANNELS],
+				const float inputPeak[MAX_AUDIO_CHANNELS])
 {
 	UNUSED_PARAMETER(peak);
 	UNUSED_PARAMETER(inputPeak);
@@ -541,8 +535,8 @@ AudioSetup::~AudioSetup()
 {
 	if (_volmeter) {
 		obs_volmeter_detach_source(_volmeter);
-		obs_volmeter_remove_callback(
-			_volmeter, AudioSetup::OBSVolumeLevel, this);
+		obs_volmeter_remove_callback(_volmeter,
+					     AudioSetup::OBSVolumeLevel, this);
 		obs_volmeter_destroy(_volmeter);
 	}
 	if (_audioCaptureSource) {
@@ -564,22 +558,22 @@ StreamPackageSetupWizard::StreamPackageSetupWizard(QWidget *parent,
 	  _productName(product->name),
 	  _filename(filename)
 {
-
 	SceneBundle bundle;
 	auto bundleInfoStr = bundle.ExtractBundleInfo(filename);
 	nlohmann::json bundleInfo;
 	bool error = false;
 	try {
 		bundleInfo = nlohmann::json::parse(bundleInfoStr);
-	}
-	catch (const nlohmann::json::parse_error& e) {
+	} catch (const nlohmann::json::parse_error &e) {
 		obs_log(LOG_ERROR, "Parsing Error.\n  message: %s\n  id: %i",
 			e.what(), e.id);
 		error = true;
 	}
 
-	std::map<std::string, std::string> videoSourceLabels = bundleInfo["video_devices"];
-	std::vector<std::string> requiredPlugins = bundleInfo["plugins_required"];
+	std::map<std::string, std::string> videoSourceLabels =
+		bundleInfo["video_devices"];
+	std::vector<std::string> requiredPlugins =
+		bundleInfo["plugins_required"];
 
 	setupWizard = this;
 	setWindowTitle("Install Scene Collection");
@@ -599,23 +593,26 @@ StreamPackageSetupWizard::~StreamPackageSetupWizard()
 	setupWizard = nullptr;
 }
 
-void StreamPackageSetupWizard::_buildMissingPluginsUI(std::vector<PluginDetails>& missing)
+void StreamPackageSetupWizard::_buildMissingPluginsUI(
+	std::vector<PluginDetails> &missing)
 {
 	setFixedSize(500, 350);
-	QVBoxLayout* layout = new QVBoxLayout(this);
+	QVBoxLayout *layout = new QVBoxLayout(this);
 
-	auto missingPlugins = new MissingPlugins(this, _productName, _thumbnailPath, missing);
+	auto missingPlugins =
+		new MissingPlugins(this, _productName, _thumbnailPath, missing);
 	layout->addWidget(missingPlugins);
 }
 
-void StreamPackageSetupWizard::_buildSetupUI(std::map<std::string, std::string> &videoSourceLabels)
+void StreamPackageSetupWizard::_buildSetupUI(
+	std::map<std::string, std::string> &videoSourceLabels)
 {
 	setFixedSize(320, 350);
-	QVBoxLayout* layout = new QVBoxLayout(this);
+	QVBoxLayout *layout = new QVBoxLayout(this);
 	_steps = new QStackedWidget(this);
 
 	// Step 1- select a new or existing install (step index: 0)
-	InstallType* installerType =
+	InstallType *installerType =
 		new InstallType(this, _productName, _thumbnailPath);
 	connect(installerType, &InstallType::newCollectionPressed, this,
 		[this]() {
@@ -632,7 +629,7 @@ void StreamPackageSetupWizard::_buildSetupUI(std::map<std::string, std::string> 
 	_steps->addWidget(installerType);
 
 	// Step 2a- Provide a name for the new collection (step index: 1)
-	auto* newName =
+	auto *newName =
 		new NewCollectionName(this, _productName, _thumbnailPath);
 	connect(newName, &NewCollectionName::proceedPressed, this,
 		[this](std::string name) {
@@ -646,7 +643,8 @@ void StreamPackageSetupWizard::_buildSetupUI(std::map<std::string, std::string> 
 	_steps->addWidget(new QWidget(this));
 
 	// Step 3- Set up Video inputs (step index: 3)
-	auto vSetup = new VideoSetup(this, _productName, _thumbnailPath, videoSourceLabels);
+	auto vSetup = new VideoSetup(this, _productName, _thumbnailPath,
+				     videoSourceLabels);
 	_steps->addWidget(vSetup);
 	connect(vSetup, &VideoSetup::proceedPressed, this,
 		[this](std::map<std::string, std::string> settings) {
@@ -655,11 +653,10 @@ void StreamPackageSetupWizard::_buildSetupUI(std::map<std::string, std::string> 
 			_steps->setCurrentIndex(4);
 			setFixedSize(320, 384);
 		});
-	connect(vSetup, &VideoSetup::backPressed, this,
-		[this]() {
-			_steps->setCurrentIndex(1);
-			setFixedSize(320, 384);
-		});
+	connect(vSetup, &VideoSetup::backPressed, this, [this]() {
+		_steps->setCurrentIndex(1);
+		setFixedSize(320, 384);
+	});
 	// Step 4- Setup Audio Inputs (step index: 4)
 
 	auto aSetup = new AudioSetup(this, _productName, _thumbnailPath);
@@ -669,11 +666,10 @@ void StreamPackageSetupWizard::_buildSetupUI(std::map<std::string, std::string> 
 			_setup.audioSettings = settings;
 			install();
 		});
-	connect(aSetup, &AudioSetup::backPressed, this,
-		[this]() {
-			_steps->setCurrentIndex(3);
-			setFixedSize(554, 440);
-		});
+	connect(aSetup, &AudioSetup::backPressed, this, [this]() {
+		_steps->setCurrentIndex(3);
+		setFixedSize(554, 440);
+	});
 
 	layout->addWidget(_steps);
 }
@@ -683,17 +679,12 @@ void StreamPackageSetupWizard::install()
 	obs_log(LOG_INFO, "Elgato Req File: %s", _filename.c_str());
 
 	// TODO: Clean up this mess of setting up the pack install path.
-	auto path = obs_module_config_path("packs");
-	os_mkdirs(path);
-	auto abs_path = os_get_abs_path_ptr(path);
-	std::string abs_path_str = std::string(abs_path);
-	replace_all(abs_path_str, std::string(":\\\\"), std::string(":/"));
-	std::replace(abs_path_str.begin(), abs_path_str.end(), '\\', '/');
+	std::string path = QDir::homePath().toStdString();
+	path += "/AppData/Local/Elgato/DeepLinking/SceneCollections";
+	os_mkdirs(path.c_str());
 	std::string packDirName(_setup.collectionName);
 	std::replace(packDirName.begin(), packDirName.end(), ' ', '_');
-	std::string pack_path = abs_path_str + "/" + packDirName;
-	bfree(path);
-	bfree(abs_path);
+	std::string pack_path = path + "/" + packDirName;
 	obs_log(LOG_INFO, "Elgato Install Path: %s", pack_path.c_str());
 
 	// TODO: Add dialog with progress indicator.  Put unzipping and
