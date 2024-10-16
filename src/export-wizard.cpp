@@ -12,6 +12,18 @@
 
 namespace elgatocloud {
 
+const auto bundle = new SceneBundle();
+
+SceneBundleStatus createBundle(std::string filename,
+			       std::vector<std::string> plugins,
+			       std::map<std::string, std::string> vidDevLabels)
+{
+	if (!bundle) {
+		return SceneBundleStatus::InvalidBundle;
+	}
+	return bundle->ToElgatoCloudFile(filename, plugins, vidDevLabels);
+}
+
 // TODO: For MacOS the filename sigatures will be different
 const std::vector<std::string> ExcludedModules{
 	// OBS built-in modules
@@ -214,8 +226,10 @@ RequiredPlugins::RequiredPlugins(QWidget *parent,
 		pluginList->setFocusPolicy(Qt::FocusPolicy::NoFocus);
 
 		for (auto module : installed) {
-			
-			_pluginStatus[module.name] = std::pair<bool, std::string>(false, module.files[0]);
+
+			_pluginStatus[module.name] =
+				std::pair<bool, std::string>(false,
+							     module.files[0]);
 			pluginList->addItem(module.name.c_str());
 		}
 
@@ -230,8 +244,8 @@ RequiredPlugins::RequiredPlugins(QWidget *parent,
 			[this](QListWidgetItem *item) {
 				std::string filename =
 					item->text().toStdString();
-				_pluginStatus[filename].first = item->checkState() ==
-							  Qt::Checked;
+				_pluginStatus[filename].first =
+					item->checkState() == Qt::Checked;
 			});
 
 		layout->addWidget(pluginList);
@@ -320,6 +334,50 @@ std::vector<std::string> RequiredPlugins::RequiredPluginList()
 	return reqList;
 }
 
+Exporting::Exporting(QWidget *parent) : QWidget(parent)
+{
+	QVBoxLayout *layout = new QVBoxLayout(this);
+
+	auto spacerTop = new QWidget(this);
+	spacerTop->setSizePolicy(QSizePolicy::Preferred,
+				 QSizePolicy::Expanding);
+	layout->addWidget(spacerTop);
+
+	std::string imagesPath = obs_get_module_data_path(obs_current_module());
+	imagesPath += "/images/";
+	std::string spinnerImage = imagesPath + "spinner-white.gif";
+
+	_indicator = new QMovie(spinnerImage.c_str());
+
+	auto spinner = new QLabel(this);
+	spinner->setMovie(_indicator);
+	_indicator->start();
+	spinner->setAlignment(Qt::AlignCenter);
+	layout->addWidget(spinner);
+
+	auto title = new QLabel(this);
+	title->setText("Exporting Bundle...");
+	title->setStyleSheet(ETitleStyle);
+	title->setAlignment(Qt::AlignCenter);
+	layout->addWidget(title);
+
+	auto subTitle = new QLabel(this);
+	subTitle->setText(
+		"Note: this can take a few minutes for scene collections with large files.");
+	subTitle->setStyleSheet(
+		"QLabel{ font-size: 11pt; font-style: italic; }");
+	subTitle->setAlignment(Qt::AlignCenter);
+	subTitle->setWordWrap(true);
+	layout->addWidget(subTitle);
+
+	auto spacerBottom = new QWidget(this);
+	spacerBottom->setSizePolicy(QSizePolicy::Preferred,
+				    QSizePolicy::Expanding);
+	layout->addWidget(spacerBottom);
+}
+
+Exporting::~Exporting() {}
+
 StreamPackageExportWizard::StreamPackageExportWizard(QWidget *parent)
 	: QDialog(parent),
 	  _steps(nullptr)
@@ -333,15 +391,16 @@ StreamPackageExportWizard::StreamPackageExportWizard(QWidget *parent)
 	std::string collectionName = currentCollection;
 	bfree(currentCollection);
 
-	if (!_bundle.FromCollection(collectionName)) {
+	if (!bundle->FromCollection(collectionName)) {
 		return;
 	}
-	std::vector<std::string> fileList = _bundle.FileList();
+	std::vector<std::string> fileList = bundle->FileList();
 	std::map<std::string, std::string> vidDevs =
-		_bundle.VideoCaptureDevices();
+		bundle->VideoCaptureDevices();
 
 	QVBoxLayout *layout = new QVBoxLayout(this);
 	_steps = new QStackedWidget(this);
+
 	// Step 1- check the media files to be bundled (step index: 0)
 	auto fileCheck = new FileCollectionCheck(this, fileList);
 	connect(fileCheck, &FileCollectionCheck::continuePressed, this,
@@ -360,31 +419,65 @@ StreamPackageExportWizard::StreamPackageExportWizard(QWidget *parent)
 
 	// Step 2- Specify required plugins (step index: 2)
 	auto reqPlugins = new RequiredPlugins(this, _modules);
-	connect(reqPlugins, &RequiredPlugins::continuePressed, this,
-		[this, videoLabels, reqPlugins]() {
-			auto vidDevLabels = videoLabels->Labels();
-			auto plugins = reqPlugins->RequiredPluginList();
-			QWidget *window =
-				(QWidget *)obs_frontend_get_main_window();
-			QString filename = QFileDialog::getSaveFileName(
-				window, "Save As...", QString(),
-				"*.elgatoscene");
-			if (filename == "") {
-				_steps->setCurrentIndex(2);
-				return;
-			}
-			if (!filename.endsWith(".elgatoscene")) {
-				filename += ".elgatoscene";
-			}
-			std::string filename_utf8 =
-				filename.toUtf8().constData();
-			_bundle.ToElgatoCloudFile(filename_utf8, plugins,
-						  vidDevLabels);
-			_steps->setCurrentIndex(3);
-		});
+	connect(reqPlugins, &RequiredPlugins::continuePressed, this, [this, videoLabels, reqPlugins]() {
+		auto vidDevLabels = videoLabels->Labels();
+		auto plugins = reqPlugins->RequiredPluginList();
+		QWidget *window = (QWidget *)obs_frontend_get_main_window();
+		QString filename = QFileDialog::getSaveFileName(
+			window, "Save As...", QString(), "*.elgatoscene");
+		if (filename == "") {
+			_steps->setCurrentIndex(2);
+			return;
+		}
+		if (!filename.endsWith(".elgatoscene")) {
+			filename += ".elgatoscene";
+		}
+		_steps->setCurrentIndex(3);
+		std::string filename_utf8 = filename.toUtf8().constData();
+		// This is a bit of threading hell.
+		// Find a better way to set this up, perhaps in an
+		// installer handler thread handling object.
+		_future =
+			QtConcurrent::run(createBundle, filename_utf8, plugins,
+					  vidDevLabels)
+				.then([this](SceneBundleStatus status) {
+					// We are now in a different thread, so we need to execute this
+					// back in the gui thread.  See, threading hell.
+					QMetaObject::invokeMethod(
+						QCoreApplication::instance()
+							->thread(), // main GUI thread
+						[this, status]() {
+							if (status ==
+							    SceneBundleStatus::
+								    Success) {
+								_steps->setCurrentIndex(
+									4);
+							} else if (
+								status ==
+								SceneBundleStatus::
+									Cancelled) {
+								_steps->setCurrentIndex(
+									2);
+							} else if (
+								status ==
+								SceneBundleStatus::
+									CallerDestroyed) {
+								blog(LOG_INFO,
+								     "Wizard Closed");
+							}
+						});
+				})
+				.onCanceled([]() {
+
+				});
+		//createBundle(filename_utf8, plugins, vidDevLabels);
+	});
 	connect(reqPlugins, &RequiredPlugins::backPressed, this,
 		[this]() { _steps->setCurrentIndex(1); });
 	_steps->addWidget(reqPlugins);
+
+	auto exporting = new Exporting(this);
+	_steps->addWidget(exporting);
 
 	// Successful Export
 	auto success = new ExportComplete(this);
@@ -394,7 +487,10 @@ StreamPackageExportWizard::StreamPackageExportWizard(QWidget *parent)
 	layout->addWidget(_steps);
 }
 
-StreamPackageExportWizard::~StreamPackageExportWizard() {}
+StreamPackageExportWizard::~StreamPackageExportWizard()
+{
+	bundle->interrupt(SceneBundleStatus::CallerDestroyed);
+}
 
 void StreamPackageExportWizard::AddModule(void *data, obs_module_t *module)
 {

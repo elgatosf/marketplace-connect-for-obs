@@ -579,6 +579,13 @@ StreamPackageSetupWizard::StreamPackageSetupWizard(QWidget *parent,
 	setWindowTitle("Install Scene Collection");
 	setStyleSheet("background-color: #232323");
 
+	// Disable all video capture sources so that single-thread
+	// capture sources, such as the Elgato Facecam, can be properly
+	// selected in the wizard.  Will re-enable any disabled sources
+	// in the wizard destructor.
+	obs_enum_sources(&StreamPackageSetupWizard::DisableVideoCaptureSources,
+			 this);
+
 	PluginInfo pi;
 	std::vector<PluginDetails> missing = pi.missing(requiredPlugins);
 	if (missing.size() > 0) {
@@ -590,7 +597,48 @@ StreamPackageSetupWizard::StreamPackageSetupWizard(QWidget *parent,
 
 StreamPackageSetupWizard::~StreamPackageSetupWizard()
 {
+	EnableVideoCaptureSources();
 	setupWizard = nullptr;
+}
+
+bool StreamPackageSetupWizard::DisableVideoCaptureSources(void *data,
+							  obs_source_t *source)
+{
+	auto wizard = static_cast<StreamPackageSetupWizard *>(data);
+	std::string sourceType = obs_source_get_id(source);
+	if (sourceType == "dshow_input") {
+		auto settings = obs_source_get_settings(source);
+		bool active = obs_data_get_bool(settings, "active");
+		obs_data_release(settings);
+		if (active) {
+			calldata_t cd = {};
+			calldata_set_bool(&cd, "active", false);
+			proc_handler_t *ph =
+				obs_source_get_proc_handler(source);
+			proc_handler_call(ph, "activate", &cd);
+			calldata_free(&cd);
+			auto wkSource = obs_source_get_weak_source(source);
+			wizard->_toEnable.push_back(wkSource);
+		}
+	}
+	return true;
+}
+
+void StreamPackageSetupWizard::EnableVideoCaptureSources()
+{
+	for (auto weakSource : _toEnable) {
+		auto source = obs_weak_source_get_source(weakSource);
+		if (source) {
+			calldata_t cd = {};
+			calldata_set_bool(&cd, "active", true);
+			proc_handler_t *ph =
+				obs_source_get_proc_handler(source);
+			proc_handler_call(ph, "activate", &cd);
+			calldata_free(&cd);
+			obs_source_release(source);
+		}
+		obs_weak_source_release(weakSource);
+	}
 }
 
 void StreamPackageSetupWizard::_buildMissingPluginsUI(

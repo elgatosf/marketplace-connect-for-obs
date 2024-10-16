@@ -45,13 +45,13 @@ const std::map<std::string, std::string> extensionMap{
 	{".mkv", "/video/"},      {".mp3", "/audio/"},
 	{".wav", "/aduio/"},      {".effect", "/shaders/"},
 	{".shader", "/shaders/"}, {".hlsl", "/shaders/"},
-	{".lua", "/scripts/"}, {".py", "/scripts/"}};
+	{".lua", "/scripts/"},    {".py", "/scripts/"}};
 
 // Filter IDs of incompatible filter types, e.g. filters
 // that require external libraries or executables.
 const std::vector<std::string> incompatibleFilters{"vst_filter"};
 
-SceneBundle::SceneBundle()
+SceneBundle::SceneBundle() : _interrupt(false)
 {
 	obs_log(LOG_INFO, "SceneBundle Constructor Called");
 }
@@ -87,7 +87,7 @@ bool SceneBundle::FromCollection(std::string collection_name)
 
 	bfree(collection_str);
 
-	for (auto& script : _collection["modules"]["scripts-tool"]) {
+	for (auto &script : _collection["modules"]["scripts-tool"]) {
 		_ProcessJsonObj(script);
 	}
 
@@ -138,8 +138,8 @@ void SceneBundle::ToCollection(std::string collection_name,
 	std::string word = _packPath + "/";
 	replace_all(collectionData, needle, word);
 
-	for (auto const& [sourceName, settings] : videoSettings) {
-		needle = "\"{" + sourceName +"}\"";
+	for (auto const &[sourceName, settings] : videoSettings) {
+		needle = "\"{" + sourceName + "}\"";
 		replace_all(collectionData, needle, settings);
 	}
 
@@ -190,10 +190,11 @@ void SceneBundle::ToCollection(std::string collection_name,
 	}
 }
 
-void SceneBundle::ToElgatoCloudFile(
+SceneBundleStatus SceneBundle::ToElgatoCloudFile(
 	std::string file_path, std::vector<std::string> plugins,
 	std::map<std::string, std::string> videoDeviceDescriptions)
 {
+	_interrupt = false;
 	miniz_cpp::zip_file ecFile;
 
 	// TODO: Let the bundle author specify the canvas dimensions,
@@ -216,7 +217,7 @@ void SceneBundle::ToElgatoCloudFile(
 
 	ecFile.writestr("collection.json", collection_json);
 	ecFile.writestr("bundle_info.json", bundleInfo_json);
-
+	blog(LOG_INFO, "Adding files to zip...");
 	// Write all assets to zip archive.
 	for (const auto &file : _fileMap) {
 		std::string oFilename = file.first;
@@ -227,14 +228,26 @@ void SceneBundle::ToElgatoCloudFile(
 				oFilename.c_str());
 			if (!_AddDirContentsToZip(file.first, file.second,
 						  ecFile)) {
-				return;
+				bool wasInterrupted = _interrupt;
+				_interrupt = false;
+				if (wasInterrupted) {
+					return _interruptReason;
+				}
+				return SceneBundleStatus::Error;
 			}
 		} else if (!_AddFileToZip(file.first, file.second, ecFile)) {
-			return;
+			bool wasInterrupted = _interrupt;
+			_interrupt = false;
+			if (wasInterrupted) {
+				return _interruptReason;
+			}
+			return SceneBundleStatus::Error;
 		}
 	}
 
 	ecFile.save(file_path);
+
+	return SceneBundleStatus::Success;
 }
 
 std::vector<std::string> SceneBundle::FileList()
@@ -288,7 +301,7 @@ void SceneBundle::_ProcessJsonObj(nlohmann::json &obj)
 		std::string name = obj[nameKey];
 		if (obj[idKey] == "dshow_input") {
 			obj.erase("settings");
-			obj["settings"] = "{"+name+"}";
+			obj["settings"] = "{" + name + "}";
 			_videoCaptureDevices[obj["uuid"]] = obj["name"];
 		} else if (obj[idKey] == "wasapi_input_capture") {
 			obj.erase("settings");
@@ -424,6 +437,9 @@ void SceneBundle::_CreateFileMap(nlohmann::json &item)
 bool SceneBundle::_AddFileToZip(std::string filePath, std::string zipPath,
 				miniz_cpp::zip_file &ecFile)
 {
+	if (_interrupt) {
+		return false;
+	}
 	ecFile.write(filePath, zipPath);
 	return true;
 }

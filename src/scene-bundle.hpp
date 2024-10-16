@@ -32,6 +32,14 @@ namespace miniz_cpp {
 class zip_file;
 }
 
+enum class SceneBundleStatus {
+	Success,
+	Cancelled,
+	CallerDestroyed,
+	InvalidBundle,
+	Error
+};
+
 class SceneBundle {
 private:
 	// Key: original file path, Value: new file name
@@ -42,6 +50,8 @@ private:
 	nlohmann::json _collection;
 	nlohmann::json _bundleInfo;
 	std::string _packPath;
+	bool _interrupt;
+	SceneBundleStatus _interruptReason;
 
 public:
 	SceneBundle();
@@ -52,12 +62,18 @@ public:
 				 std::string destination);
 	void ToCollection(std::string collection_name,
 			  std::map<std::string, std::string> videoSettings,
-			  std::string audioSettings, QDialog* dialog);
-	void ToElgatoCloudFile(
+			  std::string audioSettings, QDialog *dialog);
+	SceneBundleStatus ToElgatoCloudFile(
 		std::string file_path, std::vector<std::string> plugins,
 		std::map<std::string, std::string> videoDeviceDescriptions);
 
 	bool FileCheckDialog();
+
+	inline void interrupt(SceneBundleStatus reason)
+	{
+		_interruptReason = reason;
+		_interrupt = true;
+	}
 
 	std::string ExtractBundleInfo(std::string filePath);
 

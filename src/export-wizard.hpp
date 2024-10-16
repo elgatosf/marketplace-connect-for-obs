@@ -32,6 +32,8 @@ with this program.If not, see < https://www.gnu.org/licenses/>
 #include <QLabel>
 #include <QComboBox>
 #include <QStackedWidget>
+#include <QMovie>
+#include <QTConcurrent>
 
 #include "scene-bundle.hpp"
 
@@ -79,6 +81,16 @@ private:
 	std::map<std::string, std::pair<bool, std::string>> _pluginStatus;
 };
 
+class Exporting : public QWidget {
+	Q_OBJECT
+public:
+	Exporting(QWidget *parent);
+	~Exporting();
+
+private:
+	QMovie *_indicator;
+};
+
 class ExportComplete : public QWidget {
 	Q_OBJECT
 
@@ -102,6 +114,7 @@ private:
 	QStackedWidget *_steps;
 	SceneBundle _bundle;
 	std::vector<obs_module_t *> _modules;
+	QFuture<void> _future;
 };
 
 void OpenExportWizard();
