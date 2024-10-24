@@ -145,7 +145,7 @@ public:
 	static void DefaultAudioUpdated(void *data, calldata_t *params);
 
 private:
-	void _setupTempSources();
+	void _setupTempSources(obs_data_t* audioSettings);
 	SimpleVolumeMeter *_levelsWidget = nullptr;
 	obs_source_t *_audioCaptureSource = nullptr;
 	obs_volmeter_t *_volmeter = nullptr;

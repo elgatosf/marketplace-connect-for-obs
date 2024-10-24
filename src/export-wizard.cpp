@@ -12,7 +12,7 @@
 
 namespace elgatocloud {
 
-const auto bundle = new SceneBundle();
+SceneBundle* bundle = new SceneBundle();
 
 SceneBundleStatus createBundle(std::string filename,
 			       std::vector<std::string> plugins,

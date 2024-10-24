@@ -374,8 +374,24 @@ AudioSetup::AudioSetup(QWidget *parent, std::string name,
 	layout->addWidget(_levelsWidget);
 	layout->addWidget(spacer);
 
-	_setupTempSources();
+	// Get settings
+	config_t *const global_config = obs_frontend_get_global_config();
+	config_set_default_string(global_config, "ElgatoCloud",
+				  "DefaultAudioCaptureSettings", "");
+
+	std::string audioSettingsJson = config_get_string(
+		global_config, "ElgatoCloud", "DefaultAudioCaptureSettings");
+
+	obs_data_t *audioSettings =
+		audioSettingsJson != ""
+			? obs_data_create_from_json(audioSettingsJson.c_str())
+			: nullptr;
+
+	_audioCaptureSource = nullptr;
+	_setupTempSources(audioSettings);
 	SetupVolMeter();
+
+	obs_data_release(audioSettings);
 
 	connect(_audioSources, &QComboBox::currentIndexChanged, this,
 		[this](int index) {
@@ -383,8 +399,21 @@ AudioSetup::AudioSetup(QWidget *parent, std::string name,
 				obs_source_get_settings(_audioCaptureSource);
 			std::string id = _audioSourceIds[index];
 			obs_data_set_string(aSettings, "device_id", id.c_str());
-			obs_source_update(_audioCaptureSource, aSettings);
+
+			if (_volmeter) {
+				obs_volmeter_remove_callback(_volmeter,
+					AudioSetup::OBSVolumeLevel, this);
+				obs_volmeter_destroy(_volmeter);
+				_volmeter = nullptr;
+			}
+
+			// For some reason, we need to completely deconstruct the temporary
+			// audio capture source in order to connect the new device vol meter
+			// to the volume meter in the UI. It should be possible to inject
+			// the newly selected device, and re-connect the _volmeter callbacks
+			_setupTempSources(aSettings);
 			obs_data_release(aSettings);
+			SetupVolMeter();
 		});
 
 	auto buttons = new QHBoxLayout();
@@ -415,20 +444,12 @@ AudioSetup::AudioSetup(QWidget *parent, std::string name,
 	layout->addLayout(buttons);
 }
 
-void AudioSetup::_setupTempSources()
+void AudioSetup::_setupTempSources(obs_data_t* audioSettings)
 {
-	// Get settings
-	config_t *const global_config = obs_frontend_get_global_config();
-	config_set_default_string(global_config, "ElgatoCloud",
-				  "DefaultAudioCaptureSettings", "");
-
-	std::string audioSettingsJson = config_get_string(
-		global_config, "ElgatoCloud", "DefaultAudioCaptureSettings");
-
-	obs_data_t *audioSettings =
-		audioSettingsJson != ""
-			? obs_data_create_from_json(audioSettingsJson.c_str())
-			: nullptr;
+	if (_audioCaptureSource) {
+		obs_source_release(_audioCaptureSource);
+		obs_source_remove(_audioCaptureSource);
+	}
 
 	const char *audioSourceId = "wasapi_input_capture";
 	const char *aId = obs_get_latest_input_type_id(audioSourceId);
@@ -458,22 +479,21 @@ void AudioSetup::_setupTempSources()
 	obs_data_release(aSettings);
 
 	_levelsWidget->show();
-	signal_handler_t *audioSigHandler =
-		obs_source_get_signal_handler(_audioCaptureSource);
-	signal_handler_connect_ref(audioSigHandler, "update",
-				   AudioSetup::DefaultAudioUpdated, this);
-	obs_data_release(audioSettings);
+	//signal_handler_t *audioSigHandler =
+	//	obs_source_get_signal_handler(_audioCaptureSource);
+	//signal_handler_connect_ref(audioSigHandler, "update",
+	//			   AudioSetup::DefaultAudioUpdated, this);
 }
 
 void AudioSetup::SetupVolMeter()
 {
 	obs_log(LOG_INFO, "SetupVolMeter");
-	if (_volmeter) {
-		obs_volmeter_remove_callback(_volmeter,
-					     AudioSetup::OBSVolumeLevel, this);
-		obs_volmeter_destroy(_volmeter);
-		_volmeter = nullptr;
-	}
+	//if (_volmeter) {
+	//	obs_volmeter_remove_callback(_volmeter,
+	//				     AudioSetup::OBSVolumeLevel, this);
+	//	obs_volmeter_destroy(_volmeter);
+	//	_volmeter = nullptr;
+	//}
 	_volmeter = obs_volmeter_create(OBS_FADER_LOG);
 	obs_volmeter_attach_source(_volmeter, _audioCaptureSource);
 	obs_volmeter_add_callback(_volmeter, AudioSetup::OBSVolumeLevel, this);
@@ -542,11 +562,11 @@ AudioSetup::~AudioSetup()
 	if (_audioCaptureSource) {
 		obs_source_release(_audioCaptureSource);
 		obs_source_remove(_audioCaptureSource);
-		signal_handler_t *audioSigHandler =
-			obs_source_get_signal_handler(_audioCaptureSource);
-		signal_handler_disconnect(audioSigHandler, "update",
-					  AudioSetup::DefaultAudioUpdated,
-					  this);
+		//signal_handler_t *audioSigHandler =
+		//	obs_source_get_signal_handler(_audioCaptureSource);
+		//signal_handler_disconnect(audioSigHandler, "update",
+		//			  AudioSetup::DefaultAudioUpdated,
+		//			  this);
 	}
 }
 

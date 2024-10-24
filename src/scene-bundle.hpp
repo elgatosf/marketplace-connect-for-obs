@@ -87,6 +87,7 @@ private:
 			   miniz_cpp::zip_file &ecFile);
 	bool _AddDirContentsToZip(std::string dirPath, std::string zipDir,
 				  miniz_cpp::zip_file &ecFile);
+	void _reset();
 };
 
 #endif // SCENEBUNDLE_H

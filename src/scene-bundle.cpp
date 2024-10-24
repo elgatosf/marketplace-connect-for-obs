@@ -63,6 +63,7 @@ SceneBundle::~SceneBundle()
 
 bool SceneBundle::FromCollection(std::string collection_name)
 {
+	_reset();
 	// Get the path to the currently active scene collection file.
 	std::string scene_collections_path = get_scene_collections_path();
 	std::string file_name =
@@ -101,6 +102,7 @@ bool SceneBundle::FromCollection(std::string collection_name)
 bool SceneBundle::FromElgatoCloudFile(std::string filePath,
 				      std::string packPath)
 {
+	_reset();
 	//Handle the ZIP archive
 	_packPath = packPath;
 	miniz_cpp::zip_file file(filePath);
@@ -475,4 +477,11 @@ bool SceneBundle::_AddDirContentsToZip(std::string dirPath, std::string zipDir,
 	os_closedir(dir);
 
 	return true;
+}
+
+void SceneBundle::_reset()
+{
+	_fileMap.clear();
+	_skippedFilters.clear();
+	_videoCaptureDevices.clear();
 }
