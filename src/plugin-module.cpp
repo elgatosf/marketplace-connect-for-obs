@@ -60,7 +60,7 @@ void import_collection(void*)
 		return;
 	}
 	elgatocloud::ElgatoProduct product("Bundle Name");
-	product.Install(fileName.toStdString(), &product);
+	product.Install(fileName.toStdString(), &product, false);
 }
 
 bool obs_module_load(void)

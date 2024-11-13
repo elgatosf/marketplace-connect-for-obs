@@ -83,6 +83,7 @@ void ElgatoCloud::_TokenRefresh(bool loadData)
 	if (seconds.count() < _accessTokenExpiration) {
 		loggedIn = true;
 		loading = loadData;
+		_LoadUserData();
 		if (loadData) {
 			LoadPurchasedProducts();
 		}
@@ -344,11 +345,19 @@ void ElgatoCloud::_ProcessLogin(nlohmann::json &loginData, bool loadData)
 				}
 			});
 	}
+	_LoadUserData();
+}
 
+void ElgatoCloud::_LoadUserData()
+{
 	auto api = MarketplaceApi::getInstance();
 	std::string api_url = api->gatewayUrl();
 	api_url += "/user";
 	auto userResponse = fetch_string_from_get(api_url, _accessToken);
+	auto userData = nlohmann::json::parse(userResponse);
+	api->setUserDetails(userData);
+
+	blog(LOG_INFO, "User Response:\n%s", userResponse.c_str());
 }
 
 void ElgatoCloud::_SaveState()

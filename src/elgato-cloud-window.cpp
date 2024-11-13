@@ -17,7 +17,9 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 */
 
 #include "elgato-cloud-window.hpp"
+#include "elgato-styles.hpp"
 
+#include <curl/curl.h>
 #include <obs-frontend-api.h>
 #include <QMainWindow>
 #include <QAction>
@@ -40,6 +42,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include "elgato-cloud-config.hpp"
 #include "setup-wizard.hpp"
 #include "flowlayout.h"
+#include "api.hpp"
 
 #include "plugin-support.h"
 
@@ -47,11 +50,179 @@ namespace elgatocloud {
 
 ElgatoCloudWindow *ElgatoCloudWindow::window = nullptr;
 
+Avatar::Avatar(QWidget *parent) : QWidget(parent)
+{
+	update();
+	setFixedWidth(40);
+	setFixedHeight(40);
+}
+
+void Avatar::update()
+{
+	auto api = MarketplaceApi::getInstance();
+	_bgColor = api->avatarColor();
+	auto first = api->firstName();
+	_character = first.substr(0, 1).c_str();
+}
+
+void Avatar::paintEvent(QPaintEvent *e)
+{
+	QPainter paint;
+	paint.begin(this);
+	paint.setRenderHint(QPainter::Antialiasing);
+	paint.setPen(_bgColor.c_str());
+	paint.setBrush(QBrush(_bgColor.c_str(), Qt::SolidPattern));
+	paint.drawEllipse(1, 1, 38, 38);
+
+	QFont font = paint.font();
+	font.setPixelSize(24);
+	paint.setPen("#FFFFFF");
+	paint.setFont(font);
+	paint.drawText(QRect(1, 1, 38, 38), Qt::AlignCenter,
+		       _character.c_str());
+	paint.end();
+}
+
+DownloadButton::DownloadButton(QWidget *parent) : QWidget(parent)
+{
+	std::string imageBaseDir =
+		obs_get_module_data_path(obs_current_module());
+	imageBaseDir += "/images/";
+
+	//setFixedWidth(48);
+
+	QHBoxLayout *layout = new QHBoxLayout(this);
+	_stackedWidget = new QStackedWidget(this);
+	_stackedWidget->setStyleSheet("background-color: #151515");
+	_stackedWidget->setFixedSize(24, 24);
+	_stackedWidget->setSizePolicy(QSizePolicy::Preferred,
+				      QSizePolicy::Preferred);
+
+	_downloadButton = new QPushButton(this);
+	std::string downloadIconPath = imageBaseDir + "download.svg";
+	std::string downloadIconHoverPath = imageBaseDir + "download_hover.svg";
+	std::string downloadIconDisabledPath = imageBaseDir + "download_hover.svg";
+	QString buttonStyle = EIconHoverDisabledButtonStyle;
+	buttonStyle.replace("${img}", downloadIconPath.c_str());
+	buttonStyle.replace("${hover-img}", downloadIconHoverPath.c_str());
+	buttonStyle.replace("${disabled-img}", downloadIconDisabledPath.c_str());
+	_downloadButton->setFixedSize(24, 24);
+	_downloadButton->setStyleSheet(buttonStyle);
+	_downloadButton->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+	//_downloadButton->setDisabled(true);
+	connect(_downloadButton, &QPushButton::clicked, [this]() {
+		_stackedWidget->setCurrentIndex(1);
+		emit downloadClicked();
+	});
+	_stackedWidget->addWidget(_downloadButton);
+
+	_downloadProgress = new DownloadProgress(this);
+	_downloadProgress->setValue(0.0);
+	_downloadProgress->setMinimum(0.0);
+	_downloadProgress->setMaximum(100.0);
+	_downloadProgress->setFixedHeight(24);
+	_downloadProgress->setFixedWidth(24);
+
+	_stackedWidget->addWidget(_downloadProgress);
+
+	QWidget *spacer = new QWidget(this);
+	spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+
+	layout->addWidget(spacer);
+	layout->addWidget(_stackedWidget);
+}
+
+void DownloadButton::setDisabled(bool disabled)
+{
+	_downloadButton->setDisabled(disabled);
+}
+
+void DownloadButton::setValue(double value)
+{
+	_downloadProgress->setValue(value);
+}
+
+void DownloadButton::resetDownload()
+{
+	_stackedWidget->setCurrentIndex(0);
+	_downloadProgress->setValue(0.0);
+}
+
+DownloadProgress::DownloadProgress(QWidget *parent) : QWidget(parent)
+{
+	_width = 20;
+	_height = 20;
+	_minimumValue = 0;
+	_maximumValue = 100;
+	_value = 0;
+	_progressWidth = 2;
+}
+
+DownloadProgress::~DownloadProgress() {}
+
+void DownloadProgress::setValue(double value)
+{
+	_value = value;
+	update();
+}
+
+void DownloadProgress::setMinimum(double minimum)
+{
+	_minimumValue = minimum;
+	update();
+}
+
+void DownloadProgress::setMaximum(double maximum)
+{
+	_maximumValue = maximum;
+	update();
+}
+
+void DownloadProgress::paintEvent(QPaintEvent *e)
+{
+	int margin = _progressWidth / 2;
+
+	int width = _width - _progressWidth;
+	int height = _height - _progressWidth;
+
+	double value = 360.0 * (_value - _minimumValue) /
+		       (_maximumValue - _minimumValue);
+
+	QPainter paint;
+	paint.begin(this);
+	paint.setRenderHint(QPainter::Antialiasing);
+
+	QRect rect(0, 0, _width, _height);
+	paint.setPen(Qt::NoPen);
+	paint.drawRect(rect);
+
+	QPen pen;
+	pen.setColor(QColor(32, 76, 254));
+	pen.setWidth(_progressWidth);
+
+	paint.setPen(pen);
+	paint.drawArc(margin, margin, width, height, 90.0 * 16.0,
+		      -value * 16.0);
+
+	QPen bgPen;
+	bgPen.setColor(QColor(59, 59, 59));
+	bgPen.setWidth(_progressWidth);
+	paint.setPen(bgPen);
+	float remaining = 360.0 - value;
+	paint.drawArc(margin, margin, width, height, 90.0 * 16.0,
+		      remaining * 16.0);
+
+	paint.end();
+}
+
 WindowToolBar::WindowToolBar(QWidget *parent) : QWidget(parent)
 {
 	std::string imageBaseDir =
 		obs_get_module_data_path(obs_current_module());
 	imageBaseDir += "/images/";
+
+	auto api = MarketplaceApi::getInstance();
+	std::string storeUrl = api->storeUrl();
 
 	QPalette pal = QPalette();
 	pal.setColor(QPalette::Window, "#151515");
@@ -59,16 +230,15 @@ WindowToolBar::WindowToolBar(QWidget *parent) : QWidget(parent)
 	setPalette(pal);
 
 	_layout = new QHBoxLayout(this);
-	_layout->setContentsMargins(12, 12, 12, 12);
+	_layout->setContentsMargins(16, 12, 16, 12);
+	_layout->setSpacing(16);
 	_logo = new QLabel(this);
-	std::string logoPath = imageBaseDir + "mp-logo.png";
+	std::string logoPath = imageBaseDir + "mp-logo-full.png";
 	QPixmap logoPixmap = QPixmap(logoPath.c_str());
 	_logo->setPixmap(logoPixmap);
 	_layout->addWidget(_logo);
 
-	_spacer = new QWidget(this);
-	_spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
-	_layout->addWidget(_spacer);
+	_layout->addStretch();
 
 	std::string settingsIconPath = imageBaseDir + "icon-settings.svg";
 	QIcon settingsIcon = QIcon();
@@ -83,34 +253,45 @@ WindowToolBar::WindowToolBar(QWidget *parent) : QWidget(parent)
 		[this]() { emit settingsClicked(); });
 	_layout->addWidget(_settingsButton);
 
-	std::string storeIconPath = imageBaseDir + "icon-store.svg";
-	QIcon storeIcon = QIcon();
-	storeIcon.addFile(storeIconPath.c_str(), QSize(), QIcon::Normal,
-			  QIcon::Off);
 	_storeButton = new QPushButton(this);
-	_storeButton->setIcon(storeIcon);
-	_storeButton->setIconSize(QSize(22, 22));
-	_storeButton->setStyleSheet(
-		"QPushButton {background: transparent; border: none; }");
+	std::string storeIconPath = imageBaseDir + "Store.svg";
+	std::string storeIconHoverPath = imageBaseDir + "store_hover.svg";
+	QString buttonStyle = EIconHoverButtonStyle;
+	buttonStyle.replace("${img}", storeIconPath.c_str());
+	buttonStyle.replace("${hover-img}", storeIconHoverPath.c_str());
+	_storeButton->setFixedSize(24, 24);
+	_storeButton->setMaximumHeight(24);
+	_storeButton->setStyleSheet(buttonStyle);
+	_storeButton->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+
+	connect(_storeButton, &QPushButton::pressed, this, [this, storeUrl]() {
+		ShellExecuteA(NULL, NULL, storeUrl.c_str(), NULL, NULL,
+			      SW_SHOW);
+	});
 	_layout->addWidget(_storeButton);
 
 	_logInButton = new QPushButton(this);
 	_logInButton->setText("Log In");
 	_logInButton->setHidden(elgatoCloud->loggedIn);
 	_logInButton->setStyleSheet(
-		"QPushButton {font-size: 12pt; border-radius: 8px; padding: 8px;}");
+		"QPushButton {font-size: 12pt; border-radius: 8px; padding: 8px; background-color: #232323; border: none; } "
+		"QPushButton:hover {background-color: #444444; }");
 	_layout->addWidget(_logInButton);
 	connect(_logInButton, &QPushButton::clicked, this,
 		[this]() { elgatoCloud->StartLogin(); });
 
 	_logOutButton = new QPushButton(this);
-	_logOutButton->setText("Log Out");
+	_logOutButton->setText("Sign Out");
 	_logOutButton->setHidden(!elgatoCloud->loggedIn);
 	_logOutButton->setStyleSheet(
-		"QPushButton {font-size: 12pt; border-radius: 8px; padding: 8px;}");
-	_layout->addWidget(_logOutButton);
+		"QPushButton {font-size: 12pt; border-radius: 8px; padding: 8px; background-color: #232323; border: none; } "
+		"QPushButton:hover {background-color: #444444; }");
 	connect(_logOutButton, &QPushButton::clicked, this,
 		[this]() { elgatoCloud->LogOut(); });
+
+	_layout->addWidget(_logOutButton);
+	auto avatar = new Avatar(this);
+	_layout->addWidget(avatar);
 }
 
 WindowToolBar::~WindowToolBar() {}
@@ -349,74 +530,58 @@ ElgatoProductItem::ElgatoProductItem(QWidget *parent, ElgatoProduct *product)
 	  _product(product)
 {
 	setFixedWidth(270);
-
+	//setStyleSheet("QWidget { border: 1px solid #FFF; }");
 	std::string imageBaseDir =
 		obs_get_module_data_path(obs_current_module());
 	imageBaseDir += "/images/";
 
 	QVBoxLayout *layout = new QVBoxLayout();
-
+	layout->setSpacing(4);
 	std::string imagePath = product->ready()
 					? product->thumbnailPath
-					: imageBaseDir + "image-loading.png";
+					: imageBaseDir + "image-loading.svg";
+
 	product->SetProductItem(this);
 
 	QPixmap previewImage = _setupImage(imagePath);
 
-	std::string name = _product->name.size() > 22
-				   ? _product->name.substr(0, 22) + "..."
+	auto titleLayout = new QVBoxLayout();
+	titleLayout->setSpacing(0);
+	std::string name = _product->name.size() > 24
+				   ? _product->name.substr(0, 24) + "..."
 				   : _product->name;
 	QLabel *label = new QLabel(name.c_str(), this);
 	label->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
 	label->setMinimumWidth(150);
 	label->setStyleSheet("QLabel {font-size: 11pt;}");
 
-	_labelDownload = new QStackedWidget(this);
+	titleLayout->addWidget(label);
+	auto subTitle = new QLabel("Stream Package", this);
+	subTitle->setStyleSheet("QLabel {font-size: 10pt; color: #7E7E7E; }");
+	titleLayout->addWidget(subTitle);
 
-	std::string downloadIconPath = imageBaseDir + "download.png";
-	_downloadButton = new QPushButton(this);
+	_downloadButton = new DownloadButton(this);
 
-	QIcon downloadIcon = QIcon();
-	downloadIcon.addFile(downloadIconPath.c_str(), QSize(), QIcon::Normal,
-			     QIcon::Off);
-	_downloadButton->setIcon(downloadIcon);
-	_downloadButton->setIconSize(QSize(22, 22));
-	_downloadButton->setStyleSheet(
-		"QPushButton { background: transparent; }");
-	_downloadButton->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
-	//downloadButton->setDisabled(true);
-	connect(_downloadButton, &QPushButton::clicked, [this]() {
+	connect(_downloadButton, &DownloadButton::downloadClicked, [this]() {
 		auto p = dynamic_cast<ProductGrid *>(parentWidget());
 		p->disableDownload();
-		_labelDownload->setCurrentIndex(1);
 		_product->DownloadProduct();
 	});
 
-	_downloadProgress = new QProgressBar(this);
-	_downloadProgress->setMaximum(100);
-	_downloadProgress->setMinimum(0);
-	_downloadProgress->setValue(0);
-	_downloadProgress->setFixedHeight(22);
-
 	auto labelLayout = new QHBoxLayout();
-	labelLayout->addWidget(label);
+	labelLayout->addLayout(titleLayout);
 	QWidget *spacer = new QWidget(this);
 	spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 	//spacer->setStyleSheet("QWidget { border: 1px solid #FFFFFF; }");
 	labelLayout->addWidget(spacer);
 	labelLayout->addWidget(_downloadButton);
-	auto labelWidget = new QWidget(this);
-	labelWidget->setLayout(labelLayout);
-
-	_labelDownload->addWidget(labelWidget);
-	_labelDownload->addWidget(_downloadProgress);
 
 	_labelImg = new QLabel(this);
 	_labelImg->setPixmap(previewImage);
 	_labelImg->setSizePolicy(QSizePolicy::Preferred,
 				 QSizePolicy::Preferred);
 	layout->addWidget(_labelImg);
-	layout->addWidget(_labelDownload);
+	layout->addLayout(labelLayout);
 
 	setLayout(layout);
 }
@@ -425,19 +590,22 @@ ElgatoProductItem::~ElgatoProductItem() {}
 
 void ElgatoProductItem::resetDownload()
 {
-	_labelDownload->setCurrentIndex(0);
+	//_labelDownload->setCurrentIndex(0);
+	_downloadButton->resetDownload();
 	auto pw = dynamic_cast<ProductGrid *>(parentWidget());
 	pw->enableDownload();
 }
 
 void ElgatoProductItem::disableDownload()
 {
-	_downloadButton->setVisible(false);
+	//_downloadButton->setVisible(false);
+	_downloadButton->setDisabled(true);
 }
 
 void ElgatoProductItem::enableDownload()
 {
-	_downloadButton->setVisible(true);
+	//_downloadButton->setVisible(true);
+	_downloadButton->setDisabled(false);
 }
 
 void ElgatoProductItem::updateImage()
@@ -447,8 +615,7 @@ void ElgatoProductItem::updateImage()
 	imageBaseDir += "/images/";
 	std::string imagePath = _product->ready()
 					? _product->thumbnailPath
-					: imageBaseDir + "image-loading.png";
-
+					: imageBaseDir + "image-loading.svg";
 	QPixmap image = _setupImage(imagePath);
 	_labelImg->setPixmap(image);
 }
@@ -486,7 +653,7 @@ void ElgatoProductItem::UpdateDownload(bool downloading, int progress)
 {
 	if (downloading) {
 		obs_log(LOG_INFO, "Download Progress: %i", progress);
-		_downloadProgress->setValue(progress);
+		_downloadButton->setValue(progress);
 	}
 }
 
@@ -612,9 +779,9 @@ extern void InitElgatoCloud(obs_module_t *module)
 	obs_log(LOG_INFO, "version: %s", "0.0.1");
 
 	elgatoCloud = new ElgatoCloud(module);
-	//QAction *action = (QAction *)obs_frontend_add_tools_menu_qaction(
-	//	"Elgato Cloud Window");
-	//action->connect(action, &QAction::triggered, OpenElgatoCloudWindow);
+	QAction *action = (QAction *)obs_frontend_add_tools_menu_qaction(
+		"Elgato Cloud Window");
+	action->connect(action, &QAction::triggered, OpenElgatoCloudWindow);
 }
 
 } // namespace elgatocloud

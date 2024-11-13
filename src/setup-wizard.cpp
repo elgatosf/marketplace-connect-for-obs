@@ -572,12 +572,15 @@ AudioSetup::~AudioSetup()
 
 StreamPackageSetupWizard::StreamPackageSetupWizard(QWidget *parent,
 						   ElgatoProduct *product,
-						   std::string filename)
+						   std::string filename,
+						   bool deleteOnClose)
 	: QDialog(parent),
 	  _thumbnailPath(product->thumbnailPath),
 	  _productName(product->name),
-	  _filename(filename)
+	  _filename(filename),
+	  _deleteOnClose(deleteOnClose)
 {
+	setModal(true);
 	SceneBundle bundle;
 	auto bundleInfoStr = bundle.ExtractBundleInfo(filename);
 	nlohmann::json bundleInfo;
@@ -617,6 +620,10 @@ StreamPackageSetupWizard::StreamPackageSetupWizard(QWidget *parent,
 
 StreamPackageSetupWizard::~StreamPackageSetupWizard()
 {
+	if (_deleteOnClose) {
+		// Delete the scene collection file
+		os_unlink(_filename.c_str());
+	}
 	EnableVideoCaptureSources();
 	setupWizard = nullptr;
 }

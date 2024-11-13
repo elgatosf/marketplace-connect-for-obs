@@ -162,7 +162,7 @@ class StreamPackageSetupWizard : public QDialog {
 
 public:
 	StreamPackageSetupWizard(QWidget *parent, ElgatoProduct *product,
-				 std::string filename);
+				 std::string filename, bool deleteOnClose);
 	~StreamPackageSetupWizard();
 	void install();
 	static bool DisableVideoCaptureSources(void *data,
@@ -176,6 +176,7 @@ private:
 	std::string _productName;
 	std::string _thumbnailPath;
 	std::string _filename;
+	bool _deleteOnClose;
 	QStackedWidget *_steps;
 	Setup _setup;
 	std::vector<obs_weak_source_t *> _toEnable;

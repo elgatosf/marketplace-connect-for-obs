@@ -36,6 +36,60 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 
 namespace elgatocloud {
 
+class Avatar : public QWidget {
+	Q_OBJECT
+public:
+	Avatar(QWidget* parent);
+	void update();
+
+protected:
+	void paintEvent(QPaintEvent* e);
+
+private:
+	std::string _character;
+	std::string _bgColor;
+};
+
+class DownloadProgress : public QWidget {
+	Q_OBJECT
+
+public:
+	DownloadProgress(QWidget* parent);
+	~DownloadProgress();
+	void setMinimum(double minimum);
+	void setMaximum(double maximum);
+	void setValue(double value);
+
+protected:
+	void paintEvent(QPaintEvent* e) override;
+
+private:
+	int _width;
+	int _height;
+	int _progressWidth;
+	double _minimumValue;
+	double _maximumValue;
+	double _value;
+};
+
+class DownloadButton : public QWidget {
+	Q_OBJECT
+
+public:
+	DownloadButton(QWidget* parent);
+	void setDisabled(bool disabled);
+	void setValue(double value);
+	void resetDownload();
+
+private:
+	DownloadProgress* _downloadProgress;
+	QPushButton* _downloadButton;
+	QStackedWidget* _stackedWidget;
+
+signals:
+	void downloadClicked();
+};
+
 class ElgatoProductItem : public QWidget {
 	Q_OBJECT
 
@@ -50,11 +104,8 @@ public:
 
 private:
 	ElgatoProduct *_product;
-	QStackedWidget *_downloadWidget;
-	QProgressBar *_downloadProgress;
-	QPushButton *_downloadButton;
+	DownloadButton *_downloadButton;
 	QLabel *_labelImg;
-	QStackedWidget *_labelDownload;
 	QPixmap _setupImage(std::string imagePath);
 };
 
@@ -69,10 +120,9 @@ public:
 private:
 	QHBoxLayout *_layout;
 	QLabel *_logo;
-	QWidget *_spacer;
 	QPushButton *_settingsButton;
 	QPushButton *_storeButton;
-	QLineEdit *_searchBar;
+	//QLineEdit *_searchBar;
 	QPushButton *_logInButton;
 	QPushButton *_logOutButton;
 
