@@ -84,10 +84,18 @@ ElgatoProduct::ElgatoProduct(std::string collectionName)
 	_thumbnailReady = true;
 }
 
-void ElgatoProduct::DownloadProduct()
+bool ElgatoProduct::DownloadProduct()
 {
 	auto ec = GetElgatoCloud();
 	nlohmann::json dlData = ec->GetPurchaseDownloadLink(variantId);
+	if (dlData.contains("error")) {
+		// Pop up a modal telling the user the download couldn't happen.
+		QMessageBox msgBox;
+		msgBox.setText("Network Connection Error");
+		msgBox.setInformativeText("Could not connect to the Marketplace. Please try again.");
+		msgBox.exec();
+		return false;
+	}
 	std::string url = dlData["direct_link"];
 	_fileSize = dlData["file_size"];
 	obs_log(LOG_INFO, "Download Link: %s", url.c_str());
@@ -101,21 +109,18 @@ void ElgatoProduct::DownloadProduct()
 		msgBox.setText("Invalid File Type");
 		msgBox.setInformativeText("File is not an .elgatoscene file.");
 		msgBox.exec();
-		return;
+		return false;
 	}
 
 	std::string savePath = QDir::homePath().toStdString();
 	savePath += "/AppData/Local/Elgato/DeepLinking/Downloads/";
 	os_mkdirs(savePath.c_str());
 
-	//char *absPath = os_get_abs_path_ptr(savePath.c_str());
-	//savePath = std::string(absPath, strlen(absPath));
-	//bfree(absPath);
-
 	obs_log(LOG_INFO, "Saving to: %s", savePath.c_str());
 
 	std::shared_ptr<Downloader> dl = Downloader::getInstance("");
 	dl->Enqueue(url, savePath, ElgatoProduct::DownloadProgress, this);
+	return true;
 }
 
 void ElgatoProduct::_downloadThumbnail()

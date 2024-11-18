@@ -68,9 +68,9 @@ bool obs_module_load(void)
 	obs_log(LOG_INFO, "plugin loaded successfully (version %s)",
 		PLUGIN_VERSION);
 	elgatocloud::InitElgatoCloud(obs_current_module());
-	obs_frontend_add_tools_menu_item("Elgato Deep Link Export",
+	obs_frontend_add_tools_menu_item("Export Marketplace Scene",
 					 export_collection, NULL);
-	obs_frontend_add_tools_menu_item("Elgato Deep Link Import",
+	obs_frontend_add_tools_menu_item("Import Marketplace Scene",
 					 import_collection, NULL);
 	return true;
 }

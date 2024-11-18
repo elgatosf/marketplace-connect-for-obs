@@ -49,14 +49,18 @@ std::string fetch_string_from_get(std::string url, std::string token)
 	curl_easy_setopt(curl_instance, CURLOPT_USERAGENT, "elgato-cloud 0.0");
 	curl_easy_setopt(curl_instance, CURLOPT_XOAUTH2_BEARER, token.c_str());
 	curl_easy_setopt(curl_instance, CURLOPT_HTTPAUTH, CURLAUTH_BEARER);
-
+	curl_easy_setopt(curl_instance, CURLOPT_CONNECTTIMEOUT, 3);
+	curl_easy_setopt(curl_instance, CURLOPT_TIMEOUT, 5);
 	CURLcode res = curl_easy_perform(curl_instance);
 
 	curl_easy_cleanup(curl_instance);
 	if (res == CURLE_OK) {
 		return result;
 	}
-	return "";
+	else if (res == CURLE_OPERATION_TIMEDOUT) {
+		return "{\"error\": \"Connection Timed Out\"}";
+	}
+	return "{\"error\": \"Unspecified Error\"}";
 }
 
 std::string fetch_string_from_post(std::string url, std::string postdata)

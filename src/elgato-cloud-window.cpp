@@ -565,7 +565,11 @@ ElgatoProductItem::ElgatoProductItem(QWidget *parent, ElgatoProduct *product)
 	connect(_downloadButton, &DownloadButton::downloadClicked, [this]() {
 		auto p = dynamic_cast<ProductGrid *>(parentWidget());
 		p->disableDownload();
-		_product->DownloadProduct();
+		bool success = _product->DownloadProduct();
+		if (!success) {
+			p->enableDownload();
+			resetDownload();
+		}
 	});
 
 	auto labelLayout = new QHBoxLayout();
@@ -780,7 +784,7 @@ extern void InitElgatoCloud(obs_module_t *module)
 
 	elgatoCloud = new ElgatoCloud(module);
 	QAction *action = (QAction *)obs_frontend_add_tools_menu_qaction(
-		"Elgato Cloud Window");
+		"Elgato Marketplace Link");
 	action->connect(action, &QAction::triggered, OpenElgatoCloudWindow);
 }
 
