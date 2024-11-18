@@ -442,6 +442,7 @@ bool SceneBundle::_AddFileToZip(std::string filePath, std::string zipPath,
 	if (_interrupt) {
 		return false;
 	}
+	blog(LOG_INFO, "Adding File %s", filePath.c_str());
 	ecFile.write(filePath, zipPath);
 	return true;
 }
