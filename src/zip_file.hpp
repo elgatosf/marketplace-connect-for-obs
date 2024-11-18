@@ -7439,7 +7439,7 @@ public:
 
 		if (!mz_zip_writer_add_mem(archive_.get(), arcname.c_str(),
 					   bytes.data(), bytes.size(),
-					   MZ_BEST_COMPRESSION)) {
+					   MZ_NO_COMPRESSION)) {
 			throw std::runtime_error("write error");
 		}
 	}
@@ -7461,7 +7461,7 @@ public:
 			    archive_.get(), info.filename.c_str(), bytes.data(),
 			    bytes.size(), info.comment.c_str(),
 			    static_cast<mz_uint16>(info.comment.size()),
-			    MZ_BEST_COMPRESSION, 0, crc)) {
+			    MZ_NO_COMPRESSION, 0, crc)) {
 			throw std::runtime_error("write error");
 		}
 	}
