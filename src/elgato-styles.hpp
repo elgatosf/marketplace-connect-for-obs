@@ -40,6 +40,7 @@ inline const QString EListStyle = "QListWidget {"
 				  "border: none;"
 				  "}";
 
+
 inline const QString EMissingPluginsStyle = "QListWidget {"
 					    "border: none;"
 					    "background: #151515;"
@@ -85,6 +86,21 @@ inline const QString EPushButtonDarkStyle = "QPushButton {"
 					    "border: none;"
 					    "}";
 
+inline const QString EPushButtonCancelStyle = "QPushButton {"
+					    "font-size: 12pt;"
+					    "padding: 8px 36px 8px 36px;"
+					    "background-color: #414141;"
+					    "border-radius: 8px;"
+					    "border: none;"
+					    "}"
+					    "QPushButton:hover {"
+					    "background-color: #193ed4;"
+					    "}"
+					    "QPushButton:disabled {"
+					    "background-color: #1c1c1c;"
+					    "border: none;"
+	"}";
+
 inline const QString ELineEditStyle = "QLineEdit {"
 				      "background-color: #151515;"
 				      "border: none;"
@@ -123,8 +139,38 @@ inline const QString EChecklistStyleTemplate =
 	"background-image: url('${unchecked-img}')"
 	"}";
 
+inline const QString ECheckBoxStyle =
+	"QCheckBox {"
+	"margin-left: 16px;"
+	"margin-top: 8px;"
+	"font-size: 12pt;"
+	"}"
+	"QCheckBox::indicator {"
+	"width: 20px;"
+	"height: 20px;"
+	"background-image: none;"
+	"border: none;"
+	"}"
+	"QCheckBox::indicator:checked {"
+	"border: none;"
+	"background-image: url('${checked-img}')"
+	"}"
+	"QCheckBox::indicator:unchecked {"
+	"border: none;"
+	"background-image: url('${unchecked-img}')"
+	"}";
+
 inline const QString EComboBoxStyle = "QComboBox {"
 				      "background-color: #151515;"
+				      "border: none;"
+				      "padding: 12px;"
+				      "font-size: 11pt;"
+				      "border-radius: 8px;"
+				      "}";
+
+inline const QString EComboBoxStyleLight = "QComboBox {"
+				      "background-color: #FFFFFF;"
+				      "color: #444444;"
 				      "border: none;"
 				      "padding: 12px;"
 				      "font-size: 11pt;"
@@ -147,6 +193,22 @@ inline const QString EIconHoverButtonStyle =
 	"height: 24px;"
 	"padding: 0px;"
 	"margin: 0px;"
+	"border-image: url('${img}');"
+	"}"
+
+	"QPushButton:hover {"
+	"border-image: url('${hover-img}');"
+	"}";
+
+inline const QString EInlineIconHoverButtonStyle =
+	"QPushButton {"
+	"background: transparent;"
+	"background-repeat: no-repeat;"
+	"border: none;"
+	//"width: 24px;"
+	//"height: 24px;"
+	"padding: 0px;"
+	"margin: 0px 16px 0px 0px;"
 	"border-image: url('${img}');"
 	"}"
 

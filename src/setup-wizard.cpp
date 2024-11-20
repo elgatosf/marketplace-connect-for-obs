@@ -265,17 +265,38 @@ VideoSetup::VideoSetup(QWidget *parent, std::string name,
 	sourceGrid->setContentsMargins(0, 0, 0, 0);
 	sourceGrid->setSpacing(18);
 
+	config_t* const global_config = obs_frontend_get_global_config();
+
+	config_set_default_string(global_config, "ElgatoCloud",
+		"DefaultAudioCaptureSettings", "");
+	config_set_default_string(global_config, "ElgatoCloud",
+		"DefaultVideoCaptureSettings", "");
+
+	std::string videoSettingsJson = config_get_string(
+		global_config, "ElgatoCloud", "DefaultVideoCaptureSettings");
+
+	obs_data_t* videoData =
+		videoSettingsJson != ""
+		? obs_data_create_from_json(videoSettingsJson.c_str())
+		: nullptr;
+
 	int i = 0;
 	int j = 0;
+	bool first = true;
 	for (auto const &[sourceName, label] : videoSourceLabels) {
+
+
 		auto vSource = new VideoCaptureSourceSelector(
-			sourceWidget, label, sourceName);
+			sourceWidget, label, sourceName, first ? videoData : nullptr);
 		sourceGrid->addWidget(vSource, i, j);
 		i += j % 2;
 		j += 1;
 		j %= 2;
 		_videoSelectors.push_back(vSource);
+		first = false;
 	}
+
+	obs_data_release(videoData);
 
 	auto scrollArea = new QScrollArea(this);
 	scrollArea->setContentsMargins(0, 0, 0, 0);
@@ -754,8 +775,8 @@ void StreamPackageSetupWizard::install()
 	obs_log(LOG_INFO, "Elgato Req File: %s", _filename.c_str());
 
 	// TODO: Clean up this mess of setting up the pack install path.
-	std::string path = QDir::homePath().toStdString();
-	path += "/AppData/Local/Elgato/DeepLinking/SceneCollections";
+	config_t* const global_config = obs_frontend_get_global_config();
+	std::string path = config_get_string(global_config, "ElgatoCloud", "InstallLocation");
 	os_mkdirs(path.c_str());
 	std::string packDirName(_setup.collectionName);
 	std::replace(packDirName.begin(), packDirName.end(), ' ', '_');

@@ -30,7 +30,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 
 namespace elgatocloud {
 
-VideoCaptureSourceSelector::VideoCaptureSourceSelector(QWidget* parent, std::string sourceLabel, std::string sourceName)
+VideoCaptureSourceSelector::VideoCaptureSourceSelector(QWidget* parent, std::string sourceLabel, std::string sourceName, obs_data_t* videoData)
 	: QWidget(parent), _sourceName(sourceName), _noneSelected(true)
 {
 	std::string imageBaseDir =
@@ -80,7 +80,17 @@ VideoCaptureSourceSelector::VideoCaptureSourceSelector(QWidget* parent, std::str
 	auto spacer = new QWidget(this);
 	spacer->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
 	layout->addWidget(spacer);
-	_setupTempSource();
+	_setupTempSource(videoData);
+
+	if (_videoSources->currentIndex() > 0) {
+		this->_noneSelected = false;
+		this->_videoPreview->show();
+		this->_blank->hide();
+	} else {
+		this->_noneSelected = true;
+		this->_videoPreview->hide();
+		this->_blank->show();
+	}
 
 	connect(_videoSources, &QComboBox::currentIndexChanged, this,
 		[this](int index) {
@@ -116,25 +126,12 @@ VideoCaptureSourceSelector::~VideoCaptureSourceSelector()
 	}
 }
 
-void VideoCaptureSourceSelector::_setupTempSource()
+void VideoCaptureSourceSelector::_setupTempSource(obs_data_t* videoData)
 {
-	// Get settings
-	//config_t* const global_config = obs_frontend_get_global_config();
-	//config_set_default_string(global_config, "ElgatoCloud",
-	//	"DefaultVideoCaptureSettings", "");
-
-	//std::string videoSettingsJson = config_get_string(
-	//	global_config, "ElgatoCloud", "DefaultVideoCaptureSettings");
-
-	//obs_data_t* videoSettings =
-	//	videoSettingsJson != ""
-	//	? obs_data_create_from_json(videoSettingsJson.c_str())
-	//	: nullptr;
-
 	const char* videoSourceId = "dshow_input";
 	const char* vId = obs_get_latest_input_type_id(videoSourceId);
 	_videoCaptureSource = obs_source_create_private(
-		vId, "elgato-cloud-video-config", nullptr);
+		vId, "elgato-cloud-video-config", videoData);
 
 	obs_properties_t* vProps = obs_source_properties(_videoCaptureSource);
 	obs_property_t* vDevices =

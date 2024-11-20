@@ -21,12 +21,14 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 
 #include <obs-frontend-api.h>
 #include <util/config-file.h>
+#include <util/platform.h>
 
 #include <curl/curl.h>
 #include <QCryptographicHash>
 #include <QApplication>
 #include <QThread>
 #include <QMetaObject>
+#include <QDir>
 
 #include "plugin-support.h"
 #include "elgato-cloud-window.hpp"
@@ -177,6 +179,13 @@ void ElgatoCloud::_Initialize()
 			       "AccessTokenExpiration", 0);
 	config_set_default_int(global_config, "ElgatoCloud",
 			       "RefreshTokenExpiration", 0);
+
+	std::string path = QDir::homePath().toStdString();
+	path += "/AppData/Local/Elgato/DeepLinking/SceneCollections/";
+	os_mkdirs(path.c_str());
+	config_set_default_string(global_config, "ElgatoCloud", "InstallLocation", path.c_str());
+
+	config_set_default_bool(global_config, "ElgatoCloud", "MakerTools", false);
 
 	_GetSavedState();
 

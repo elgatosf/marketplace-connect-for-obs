@@ -367,7 +367,7 @@ OwnedProducts::OwnedProducts(QWidget *parent) : QWidget(parent)
 	_layout = new QHBoxLayout(this);
 	_sideMenu = new QListWidget(this);
 	_sideMenu->addItem("Purchased");
-	_sideMenu->addItem("Installed (#)");
+	//_sideMenu->addItem("Installed (#)");
 	_sideMenu->setSizePolicy(QSizePolicy::Preferred,
 				 QSizePolicy::Expanding);
 	_sideMenu->setStyleSheet(
@@ -456,8 +456,12 @@ void ElgatoCloudWindow::initialize()
 
 	_toolbar = new WindowToolBar(_mainWidget);
 	connect(_toolbar, &WindowToolBar::settingsClicked, this, [this]() {
-		_mainWidget->setVisible(false);
-		_config->setVisible(true);
+		//_mainWidget->setVisible(false);
+		//_config->setVisible(true);
+		_config = new ElgatoCloudConfig(this);
+		_config->show();
+		_config->raise();
+		_config->activateWindow();
 	});
 
 	mainLayout->addWidget(_toolbar);
@@ -480,11 +484,11 @@ void ElgatoCloudWindow::initialize()
 	auto loadingWidget = new LoadingWidget(this); // Loading widget, id: 3
 	_stackedContent->addWidget(loadingWidget);
 
-	_config = new ElgatoCloudConfig(this);
-	_config->setVisible(false);
+	//_config = new ElgatoCloudConfig(this);
+	//_config->setVisible(false);
 	connect(_config, &ElgatoCloudConfig::closeClicked, this, [this]() {
-		_mainWidget->setVisible(true);
-		_config->setVisible(false);
+		//_mainWidget->setVisible(true);
+		//_config->setVisible(false);
 	});
 
 	mainLayout->addWidget(_stackedContent);
@@ -784,7 +788,7 @@ extern void InitElgatoCloud(obs_module_t *module)
 
 	elgatoCloud = new ElgatoCloud(module);
 	QAction *action = (QAction *)obs_frontend_add_tools_menu_qaction(
-		"Elgato Marketplace Link");
+		"Elgato Marketplace");
 	action->connect(action, &QAction::triggered, OpenElgatoCloudWindow);
 }
 

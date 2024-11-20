@@ -33,7 +33,7 @@ class VideoCaptureSourceSelector : public QWidget {
 	Q_OBJECT
 
 public:
-	VideoCaptureSourceSelector(QWidget* parent, std::string sourceLabel, std::string sourceName);
+	VideoCaptureSourceSelector(QWidget* parent, std::string sourceLabel, std::string sourceName, obs_data_t* videoData);
 	~VideoCaptureSourceSelector();
 
 	static void DrawVideoPreview(void* data, uint32_t cx, uint32_t cy);
@@ -47,7 +47,7 @@ private:
 	QComboBox* _videoSources = nullptr;
 	std::vector<std::string> _videoSourceIds;
 	std::string _sourceName;
-	void _setupTempSource();
+	void _setupTempSource(obs_data_t* videoData);
 	bool _noneSelected;
 };
 
