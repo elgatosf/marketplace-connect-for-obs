@@ -71,7 +71,7 @@ private:
 	void _SaveState();
 	void _GetSavedState();
 	void _TokenRefresh(bool loadData);
-	void _LoadUserData();
+	void _LoadUserData(bool loadData = false);
 
 	obs_module_t *_modulePtr = nullptr;
 	//translateFunc _translate = nullptr;

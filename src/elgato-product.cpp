@@ -57,7 +57,7 @@ ElgatoProduct::ElgatoProduct(nlohmann::json &productData)
 	_thumbnailReady = false;
 
 	name = productData["name"];
-	thumbnailUrl = productData["thumbnail"];
+	thumbnailUrl = productData["thumbnail_cdn"];
 	variantId = productData["variants"][0]["id"];
 
 	auto found = thumbnailUrl.find_last_of("/");

@@ -344,29 +344,34 @@ void ElgatoCloud::_ProcessLogin(nlohmann::json &loginData, bool loadData)
 		obs_log(LOG_INFO, "Some other issue occurred");
 		connectionError = true;
 	}
-	if (mainWindowOpen && window) {
-		QMetaObject::invokeMethod(
-			QCoreApplication::instance()->thread(),
-			[this, loadData]() {
-				window->setLoggedIn();
-				if (loadData) {
-					LoadPurchasedProducts();
-				}
-			});
-	}
-	_LoadUserData();
+	_LoadUserData(loadData);	
 }
 
-void ElgatoCloud::_LoadUserData()
+void ElgatoCloud::_LoadUserData(bool loadData)
 {
-	auto api = MarketplaceApi::getInstance();
-	std::string api_url = api->gatewayUrl();
-	api_url += "/user";
-	auto userResponse = fetch_string_from_get(api_url, _accessToken);
-	auto userData = nlohmann::json::parse(userResponse);
-	api->setUserDetails(userData);
-
-	blog(LOG_INFO, "User Response:\n%s", userResponse.c_str());
+	try {
+		auto api = MarketplaceApi::getInstance();
+		std::string api_url = api->gatewayUrl();
+		api_url += "/user";
+		auto userResponse = fetch_string_from_get(api_url, _accessToken);
+		auto userData = nlohmann::json::parse(userResponse);
+		api->setUserDetails(userData);
+		blog(LOG_INFO, "User Response:\n%s", userResponse.c_str());
+		if (mainWindowOpen && window) {
+			QMetaObject::invokeMethod(
+				QCoreApplication::instance()->thread(),
+				[this, loadData]() {
+					window->setLoggedIn();
+					if (loadData) {
+						LoadPurchasedProducts();
+					}
+				});
+		}
+	}
+	catch (...) {
+		obs_log(LOG_INFO, "Invalid response from server");
+		connectionError = true;
+	}
 }
 
 void ElgatoCloud::_SaveState()
