@@ -395,7 +395,6 @@ void SceneBundle::_ProcessJsonObj(nlohmann::json &obj)
 void SceneBundle::_CreateFileMap(nlohmann::json &item)
 {
 	std::string value = item.template get<std::string>();
-	obs_log(LOG_INFO, "_CreateFileMap: %s", value.c_str());
 	struct stat st;
 	if (os_stat(value.c_str(), &st) == 0 && st.st_mode & S_IEXEC) {
 		obs_log(LOG_INFO, "_CreativeFileMap: IS EXEC");
@@ -426,7 +425,7 @@ void SceneBundle::_CreateFileMap(nlohmann::json &item)
 				     });
 		int i = 1;
 		while (result != std::end(_fileMap)) {
-			newFileName = directory + base + "_" +
+			newFileName = "Assets" + directory + base + "_" +
 				      std::to_string(i) + extension;
 			result = std::find_if(std::begin(_fileMap),
 					      std::end(_fileMap),
@@ -438,7 +437,7 @@ void SceneBundle::_CreateFileMap(nlohmann::json &item)
 		}
 		_fileMap[value] = newFileName;
 	}
-	item = "{FILE}:" + _fileMap.at(value);
+	item = "{FILE}" + _fileMap.at(value);
 }
 
 bool SceneBundle::_AddFileToZip(std::string filePath, std::string zipPath,
@@ -447,7 +446,7 @@ bool SceneBundle::_AddFileToZip(std::string filePath, std::string zipPath,
 	if (_interrupt) {
 		return false;
 	}
-	blog(LOG_INFO, "Adding File %s", filePath.c_str());
+	blog(LOG_INFO, "Adding File %s as %s", filePath.c_str(), zipPath.c_str());
 	ecFile.write(filePath, zipPath);
 	return true;
 }
