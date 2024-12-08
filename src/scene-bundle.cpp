@@ -304,6 +304,11 @@ void SceneBundle::_ProcessJsonObj(nlohmann::json &obj)
 		if (obj[idKey] == "dshow_input") {
 			obj.erase("settings");
 			obj["settings"] = "{" + name + "}";
+			if (!obj.contains("uuid")) {
+				char* uuid = os_generate_uuid();
+				obj["uuid"] = std::string(uuid);
+				bfree(uuid);
+			}
 			_videoCaptureDevices[obj["uuid"]] = obj["name"];
 		} else if (obj[idKey] == "wasapi_input_capture") {
 			obj.erase("settings");
