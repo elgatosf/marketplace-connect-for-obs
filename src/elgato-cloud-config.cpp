@@ -83,19 +83,23 @@ DefaultAVWidget::DefaultAVWidget(QWidget* parent)
 
 	vsLayout->addWidget(_videoSources);
 
-	auto configButton = new QPushButton(this);
-	std::string settingsIconPath = imageBaseDir + "icon-settings.svg";
-	QIcon settingsIcon = QIcon();
-	settingsIcon.addFile(settingsIconPath.c_str(), QSize(), QIcon::Normal,
-		QIcon::Off);
-	configButton->setIcon(settingsIcon);
-	configButton->setIconSize(QSize(22, 22));
-	configButton->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
-	configButton->setStyleSheet(EIconButtonStyle);
-	connect(configButton, &QPushButton::released, this, [this]() {
+	_settingsButton = new QPushButton(this);
+	std::string settingsIconPath = imageBaseDir + "settings.svg";
+	std::string settingsIconHoverPath = imageBaseDir + "settings_hover.svg";
+	std::string settingsIconDisabledPath = imageBaseDir + "settings_disabled.svg";
+	QString settingsButtonStyle = EIconHoverDisabledButtonStyle;
+	settingsButtonStyle.replace("${img}", settingsIconPath.c_str());
+	settingsButtonStyle.replace("${hover-img}", settingsIconHoverPath.c_str());
+	settingsButtonStyle.replace("${disabled-img}", settingsIconDisabledPath.c_str());
+	_settingsButton->setFixedSize(24, 24);
+	_settingsButton->setMaximumHeight(24);
+	_settingsButton->setStyleSheet(settingsButtonStyle);
+	_settingsButton->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+	_settingsButton->setToolTip("Video Capture Device Settings");
+	connect(_settingsButton, &QPushButton::released, this, [this]() {
 		obs_frontend_open_source_properties(_videoCaptureSource);
 	});
-	vsLayout->addWidget(configButton);
+	vsLayout->addWidget(_settingsButton);
 	videoSettings->setLayout(vsLayout);
 	videoSettings->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
 	dropDowns->addWidget(videoSourceLabel);
@@ -181,11 +185,11 @@ DefaultAVWidget::DefaultAVWidget(QWidget* parent)
 	_setupTempVideoSource(videoData);
 
 	if (_videoSources->currentIndex() > 0) {
-		this->_noneSelected = false;
-		this->_stack->setCurrentIndex(1);
+		_noneSelected = false;
+		_stack->setCurrentIndex(1);
 	} else {
-		this->_noneSelected = true;
-		this->_stack->setCurrentIndex(0);
+		_noneSelected = true;
+		_stack->setCurrentIndex(0);
 	}
 
 	obs_data_release(videoData);
@@ -193,6 +197,7 @@ DefaultAVWidget::DefaultAVWidget(QWidget* parent)
 	connect(_videoSources, &QComboBox::currentIndexChanged, this,
 		[this](int index) {
 			if (index > 0) {
+				_settingsButton->setDisabled(false);
 				auto vSettings = obs_data_create();
 				std::string id = _videoSourceIds[index];
 				obs_data_set_string(vSettings, "video_device_id",
@@ -200,12 +205,13 @@ DefaultAVWidget::DefaultAVWidget(QWidget* parent)
 				obs_source_reset_settings(_videoCaptureSource,
 					vSettings);
 				obs_data_release(vSettings);
-				this->_noneSelected = false;
-				this->_stack->setCurrentIndex(1);
+				_noneSelected = false;
+				_stack->setCurrentIndex(1);
 			}
 			else {
-				this->_noneSelected = true;
-				this->_stack->setCurrentIndex(0);
+				_settingsButton->setDisabled(true);
+				_noneSelected = true;
+				_stack->setCurrentIndex(0);
 			}
 
 		});

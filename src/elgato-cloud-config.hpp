@@ -56,6 +56,7 @@ public:
 private:
 	obs_source_t* _videoCaptureSource = nullptr;
 	OBSQTDisplay* _videoPreview = nullptr;
+	QPushButton* _settingsButton = nullptr;
 	QLabel* _blank = nullptr;
 	QComboBox* _videoSources = nullptr;
 	std::vector<std::string> _videoSourceIds;

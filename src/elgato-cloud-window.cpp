@@ -99,6 +99,7 @@ DownloadButton::DownloadButton(QWidget *parent) : QWidget(parent)
 				      QSizePolicy::Preferred);
 
 	_downloadButton = new QPushButton(this);
+	_downloadButton->setToolTip("Click to Download");
 	std::string downloadIconPath = imageBaseDir + "download.svg";
 	std::string downloadIconHoverPath = imageBaseDir + "download_hover.svg";
 	std::string downloadIconDisabledPath = imageBaseDir + "download_hover.svg";
@@ -241,6 +242,7 @@ WindowToolBar::WindowToolBar(QWidget *parent) : QWidget(parent)
 	_layout->addStretch();
 
 	_settingsButton = new QPushButton(this);
+	_settingsButton->setToolTip("Settings");
 	std::string settingsIconPath = imageBaseDir + "settings.svg";
 	std::string settingsIconHoverPath = imageBaseDir + "settings_hover.svg";
 	QString settingsButtonStyle = EIconHoverButtonStyle;
@@ -256,6 +258,7 @@ WindowToolBar::WindowToolBar(QWidget *parent) : QWidget(parent)
 	_layout->addWidget(_settingsButton);
 
 	_storeButton = new QPushButton(this);
+	_storeButton->setToolTip("Go to Elgato Marketplace");
 	std::string storeIconPath = imageBaseDir + "Store.svg";
 	std::string storeIconHoverPath = imageBaseDir + "store_hover.svg";
 	QString buttonStyle = EIconHoverButtonStyle;
