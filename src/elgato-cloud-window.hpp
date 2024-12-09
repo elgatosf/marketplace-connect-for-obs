@@ -118,13 +118,14 @@ public:
 	void updateState();
 
 private:
-	QHBoxLayout *_layout;
-	QLabel *_logo;
-	QPushButton *_settingsButton;
-	QPushButton *_storeButton;
+	QHBoxLayout* _layout;
+	QLabel* _logo;
+	QPushButton* _settingsButton;
+	QPushButton* _storeButton;
 	//QLineEdit *_searchBar;
-	QPushButton *_logInButton;
-	QPushButton *_logOutButton;
+	QPushButton* _logInButton;
+	QPushButton* _logOutButton;
+	Avatar* _avatar;
 
 signals:
 	void settingsClicked();

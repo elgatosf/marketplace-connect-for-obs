@@ -292,8 +292,8 @@ WindowToolBar::WindowToolBar(QWidget *parent) : QWidget(parent)
 		[this]() { elgatoCloud->LogOut(); });
 
 	_layout->addWidget(_logOutButton);
-	auto avatar = new Avatar(this);
-	_layout->addWidget(avatar);
+	_avatar = new Avatar(this);
+	_layout->addWidget(_avatar);
 }
 
 WindowToolBar::~WindowToolBar() {}
@@ -302,6 +302,10 @@ void WindowToolBar::updateState()
 {
 	_logInButton->setHidden(elgatoCloud->loggedIn);
 	_logOutButton->setHidden(!elgatoCloud->loggedIn);
+	_avatar->setHidden(!elgatoCloud->loggedIn);
+	if (elgatoCloud->loggedIn) {
+		_avatar->update();
+	}
 }
 
 Placeholder::Placeholder(QWidget *parent, std::string message) : QWidget(parent)
