@@ -301,7 +301,7 @@ nlohmann::json ElgatoCloud::GetPurchaseDownloadLink(std::string variantId)
 	auto response = fetch_string_from_get(api_url, _accessToken);
 	// Todo- Error checking
 	try {
-		blog(LOG_INFO, "============= DOWNLOAD REQUEST API RESPONSE =============\n%s", response.c_str());
+		blog(LOG_INFO, "============= DOWNLOAD REQUEST API RESPONSE =============\nURL: %s\nResponse: %s", api_url.c_str(), response.c_str());
 		auto responseJson = nlohmann::json::parse(response);
 		return responseJson;
 	} catch (...) {
