@@ -296,8 +296,8 @@ nlohmann::json ElgatoCloud::GetPurchaseDownloadLink(std::string variantId)
 	}
 
 	auto api = MarketplaceApi::getInstance();
-	std::string api_url = api->apiUrl();
-	api_url += "/product/internal/variants/" + variantId + "/direct-link";
+	std::string api_url = api->gatewayUrl();
+	api_url += "/items/" + variantId + "/direct-link";
 	auto response = fetch_string_from_get(api_url, _accessToken);
 	// Todo- Error checking
 	try {
