@@ -240,15 +240,17 @@ WindowToolBar::WindowToolBar(QWidget *parent) : QWidget(parent)
 
 	_layout->addStretch();
 
-	std::string settingsIconPath = imageBaseDir + "icon-settings.svg";
-	QIcon settingsIcon = QIcon();
-	settingsIcon.addFile(settingsIconPath.c_str(), QSize(), QIcon::Normal,
-			     QIcon::Off);
 	_settingsButton = new QPushButton(this);
-	_settingsButton->setIcon(settingsIcon);
-	_settingsButton->setIconSize(QSize(22, 22));
-	_settingsButton->setStyleSheet(
-		"QPushButton {background: transparent; border: none; }");
+	std::string settingsIconPath = imageBaseDir + "settings.svg";
+	std::string settingsIconHoverPath = imageBaseDir + "settings_hover.svg";
+	QString settingsButtonStyle = EIconHoverButtonStyle;
+	settingsButtonStyle.replace("${img}", settingsIconPath.c_str());
+	settingsButtonStyle.replace("${hover-img}", settingsIconHoverPath.c_str());
+	_settingsButton->setFixedSize(24, 24);
+	_settingsButton->setMaximumHeight(24);
+	_settingsButton->setStyleSheet(settingsButtonStyle);
+	_settingsButton->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+
 	connect(_settingsButton, &QPushButton::pressed, this,
 		[this]() { emit settingsClicked(); });
 	_layout->addWidget(_settingsButton);
