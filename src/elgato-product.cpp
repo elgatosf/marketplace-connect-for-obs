@@ -129,12 +129,7 @@ void ElgatoProduct::_downloadThumbnail()
 	std::string savePath = QDir::homePath().toStdString();
 	savePath += "/AppData/Local/Elgato/DeepLinking/Thumbnails/";
 
-	//char *absPath = os_get_abs_path_ptr(savePath.c_str());
-	//savePath = std::string(absPath, strlen(absPath));
-	//bfree(absPath);
-
 	obs_log(LOG_INFO, "Saving to: %s", savePath.c_str());
-	//obs_log(LOG_INFO, "this: %i", reinterpret_cast<size_t>(this));
 
 	std::shared_ptr<Downloader> dl = Downloader::getInstance("");
 	dl->Enqueue(thumbnailUrl, savePath, ElgatoProduct::ThumbnailProgress,

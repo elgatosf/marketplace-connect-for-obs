@@ -185,9 +185,11 @@ DefaultAVWidget::DefaultAVWidget(QWidget* parent)
 	_setupTempVideoSource(videoData);
 
 	if (_videoSources->currentIndex() > 0) {
+		_settingsButton->setDisabled(false);
 		_noneSelected = false;
 		_stack->setCurrentIndex(1);
 	} else {
+		_settingsButton->setDisabled(true);
 		_noneSelected = true;
 		_stack->setCurrentIndex(0);
 	}
@@ -284,11 +286,17 @@ void DefaultAVWidget::save()
 	 auto dataStr = obs_data_get_json(settings);
 	 config_set_string(global_config, "ElgatoCloud", "DefaultAudioCaptureSettings", dataStr);
 
-	 auto vSettings = obs_source_get_settings(_videoCaptureSource);
-	 auto vDataStr = obs_data_get_json(vSettings);
-	 config_set_string(global_config, "ElgatoCloud",
-		 "DefaultVideoCaptureSettings", vDataStr);
-	 obs_data_release(vSettings);
+	 if (!_noneSelected) {
+		 auto vSettings = obs_source_get_settings(_videoCaptureSource);
+		 auto vDataStr = obs_data_get_json(vSettings);
+		 config_set_string(global_config, "ElgatoCloud",
+			 "DefaultVideoCaptureSettings", vDataStr);
+		 obs_data_release(vSettings);
+	 } else {
+		 config_set_string(global_config, "ElgatoCloud",
+			 "DefaultVideoCaptureSettings", "");
+	 }
+
 }
 
 void DefaultAVWidget::SetupVolMeter()
