@@ -479,11 +479,13 @@ void AudioSetup::_setupTempSources(obs_data_t* audioSettings)
 
 	obs_properties_t *aProps = obs_source_properties(_audioCaptureSource);
 	obs_property_t *aDevices = obs_properties_get(aProps, "device_id");
-	for (size_t i = 0; i < obs_property_list_item_count(aDevices); i++) {
-		std::string name = obs_property_list_item_name(aDevices, i);
-		std::string id = obs_property_list_item_string(aDevices, i);
-		_audioSourceIds.push_back(id);
-		_audioSources->addItem(name.c_str());
+	if (_audioSourceIds.size() == 0) {
+		for (size_t i = 0; i < obs_property_list_item_count(aDevices); i++) {
+			std::string name = obs_property_list_item_name(aDevices, i);
+			std::string id = obs_property_list_item_string(aDevices, i);
+			_audioSourceIds.push_back(id);
+			_audioSources->addItem(name.c_str());
+		}
 	}
 	obs_properties_destroy(aProps);
 
