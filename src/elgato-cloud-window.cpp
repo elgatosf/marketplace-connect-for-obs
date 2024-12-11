@@ -102,11 +102,13 @@ DownloadButton::DownloadButton(QWidget *parent) : QWidget(parent)
 	_downloadButton->setToolTip("Click to Download");
 	std::string downloadIconPath = imageBaseDir + "download.svg";
 	std::string downloadIconHoverPath = imageBaseDir + "download_hover.svg";
-	std::string downloadIconDisabledPath = imageBaseDir + "download_hover.svg";
+	std::string downloadIconDisabledPath =
+		imageBaseDir + "download_hover.svg";
 	QString buttonStyle = EIconHoverDisabledButtonStyle;
 	buttonStyle.replace("${img}", downloadIconPath.c_str());
 	buttonStyle.replace("${hover-img}", downloadIconHoverPath.c_str());
-	buttonStyle.replace("${disabled-img}", downloadIconDisabledPath.c_str());
+	buttonStyle.replace("${disabled-img}",
+			    downloadIconDisabledPath.c_str());
 	_downloadButton->setFixedSize(24, 24);
 	_downloadButton->setStyleSheet(buttonStyle);
 	_downloadButton->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
@@ -247,7 +249,8 @@ WindowToolBar::WindowToolBar(QWidget *parent) : QWidget(parent)
 	std::string settingsIconHoverPath = imageBaseDir + "settings_hover.svg";
 	QString settingsButtonStyle = EIconHoverButtonStyle;
 	settingsButtonStyle.replace("${img}", settingsIconPath.c_str());
-	settingsButtonStyle.replace("${hover-img}", settingsIconHoverPath.c_str());
+	settingsButtonStyle.replace("${hover-img}",
+				    settingsIconHoverPath.c_str());
 	_settingsButton->setFixedSize(24, 24);
 	_settingsButton->setMaximumHeight(24);
 	_settingsButton->setStyleSheet(settingsButtonStyle);
@@ -260,7 +263,8 @@ WindowToolBar::WindowToolBar(QWidget *parent) : QWidget(parent)
 	_storeButton = new QPushButton(this);
 	_storeButton->setToolTip("Go to Elgato Marketplace");
 	std::string storeIconPath = imageBaseDir + "marketplace-logo.svg";
-	std::string storeIconHoverPath = imageBaseDir + "marketplace-logo_hover.svg";
+	std::string storeIconHoverPath =
+		imageBaseDir + "marketplace-logo_hover.svg";
 	QString buttonStyle = EIconHoverButtonStyle;
 	buttonStyle.replace("${img}", storeIconPath.c_str());
 	buttonStyle.replace("${hover-img}", storeIconHoverPath.c_str());
@@ -492,7 +496,6 @@ void ElgatoCloudWindow::initialize()
 
 	auto loadingWidget = new LoadingWidget(this); // Loading widget, id: 3
 	_stackedContent->addWidget(loadingWidget);
-
 	//_config = new ElgatoCloudConfig(this);
 	//_config->setVisible(false);
 	connect(_config, &ElgatoCloudConfig::closeClicked, this, [this]() {
@@ -507,6 +510,11 @@ void ElgatoCloudWindow::initialize()
 	_layout->addWidget(_config);
 
 	setLayout(_layout);
+}
+
+void ElgatoCloudWindow::setLoading()
+{
+	_stackedContent->setCurrentIndex(3);
 }
 
 void ElgatoCloudWindow::on_logInButton_clicked()
@@ -536,6 +544,7 @@ void ElgatoCloudWindow::setLoggedIn()
 void ElgatoCloudWindow::setupOwnedProducts()
 {
 	_ownedProducts->refreshProducts();
+	_stackedContent->setCurrentIndex(0);
 }
 
 ElgatoProductItem::ElgatoProductItem(QWidget *parent, ElgatoProduct *product)
@@ -743,7 +752,7 @@ LoadingWidget::LoadingWidget(QWidget *parent) : QWidget(parent)
 				 QSizePolicy::Expanding);
 
 	auto loading = new QLabel(this);
-	loading->setText("Loading all of the things");
+	loading->setText("Loading Your Purchased Products...");
 	loading->setStyleSheet("QLabel {font-size: 18pt;}");
 	loading->setAlignment(Qt::AlignCenter);
 
@@ -772,6 +781,9 @@ void OpenElgatoCloudWindow()
 
 		ElgatoCloudWindow::window = new ElgatoCloudWindow(mainWindow);
 		ElgatoCloudWindow::window->setAttribute(Qt::WA_DeleteOnClose);
+		if (elgatoCloud->loggedIn) {
+			ElgatoCloudWindow::window->setLoading();
+		}
 		ElgatoCloudWindow::window->show();
 		ElgatoCloudWindow::window->move(
 			hostRect.center() -
@@ -793,7 +805,7 @@ void CloseElgatoCloudWindow()
 
 extern void InitElgatoCloud(obs_module_t *module)
 {
-	obs_log(LOG_INFO, "version: %s", "0.0.1");
+	obs_log(LOG_INFO, "version: %s", "0.0.2");
 
 	elgatoCloud = new ElgatoCloud(module);
 	QAction *action = (QAction *)obs_frontend_add_tools_menu_qaction(

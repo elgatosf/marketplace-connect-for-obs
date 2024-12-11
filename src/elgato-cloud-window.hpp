@@ -203,6 +203,7 @@ public:
 
 	void initialize();
 	void setLoggedIn();
+	void setLoading();
 	void setupOwnedProducts();
 
 	static ElgatoCloudWindow *window;

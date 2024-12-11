@@ -111,6 +111,17 @@ void ElgatoCloud::_Listen()
 		listen_on_pipe("elgato_cloud", [this](std::string d) {
 			obs_log(LOG_INFO, "Got Deeplink %s", d.c_str());
 			if (d.find("elgatoobs://auth") == 0) {
+				if (mainWindowOpen && window) {
+					QMetaObject::invokeMethod(
+						QCoreApplication::instance()->thread(),
+						[this]() {
+							window->setLoading();
+							window->show();
+							window->raise();
+							window->activateWindow();
+						});
+				}
+
 				obs_log(LOG_INFO, "auth detected");
 				std::unique_lock lock(m);
 				if (!authorizing) {
@@ -250,9 +261,18 @@ void ElgatoCloud::LoadPurchasedProducts()
 	if (!loggedIn) {
 		return;
 	}
-
+	loading = true;
 	// Todo- only refresh token if it needs refreshing
 	_TokenRefresh(false);
+
+	if (mainWindowOpen && window) {
+		QMetaObject::invokeMethod(
+			QCoreApplication::instance()->thread(),
+			[this]() {
+				window->setLoading();
+			});
+	}
+
 
 	auto api = MarketplaceApi::getInstance();
 	std::string api_url = api->gatewayUrl();
@@ -362,6 +382,9 @@ void ElgatoCloud::_LoadUserData(bool loadData)
 			QMetaObject::invokeMethod(
 				QCoreApplication::instance()->thread(),
 				[this, loadData]() {
+					if (loadData) {
+						loading = true;
+					}
 					window->setLoggedIn();
 					if (loadData) {
 						LoadPurchasedProducts();

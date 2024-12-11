@@ -12,7 +12,7 @@
 
 namespace elgatocloud {
 
-SceneBundle* bundle = new SceneBundle();
+SceneBundle *bundle = new SceneBundle();
 
 SceneBundleStatus createBundle(std::string filename,
 			       std::vector<std::string> plugins,
@@ -36,7 +36,7 @@ const std::vector<std::string> ExcludedModules{
 	"frontend-tools.dll", "decklink-output-ui.dll", "decklink-captions.dll",
 	"coreaudio-encoder.dll",
 	// This plugin
-	"elgato-deeplinking.dll"};
+	"elgato-marketplace.dll"};
 
 FileCollectionCheck::FileCollectionCheck(QWidget *parent,
 					 std::vector<std::string> files)
