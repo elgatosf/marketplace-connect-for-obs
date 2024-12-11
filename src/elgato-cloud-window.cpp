@@ -259,8 +259,8 @@ WindowToolBar::WindowToolBar(QWidget *parent) : QWidget(parent)
 
 	_storeButton = new QPushButton(this);
 	_storeButton->setToolTip("Go to Elgato Marketplace");
-	std::string storeIconPath = imageBaseDir + "Store.svg";
-	std::string storeIconHoverPath = imageBaseDir + "store_hover.svg";
+	std::string storeIconPath = imageBaseDir + "marketplace-logo.svg";
+	std::string storeIconHoverPath = imageBaseDir + "marketplace-logo_hover.svg";
 	QString buttonStyle = EIconHoverButtonStyle;
 	buttonStyle.replace("${img}", storeIconPath.c_str());
 	buttonStyle.replace("${hover-img}", storeIconHoverPath.c_str());
