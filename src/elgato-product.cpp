@@ -202,6 +202,7 @@ void ElgatoProduct::Install(std::string filename_utf8, void *data, bool fromDown
 	setupWizard->setAttribute(Qt::WA_DeleteOnClose);
 	setupWizard->show();
 	setupWizard->move(hostRect.center() - setupWizard->rect().center());
+	setupWizard->OpenArchive();
 }
 
 } // namespace elgatocloud

@@ -192,7 +192,7 @@ void ElgatoCloud::_Initialize()
 			       "RefreshTokenExpiration", 0);
 
 	std::string path = QDir::homePath().toStdString();
-	path += "/AppData/Local/Elgato/DeepLinking/SceneCollections/";
+	path += "/AppData/Local/Elgato/DeepLinking/SceneCollections";
 	os_mkdirs(path.c_str());
 	config_set_default_string(global_config, "ElgatoCloud", "InstallLocation", path.c_str());
 

@@ -805,12 +805,12 @@ void CloseElgatoCloudWindow()
 
 extern void InitElgatoCloud(obs_module_t *module)
 {
-	obs_log(LOG_INFO, "version: %s", "0.0.2");
+	obs_log(LOG_INFO, "version: %s", "0.0.3-maker");
 
 	elgatoCloud = new ElgatoCloud(module);
-	QAction *action = (QAction *)obs_frontend_add_tools_menu_qaction(
-		"Elgato Marketplace");
-	action->connect(action, &QAction::triggered, OpenElgatoCloudWindow);
+	//QAction *action = (QAction *)obs_frontend_add_tools_menu_qaction(
+	//	"Elgato Marketplace");
+	//action->connect(action, &QAction::triggered, OpenElgatoCloudWindow);
 }
 
 } // namespace elgatocloud

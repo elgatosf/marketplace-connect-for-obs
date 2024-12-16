@@ -53,6 +53,12 @@ StreamPackageSetupWizard *GetSetupWizard()
 	return setupWizard;
 }
 
+std::string GetBundleInfo(std::string filename)
+{
+	SceneBundle bundle;
+	return bundle.ExtractBundleInfo(filename);
+}
+
 StreamPackageHeader::StreamPackageHeader(QWidget *parent, std::string name,
 					 std::string thumbnailPath = "")
 	: QWidget(parent)
@@ -593,6 +599,48 @@ AudioSetup::~AudioSetup()
 	}
 }
 
+Loading::Loading(QWidget* parent) : QWidget(parent)
+{
+	QVBoxLayout* layout = new QVBoxLayout(this);
+
+	auto spacerTop = new QWidget(this);
+	spacerTop->setSizePolicy(QSizePolicy::Preferred,
+		QSizePolicy::Expanding);
+	layout->addWidget(spacerTop);
+
+	std::string imagesPath = obs_get_module_data_path(obs_current_module());
+	imagesPath += "/images/";
+	std::string spinnerImage = imagesPath + "spinner-white.gif";
+
+	_indicator = new QMovie(spinnerImage.c_str());
+
+	auto spinner = new QLabel(this);
+	spinner->setMovie(_indicator);
+	_indicator->start();
+	spinner->setAlignment(Qt::AlignCenter);
+	layout->addWidget(spinner);
+
+	auto title = new QLabel(this);
+	title->setText("Loading Collection...");
+	title->setStyleSheet(ETitleStyle);
+	title->setAlignment(Qt::AlignCenter);
+	layout->addWidget(title);
+
+	auto subTitle = new QLabel(this);
+	subTitle->setText(
+		"Note: this can take some time for scene collections with large files.");
+	subTitle->setStyleSheet(
+		"QLabel{ font-size: 11pt; font-style: italic; }");
+	subTitle->setAlignment(Qt::AlignCenter);
+	subTitle->setWordWrap(true);
+	layout->addWidget(subTitle);
+
+	auto spacerBottom = new QWidget(this);
+	spacerBottom->setSizePolicy(QSizePolicy::Preferred,
+		QSizePolicy::Expanding);
+	layout->addWidget(spacerBottom);
+}
+
 StreamPackageSetupWizard::StreamPackageSetupWizard(QWidget *parent,
 						   ElgatoProduct *product,
 						   std::string filename,
@@ -604,41 +652,7 @@ StreamPackageSetupWizard::StreamPackageSetupWizard(QWidget *parent,
 	  _deleteOnClose(deleteOnClose)
 {
 	setModal(true);
-	SceneBundle bundle;
-	auto bundleInfoStr = bundle.ExtractBundleInfo(filename);
-	nlohmann::json bundleInfo;
-	bool error = false;
-	try {
-		bundleInfo = nlohmann::json::parse(bundleInfoStr);
-	} catch (const nlohmann::json::parse_error &e) {
-		obs_log(LOG_ERROR, "Parsing Error.\n  message: %s\n  id: %i",
-			e.what(), e.id);
-		error = true;
-	}
-
-	std::map<std::string, std::string> videoSourceLabels =
-		bundleInfo["video_devices"];
-	std::vector<std::string> requiredPlugins =
-		bundleInfo["plugins_required"];
-
-	setupWizard = this;
-	setWindowTitle("Install Scene Collection");
-	setStyleSheet("background-color: #232323");
-
-	// Disable all video capture sources so that single-thread
-	// capture sources, such as the Elgato Facecam, can be properly
-	// selected in the wizard.  Will re-enable any disabled sources
-	// in the wizard destructor.
-	obs_enum_sources(&StreamPackageSetupWizard::DisableVideoCaptureSources,
-			 this);
-
-	PluginInfo pi;
-	std::vector<PluginDetails> missing = pi.missing(requiredPlugins);
-	if (missing.size() > 0) {
-		_buildMissingPluginsUI(missing);
-	} else {
-		_buildSetupUI(videoSourceLabels);
-	}
+	_buildBaseUI();
 }
 
 StreamPackageSetupWizard::~StreamPackageSetupWizard()
@@ -649,6 +663,54 @@ StreamPackageSetupWizard::~StreamPackageSetupWizard()
 	}
 	EnableVideoCaptureSources();
 	setupWizard = nullptr;
+}
+
+void StreamPackageSetupWizard::OpenArchive()
+{
+	_future = QtConcurrent::run(GetBundleInfo, _filename)
+		.then([this](std::string bundleInfoStr) {
+		// We are now in a different thread, so we need to execute this
+		// back in the gui thread.  See, threading hell.
+		QMetaObject::invokeMethod(
+			QCoreApplication::instance()->thread(), // main GUI thread
+			[this, bundleInfoStr]() {
+				nlohmann::json bundleInfo;
+				bool error = false;
+				try {
+					bundleInfo = nlohmann::json::parse(bundleInfoStr);
+				}
+				catch (const nlohmann::json::parse_error& e) {
+					obs_log(LOG_ERROR, "Parsing Error.\n  message: %s\n  id: %i",
+						e.what(), e.id);
+					error = true;
+				}
+
+				std::map<std::string, std::string> videoSourceLabels =
+					bundleInfo["video_devices"];
+				std::vector<std::string> requiredPlugins =
+					bundleInfo["plugins_required"];
+
+				// Disable all video capture sources so that single-thread
+				// capture sources, such as the Elgato Facecam, can be properly
+				// selected in the wizard.  Will re-enable any disabled sources
+				// in the wizard destructor.
+				obs_enum_sources(&StreamPackageSetupWizard::DisableVideoCaptureSources,
+					this);
+
+				PluginInfo pi;
+				std::vector<PluginDetails> missing = pi.missing(requiredPlugins);
+				if (missing.size() > 0) {
+					_buildMissingPluginsUI(missing);
+				}
+				else {
+					_buildSetupUI(videoSourceLabels);
+				}
+			});
+		}).onCanceled([]() {
+
+		});
+
+
 }
 
 bool StreamPackageSetupWizard::DisableVideoCaptureSources(void *data,
@@ -695,52 +757,66 @@ void StreamPackageSetupWizard::_buildMissingPluginsUI(
 	std::vector<PluginDetails> &missing)
 {
 	setFixedSize(500, 350);
-	QVBoxLayout *layout = new QVBoxLayout(this);
+	//QVBoxLayout *layout = new QVBoxLayout(this);
 
 	auto missingPlugins =
 		new MissingPlugins(this, _productName, _thumbnailPath, missing);
-	layout->addWidget(missingPlugins);
+	_steps->addWidget(missingPlugins);
+	_steps->setCurrentIndex(1);
+}
+
+void StreamPackageSetupWizard::_buildBaseUI()
+{
+	setFixedSize(320, 350);
+	QVBoxLayout* layout = new QVBoxLayout(this);
+	_steps = new QStackedWidget(this);
+
+	auto loading = new Loading(this);
+	_steps->addWidget(loading);
+
+	setupWizard = this;
+	setWindowTitle("Install Scene Collection");
+	setStyleSheet("background-color: #232323");
+
+	layout->addWidget(_steps);
 }
 
 void StreamPackageSetupWizard::_buildSetupUI(
 	std::map<std::string, std::string> &videoSourceLabels)
 {
-	setFixedSize(320, 350);
-	QVBoxLayout *layout = new QVBoxLayout(this);
-	_steps = new QStackedWidget(this);
 
-	// Step 1- select a new or existing install (step index: 0)
+	// Step 1- select a new or existing install (step index: 1)
 	InstallType *installerType =
 		new InstallType(this, _productName, _thumbnailPath);
 	connect(installerType, &InstallType::newCollectionPressed, this,
 		[this]() {
 			_setup.installType = InstallTypes::NewCollection;
-			_steps->setCurrentIndex(1);
+			_steps->setCurrentIndex(2);
 			setFixedSize(320, 384);
 		});
 	connect(installerType, &InstallType::existingCollectionPressed, this,
 		[this]() {
 			_setup.installType = InstallTypes::AddToCollection;
-			_steps->setCurrentIndex(2);
+			_steps->setCurrentIndex(3);
 			setFixedSize(320, 384);
 		});
 	_steps->addWidget(installerType);
 
-	// Step 2a- Provide a name for the new collection (step index: 1)
+	// Step 2a- Provide a name for the new collection (step index: 2)
 	auto *newName =
 		new NewCollectionName(this, _productName, _thumbnailPath);
 	connect(newName, &NewCollectionName::proceedPressed, this,
 		[this](std::string name) {
 			_setup.collectionName = name;
-			_steps->setCurrentIndex(3);
+			_steps->setCurrentIndex(4);
 			setFixedSize(554, 440);
 		});
 	_steps->addWidget(newName);
 
-	// Step 2b- Select an existing collection (step index: 2)
+	// Step 2b- Select an existing collection (step index: 3)
 	_steps->addWidget(new QWidget(this));
 
-	// Step 3- Set up Video inputs (step index: 3)
+	// Step 3- Set up Video inputs (step index: 4)
 	auto vSetup = new VideoSetup(this, _productName, _thumbnailPath,
 				     videoSourceLabels);
 	_steps->addWidget(vSetup);
@@ -748,14 +824,14 @@ void StreamPackageSetupWizard::_buildSetupUI(
 		[this](std::map<std::string, std::string> settings) {
 			//blog(LOG_INFO, "%s", settings.c_str());
 			_setup.videoSettings = settings;
-			_steps->setCurrentIndex(4);
+			_steps->setCurrentIndex(5);
 			setFixedSize(320, 384);
 		});
 	connect(vSetup, &VideoSetup::backPressed, this, [this]() {
-		_steps->setCurrentIndex(1);
+		_steps->setCurrentIndex(2);
 		setFixedSize(320, 384);
 	});
-	// Step 4- Setup Audio Inputs (step index: 4)
+	// Step 4- Setup Audio Inputs (step index: 5)
 
 	auto aSetup = new AudioSetup(this, _productName, _thumbnailPath);
 	_steps->addWidget(aSetup);
@@ -765,11 +841,10 @@ void StreamPackageSetupWizard::_buildSetupUI(
 			install();
 		});
 	connect(aSetup, &AudioSetup::backPressed, this, [this]() {
-		_steps->setCurrentIndex(3);
+		_steps->setCurrentIndex(4);
 		setFixedSize(554, 440);
 	});
-
-	layout->addWidget(_steps);
+	_steps->setCurrentIndex(1);
 }
 
 void StreamPackageSetupWizard::install()

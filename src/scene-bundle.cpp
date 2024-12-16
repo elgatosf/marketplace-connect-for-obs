@@ -437,7 +437,7 @@ void SceneBundle::_CreateFileMap(nlohmann::json &item)
 		}
 		_fileMap[value] = newFileName;
 	}
-	item = "{FILE}" + _fileMap.at(value);
+	item = "{FILE}:" + _fileMap.at(value);
 }
 
 bool SceneBundle::_AddFileToZip(std::string filePath, std::string zipPath,

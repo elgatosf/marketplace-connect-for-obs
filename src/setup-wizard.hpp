@@ -32,6 +32,8 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <QLabel>
 #include <QComboBox>
 #include <QStackedWidget>
+#include <QMovie>
+#include <QTConcurrent>
 
 #include <nlohmann/json.hpp>
 
@@ -157,6 +159,15 @@ signals:
 	void backPressed();
 };
 
+class Loading : public QWidget {
+	Q_OBJECT
+public:
+	Loading(QWidget* parent);
+
+private:
+	QMovie* _indicator;
+};
+
 class StreamPackageSetupWizard : public QDialog {
 	Q_OBJECT
 
@@ -165,11 +176,13 @@ public:
 				 std::string filename, bool deleteOnClose);
 	~StreamPackageSetupWizard();
 	void install();
+	void OpenArchive();
 	static bool DisableVideoCaptureSources(void *data,
 					       obs_source_t *source);
 	void EnableVideoCaptureSources();
 
 private:
+	void _buildBaseUI();
 	void _buildMissingPluginsUI(std::vector<PluginDetails> &missing);
 	void
 	_buildSetupUI(std::map<std::string, std::string> &videoSourceLabels);
@@ -180,8 +193,10 @@ private:
 	QStackedWidget *_steps;
 	Setup _setup;
 	std::vector<obs_weak_source_t *> _toEnable;
+	QFuture<void> _future;
 };
 
 StreamPackageSetupWizard *GetSetupWizard();
+std::string GetBundleInfo(std::string filename);
 
 } // namespace elgatocloud

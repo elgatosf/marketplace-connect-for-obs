@@ -21,7 +21,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 extern void blogva(int log_level, const char *format, va_list args);
 
 const char *PLUGIN_NAME = "elgato-marketplace";
-const char *PLUGIN_VERSION = "0.0.2";
+const char *PLUGIN_VERSION = "0.0.3";
 
 void obs_log(int log_level, const char *format, ...)
 {
