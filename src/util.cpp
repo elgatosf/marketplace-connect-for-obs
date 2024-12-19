@@ -117,10 +117,10 @@ std::string get_current_scene_collection_filename()
 		      // so we need to add .json
 #pragma warning (disable : 4996)
 		std::string file_name =
-			config_get_string(obs_frontend_get_global_config(), "Basic",
-				"SceneCollectionFile");
+			config_get_string(obs_frontend_get_global_config(), "Basic", "SceneCollectionFile");
 #pragma warning (default : 4996)
 		file_name += ".json";
+		blog(LOG_INFO, "COLLECTION FILENAME: %s", file_name.c_str());
 		return file_name;
 	} else {  // get the filename from user.ini
 	        // in 31+ the filename stored in user.ini *does* have a filetype
@@ -133,6 +133,7 @@ std::string get_current_scene_collection_filename()
 		std::string file_name =
 			config_get_string(user_config, "Basic",
 				"SceneCollectionFile");
+		blog(LOG_INFO, "COLLECTION FILENAME: %s", file_name.c_str());
 		return file_name;
 	}
 }

@@ -68,8 +68,8 @@ bool SceneBundle::FromCollection(std::string collection_name)
 	std::string scene_collections_path = get_scene_collections_path();
 	std::string file_name = get_current_scene_collection_filename();
 	std::string collection_file_path =
-		scene_collections_path + file_name + ".json";
-
+		scene_collections_path + file_name;
+	blog(LOG_INFO, "COLLECTION FILE PATH: %s", collection_file_path.c_str());
 	// Save the current scene collection to ensure our output is the latest
 	obs_frontend_save();
 
@@ -85,11 +85,11 @@ bool SceneBundle::FromCollection(std::string collection_name)
 	}
 
 	bfree(collection_str);
-
+	blog(LOG_INFO, "scripts...");
 	for (auto &script : _collection["modules"]["scripts-tool"]) {
 		_ProcessJsonObj(script);
 	}
-
+	blog(LOG_INFO, "sources...");
 	for (auto &source : _collection["sources"]) {
 		_ProcessJsonObj(source);
 	}
