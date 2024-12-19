@@ -108,20 +108,26 @@ int get_major_version()
 	return -1;
 }
 
+bool filename_json(std::string& filename)
+{
+	const std::string suffix = ".json";
+	if (filename.size() < suffix.size()) {
+		return false;
+	}
+	return filename.compare(filename.size() - suffix.size(), suffix.size(), suffix) == 0;
+}
+
 std::string get_current_scene_collection_filename()
 {
 	int v = get_major_version();
+	std::string filename;
 	if (v < 31) { // Get the filename from global.ini
 		      // also in pre-31, the filename in the config file did not
 		      // have a filetype suffix.
 		      // so we need to add .json
 #pragma warning (disable : 4996)
-		std::string file_name =
-			config_get_string(obs_frontend_get_global_config(), "Basic", "SceneCollectionFile");
+		filename = config_get_string(obs_frontend_get_global_config(), "Basic", "SceneCollectionFile");
 #pragma warning (default : 4996)
-		file_name += ".json";
-		blog(LOG_INFO, "COLLECTION FILENAME: %s", file_name.c_str());
-		return file_name;
 	} else {  // get the filename from user.ini
 	        // in 31+ the filename stored in user.ini *does* have a filetype
 		// suffix.
@@ -130,12 +136,14 @@ std::string get_current_scene_collection_filename()
 		config_t* (*get_user_config)() = (config_t* (*)())sym;
 		config_t* user_config = get_user_config();
 		os_dlclose(obs_frontend_dll);
-		std::string file_name =
-			config_get_string(user_config, "Basic",
-				"SceneCollectionFile");
-		blog(LOG_INFO, "COLLECTION FILENAME: %s", file_name.c_str());
-		return file_name;
+		filename = config_get_string(user_config, "Basic", "SceneCollectionFile");
 	}
+	// OBS is inconsistent with adding .json to SceneCollectionFile value.
+	if (!filename_json(filename)) {
+		filename += ".json";
+	}
+	blog(LOG_INFO, "COLLECTION FILENAME: %s", filename.c_str());
+	return filename;
 }
 
 std::string fetch_string_from_get(std::string url, std::string token)

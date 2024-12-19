@@ -805,7 +805,7 @@ void CloseElgatoCloudWindow()
 
 extern void InitElgatoCloud(obs_module_t *module)
 {
-	obs_log(LOG_INFO, "version: %s", "0.0.3-maker");
+	obs_log(LOG_INFO, "version: %s", "0.0.4");
 
 	elgatoCloud = new ElgatoCloud(module);
 	QAction *action = (QAction *)obs_frontend_add_tools_menu_qaction(
@@ -813,7 +813,7 @@ extern void InitElgatoCloud(obs_module_t *module)
 	action->connect(action, &QAction::triggered, OpenElgatoCloudWindow);
 }
 
-extern obs_data_t* GetElgatoCloudConfig()
+extern obs_data_t *GetElgatoCloudConfig()
 {
 	if (elgatoCloud) {
 		return elgatoCloud->GetConfig();

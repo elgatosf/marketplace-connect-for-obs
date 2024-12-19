@@ -39,6 +39,7 @@ obs_data_t* get_module_config();
 void save_module_config(obs_data_t* config);
 
 int get_major_version();
+bool filename_json(std::string& filename);
 std::string get_current_scene_collection_filename();
 
 std::string fetch_string_from_get(std::string url, std::string token);

@@ -539,6 +539,11 @@ ElgatoCloudConfig::ElgatoCloudConfig(QWidget *parent) : QDialog(parent)
 
 	layout->addStretch();
 
+	std::string version = "v";
+	version += PLUGIN_VERSION;
+	auto versionLabel = new QLabel(version.c_str(), this);
+	layout->addWidget(versionLabel);
+
 	auto buttons = new QHBoxLayout();
 	
 	QPushButton* cancelButton = new QPushButton(this);
