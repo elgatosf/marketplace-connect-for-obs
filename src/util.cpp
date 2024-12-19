@@ -112,14 +112,19 @@ std::string get_current_scene_collection_filename()
 {
 	int v = get_major_version();
 	if (v < 31) { // Get the filename from global.ini
+		      // also in pre-31, the filename in the config file did not
+		      // have a filetype suffix.
+		      // so we need to add .json
 #pragma warning (disable : 4996)
 		std::string file_name =
 			config_get_string(obs_frontend_get_global_config(), "Basic",
 				"SceneCollectionFile");
 #pragma warning (default : 4996)
+		file_name += ".json";
 		return file_name;
-	}
-	else { // get the filename from user.ini
+	} else {  // get the filename from user.ini
+	        // in 31+ the filename stored in user.ini *does* have a filetype
+		// suffix.
 		void* obs_frontend_dll = os_dlopen("obs-frontend-api.dll");
 		void* sym = os_dlsym(obs_frontend_dll, "obs_frontend_get_user_config");
 		config_t* (*get_user_config)() = (config_t* (*)())sym;
