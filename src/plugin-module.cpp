@@ -31,12 +31,14 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <scene-bundle.hpp>
 #include <export-wizard.hpp>
 #include <elgato-product.hpp>
+#include <util.h>
 
 OBS_DECLARE_MODULE()
 OBS_MODULE_USE_DEFAULT_LOCALE(PLUGIN_NAME, "en-US")
 
 namespace elgatocloud {
 extern void InitElgatoCloud(obs_module_t *);
+extern obs_data_t* GetElgatoCloudConfig();
 extern void OpenExportWizard();
 }
 
@@ -68,8 +70,9 @@ bool obs_module_load(void)
 	obs_log(LOG_INFO, "plugin loaded successfully (version %s)",
 		PLUGIN_VERSION);
 	elgatocloud::InitElgatoCloud(obs_current_module());
-	config_t* const global_config = obs_frontend_get_global_config();
-	bool makerTools = config_get_bool(global_config, "ElgatoCloud", "MakerTools");
+	auto config = elgatocloud::GetElgatoCloudConfig();
+	bool makerTools = obs_data_get_bool(config, "MakerTools");
+	obs_data_release(config);
 	if (makerTools) {
 		obs_frontend_add_tools_menu_item("Export Marketplace Scene",
 			export_collection, NULL);

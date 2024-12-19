@@ -66,9 +66,7 @@ bool SceneBundle::FromCollection(std::string collection_name)
 	_reset();
 	// Get the path to the currently active scene collection file.
 	std::string scene_collections_path = get_scene_collections_path();
-	std::string file_name =
-		config_get_string(obs_frontend_get_global_config(), "Basic",
-				  "SceneCollectionFile");
+	std::string file_name = get_current_scene_collection_filename();
 	std::string collection_file_path =
 		scene_collections_path + file_name + ".json";
 
@@ -157,9 +155,8 @@ void SceneBundle::ToCollection(std::string collection_name,
 	// Create a new collection so that it is added to the collections menu
 	// and grab the expected file name of the new collection.
 	obs_frontend_add_scene_collection(collection_name.c_str());
-	std::string file_name =
-		config_get_string(obs_frontend_get_global_config(), "Basic",
-				  "SceneCollectionFile");
+	auto v = obs_get_version();
+	std::string file_name = get_current_scene_collection_filename();
 	obs_log(LOG_INFO, "Created new blank collection at: %s",
 		file_name.c_str());
 	// Switch back to old scene collection, so that we can write new
@@ -170,7 +167,7 @@ void SceneBundle::ToCollection(std::string collection_name,
 	// TODO: Make sure file name is safe
 	std::string scene_collections_path = get_scene_collections_path();
 	std::string collection_json_file_path =
-		scene_collections_path + file_name + ".json";
+		scene_collections_path + file_name;
 
 	// TODO: Add calls to GetUnusedName and GetUnusedSceneCollectionFile *or* a dialog
 	//       to warn of overwriting

@@ -122,10 +122,6 @@ public:
 				   const float magnitude[MAX_AUDIO_CHANNELS],
 				   const float peak[MAX_AUDIO_CHANNELS],
 				   const float inputPeak[MAX_AUDIO_CHANNELS]);
-
-	static void DefaultVideoUpdated(void *data, calldata_t *params);
-	static void DefaultAudioUpdated(void *data, calldata_t *params);
-
 private:
 	void _save();
 	DefaultAVWidget* _avWidget;

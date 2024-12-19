@@ -39,6 +39,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 
 #include "elgato-cloud-config.hpp"
 #include "elgato-widgets.hpp"
+#include "elgato-cloud-data.hpp"
 #include "qt-display.hpp"
 #include "plugins.hpp"
 

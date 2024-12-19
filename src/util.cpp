@@ -16,7 +16,10 @@ You should have received a copy of the GNU General Public License along
 with this program. If not, see <https://www.gnu.org/licenses/>
 */
 
+#include <QDir>
 #include <obs-module.h>
+#include <util/config-file.h>
+#include <util/platform.h>
 #include "obs-frontend-api.h"
 #include <util/platform.h>
 #include <vector>
@@ -36,6 +39,98 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 
 #include "platform.h"
 #include "util.h"
+
+
+obs_data_t* get_module_config()
+{
+	const auto confPath = obs_module_config_path("config.json");
+	obs_data_t* config = obs_data_create_from_json_file_safe(confPath, "bak");
+	bfree(confPath);
+	if (!config) {
+		config = obs_data_create();
+		blog(LOG_WARNING, "Configuration file not found");
+	}
+	else {
+		blog(LOG_INFO, "Loaded configuration file");
+	}
+
+	obs_data_set_default_string(config, "AccessToken", "");
+	obs_data_set_default_string(config, "RefreshToken", "");
+	obs_data_set_default_int(config, "AccessTokenExpiration", 0);
+	obs_data_set_default_int(config, "RefreshTokenExpiration", 0);
+
+	std::string path = QDir::homePath().toStdString();
+	path += "/AppData/Local/Elgato/DeepLinking/SceneCollections";
+	os_mkdirs(path.c_str());
+	obs_data_set_default_string(config, "InstallLocation", path.c_str());
+	obs_data_set_default_bool(config, "MakerTools", false);
+
+	obs_data_set_default_string(config, "DefaultAudioCaptureSettings", "");
+	obs_data_set_default_string(config, "DefaultVideoCaptureSettings", "");
+
+	return config;
+}
+
+void save_module_config(obs_data_t* config)
+{
+	char* configPath = obs_module_config_path("config.json");
+	if (!configPath)
+		return;
+	std::string path = configPath;
+	bfree(configPath);
+
+	size_t pos = path.rfind('/');
+	if (pos == std::string::npos) {
+		blog(LOG_ERROR, "Settings NOT saved.");
+		return;
+	}
+	std::string configDir = path.substr(0, pos);
+
+	os_mkdirs(configDir.c_str());
+	if (obs_data_save_json_safe(config, path.c_str(), "tmp", "bak")) {
+		blog(LOG_INFO, "Settings saved");
+	}
+	else {
+		blog(LOG_ERROR, "Settings NOT saved.");
+	}
+	
+}
+
+
+int get_major_version()
+{
+	std::string v = obs_get_version_string();
+	size_t pos = v.find('.');
+	if (pos != std::string::npos) {
+		std::string major_version = v.substr(0, pos);
+		return std::stoi(major_version);
+	}
+	return -1;
+}
+
+std::string get_current_scene_collection_filename()
+{
+	int v = get_major_version();
+	if (v < 31) { // Get the filename from global.ini
+#pragma warning (disable : 4996)
+		std::string file_name =
+			config_get_string(obs_frontend_get_global_config(), "Basic",
+				"SceneCollectionFile");
+#pragma warning (default : 4996)
+		return file_name;
+	}
+	else { // get the filename from user.ini
+		void* obs_frontend_dll = os_dlopen("obs-frontend-api.dll");
+		void* sym = os_dlsym(obs_frontend_dll, "obs_frontend_get_user_config");
+		config_t* (*get_user_config)() = (config_t* (*)())sym;
+		config_t* user_config = get_user_config();
+		os_dlclose(obs_frontend_dll);
+		std::string file_name =
+			config_get_string(user_config, "Basic",
+				"SceneCollectionFile");
+		return file_name;
+	}
+}
 
 std::string fetch_string_from_get(std::string url, std::string token)
 {

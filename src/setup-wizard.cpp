@@ -271,15 +271,9 @@ VideoSetup::VideoSetup(QWidget *parent, std::string name,
 	sourceGrid->setContentsMargins(0, 0, 0, 0);
 	sourceGrid->setSpacing(18);
 
-	config_t* const global_config = obs_frontend_get_global_config();
+	obs_data_t* config = elgatoCloud->GetConfig();
 
-	config_set_default_string(global_config, "ElgatoCloud",
-		"DefaultAudioCaptureSettings", "");
-	config_set_default_string(global_config, "ElgatoCloud",
-		"DefaultVideoCaptureSettings", "");
-
-	std::string videoSettingsJson = config_get_string(
-		global_config, "ElgatoCloud", "DefaultVideoCaptureSettings");
+	std::string videoSettingsJson = obs_data_get_string(config, "DefaultVideoCaptureSettings");
 
 	obs_data_t* videoData =
 		videoSettingsJson != ""
@@ -343,6 +337,7 @@ VideoSetup::VideoSetup(QWidget *parent, std::string name,
 		[this]() { emit backPressed(); });
 
 	layout->addLayout(buttons);
+	obs_data_release(config);
 }
 
 VideoSetup::~VideoSetup() {}
@@ -351,13 +346,6 @@ void VideoSetup::DefaultVideoUpdated(void *data, calldata_t *params)
 {
 	UNUSED_PARAMETER(params);
 	UNUSED_PARAMETER(data);
-	// auto config = static_cast<VideoSetup*>(data);
-	// config_t *const global_config = obs_frontend_get_global_config();
-	// auto settings = obs_source_get_settings(config->_video_capture_source);
-	// auto dataStr = obs_data_get_json(settings);
-	// config_set_string(global_config, "ElgatoCloud", "DefaultVideoCaptureSettings", dataStr);
-
-	// obs_data_release(settings);
 }
 
 void VideoSetup::OpenConfigVideoSource()
@@ -402,12 +390,9 @@ AudioSetup::AudioSetup(QWidget *parent, std::string name,
 	layout->addWidget(spacer);
 
 	// Get settings
-	config_t *const global_config = obs_frontend_get_global_config();
-	config_set_default_string(global_config, "ElgatoCloud",
-				  "DefaultAudioCaptureSettings", "");
+	obs_data_t* config = elgatoCloud->GetConfig();
 
-	std::string audioSettingsJson = config_get_string(
-		global_config, "ElgatoCloud", "DefaultAudioCaptureSettings");
+	std::string audioSettingsJson = obs_data_get_string(config, "DefaultAudioCaptureSettings");
 
 	obs_data_t *audioSettings =
 		audioSettingsJson != ""
@@ -469,6 +454,7 @@ AudioSetup::AudioSetup(QWidget *parent, std::string name,
 	connect(backButton, &QPushButton::released, this,
 		[this]() { emit backPressed(); });
 	layout->addLayout(buttons);
+	obs_data_release(config);
 }
 
 void AudioSetup::_setupTempSources(obs_data_t* audioSettings)
@@ -533,13 +519,6 @@ void AudioSetup::DefaultAudioUpdated(void *data, calldata_t *params)
 	UNUSED_PARAMETER(params);
 	auto config = static_cast<AudioSetup *>(data);
 	config->SetupVolMeter();
-	// auto config = static_cast<VideoSetup*>(data);
-	// config_t *const global_config = obs_frontend_get_global_config();
-	// auto settings = obs_source_get_settings(config->_audio_capture_source);
-	// auto dataStr = obs_data_get_json(settings);
-	// config_set_string(global_config, "ElgatoCloud", "DefaultAudioCaptureSettings", dataStr);
-
-	// obs_data_release(settings);
 }
 
 void AudioSetup::OpenConfigAudioSource()
@@ -852,8 +831,8 @@ void StreamPackageSetupWizard::install()
 	obs_log(LOG_INFO, "Elgato Req File: %s", _filename.c_str());
 
 	// TODO: Clean up this mess of setting up the pack install path.
-	config_t* const global_config = obs_frontend_get_global_config();
-	std::string path = config_get_string(global_config, "ElgatoCloud", "InstallLocation");
+	obs_data_t* config = elgatoCloud->GetConfig();
+	std::string path = obs_data_get_string(config, "InstallLocation");
 	os_mkdirs(path.c_str());
 	std::string packDirName(_setup.collectionName);
 	std::replace(packDirName.begin(), packDirName.end(), ' ', '_');
@@ -871,6 +850,7 @@ void StreamPackageSetupWizard::install()
 	}
 	bundle.ToCollection(_setup.collectionName, _setup.videoSettings,
 			    _setup.audioSettings, this);
+	obs_data_release(config);
 }
 
 } // namespace elgatocloud

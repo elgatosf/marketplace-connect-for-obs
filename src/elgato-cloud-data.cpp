@@ -64,6 +64,22 @@ ElgatoCloud::ElgatoCloud(obs_module_t *m)
 	_Listen();
 }
 
+ElgatoCloud::~ElgatoCloud()
+{
+	obs_data_release(_config);
+}
+
+obs_data_t* ElgatoCloud::GetConfig()
+{
+	obs_data_addref(_config);
+	return _config;
+}
+
+void ElgatoCloud::SaveConfig()
+{
+	save_module_config(_config);
+}
+
 obs_module_t *ElgatoCloud::GetModule()
 {
 	return _modulePtr;
@@ -181,23 +197,7 @@ void ElgatoCloud::_Listen()
 
 void ElgatoCloud::_Initialize()
 {
-	config_t *const global_config = obs_frontend_get_global_config();
-	config_set_default_string(global_config, "ElgatoCloud", "AccessToken",
-				  "");
-	config_set_default_string(global_config, "ElgatoCloud", "RefreshToken",
-				  "");
-	config_set_default_int(global_config, "ElgatoCloud",
-			       "AccessTokenExpiration", 0);
-	config_set_default_int(global_config, "ElgatoCloud",
-			       "RefreshTokenExpiration", 0);
-
-	std::string path = QDir::homePath().toStdString();
-	path += "/AppData/Local/Elgato/DeepLinking/SceneCollections";
-	os_mkdirs(path.c_str());
-	config_set_default_string(global_config, "ElgatoCloud", "InstallLocation", path.c_str());
-
-	config_set_default_bool(global_config, "ElgatoCloud", "MakerTools", false);
-
+	_config = get_module_config();
 	_GetSavedState();
 
 	const auto now = std::chrono::system_clock::now();
@@ -400,28 +400,19 @@ void ElgatoCloud::_LoadUserData(bool loadData)
 
 void ElgatoCloud::_SaveState()
 {
-	config_t *const global_config = obs_frontend_get_global_config();
-	config_set_string(global_config, "ElgatoCloud", "AccessToken",
-			  _accessToken.c_str());
-	config_set_string(global_config, "ElgatoCloud", "RefreshToken",
-			  _refreshToken.c_str());
-	config_set_int(global_config, "ElgatoCloud", "AccessTokenExpiration",
-		       _accessTokenExpiration);
-	config_set_int(global_config, "ElgatoCloud", "RefreshTokenExpiration",
-		       _refreshTokenExpiration);
+	obs_data_set_string(_config, "AccessToken", _accessToken.c_str());
+	obs_data_set_string(_config, "RefreshToken", _refreshToken.c_str());
+	obs_data_set_int(_config, "AccessTokenExpiration", _accessTokenExpiration);
+	obs_data_set_int(_config, "RefreshTokenExpiration", _refreshTokenExpiration);
+	SaveConfig();
 }
 
 void ElgatoCloud::_GetSavedState()
 {
-	config_t *const global_config = obs_frontend_get_global_config();
-	_accessToken =
-		config_get_string(global_config, "ElgatoCloud", "AccessToken");
-	_refreshToken =
-		config_get_string(global_config, "ElgatoCloud", "RefreshToken");
-	_accessTokenExpiration = config_get_int(global_config, "ElgatoCloud",
-						"AccessTokenExpiration");
-	_refreshTokenExpiration = config_get_int(global_config, "ElgatoCloud",
-						 "RefreshTokenExpiration");
+	_accessToken = obs_data_get_string(_config, "AccessToken");
+	_refreshToken = obs_data_get_string(_config, "RefreshToken");
+	_accessTokenExpiration = obs_data_get_int(_config, "AccessTokenExpiration");
+	_refreshTokenExpiration = obs_data_get_int(_config, "RefreshTokenExpiration");
 }
 
 } // namespace elgatocloud

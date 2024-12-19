@@ -813,4 +813,12 @@ extern void InitElgatoCloud(obs_module_t *module)
 	action->connect(action, &QAction::triggered, OpenElgatoCloudWindow);
 }
 
+extern obs_data_t* GetElgatoCloudConfig()
+{
+	if (elgatoCloud) {
+		return elgatoCloud->GetConfig();
+	}
+	return nullptr;
+}
+
 } // namespace elgatocloud
