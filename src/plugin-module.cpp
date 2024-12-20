@@ -40,6 +40,7 @@ namespace elgatocloud {
 extern void InitElgatoCloud(obs_module_t *);
 extern obs_data_t* GetElgatoCloudConfig();
 extern void OpenExportWizard();
+extern void ShutDown();
 }
 
 void save_pack()
@@ -70,19 +71,20 @@ bool obs_module_load(void)
 	obs_log(LOG_INFO, "plugin loaded successfully (version %s)",
 		PLUGIN_VERSION);
 	elgatocloud::InitElgatoCloud(obs_current_module());
-	auto config = elgatocloud::GetElgatoCloudConfig();
-	bool makerTools = obs_data_get_bool(config, "MakerTools");
-	obs_data_release(config);
-	if (makerTools || true) {
-		obs_frontend_add_tools_menu_item("Export Marketplace Scene",
-			export_collection, NULL);
-		obs_frontend_add_tools_menu_item("Import Marketplace Scene",
-			import_collection, NULL);
-	}
+	//auto config = elgatocloud::GetElgatoCloudConfig();
+	//bool makerTools = obs_data_get_bool(config, "MakerTools");
+	//obs_data_release(config);
+	//if (makerTools) {
+	//	obs_frontend_add_tools_menu_item("Export Marketplace Scene",
+	//		export_collection, NULL);
+	//	obs_frontend_add_tools_menu_item("Import Marketplace Scene",
+	//		import_collection, NULL);
+	//}
 	return true;
 }
 
 void obs_module_unload(void)
 {
+	elgatocloud::ShutDown();
 	obs_log(LOG_INFO, "plugin unloaded");
 }

@@ -236,6 +236,10 @@ DefaultAVWidget::~DefaultAVWidget()
 			audioSigHandler, "update",
 			DefaultAVWidget::DefaultAudioUpdated, this);
 	}
+	if (_videoCaptureSource) {
+		obs_source_release(_videoCaptureSource);
+		obs_source_remove(_videoCaptureSource);
+	}
 	_levelsWidget = nullptr;
 }
 
@@ -294,6 +298,7 @@ void DefaultAVWidget::save()
 	else {
 		obs_data_set_string(config, "DefaultVideoCaptureSettings", "");
 	}
+	obs_data_release(settings);
 	obs_data_release(config);
 }
 
