@@ -21,7 +21,7 @@ int main(int argc, char *argv[]) {
 
 	#define BUFFER_SIZE 8000
 	DWORD buffer_size = BUFFER_SIZE;
-	wchar_t buffer[BUFFER_SIZE];
+	//wchar_t buffer[BUFFER_SIZE];
 
 	std::wstring config_path;
 	std::wstring launch_path;
@@ -35,6 +35,7 @@ int main(int argc, char *argv[]) {
 	}*/
 
 	buffer_size = BUFFER_SIZE;
+	/*
 	auto status = RegGetValueW(HKEY_CURRENT_USER, L"SOFTWARE\\elgato\\obs", L"",
 			      RRF_RT_REG_SZ, nullptr, buffer, &buffer_size);
 	// Ignore if the value is too long for our buffer. The user can suffer if OBS is installed in a path longer than 8000 characters long
@@ -77,7 +78,7 @@ int main(int argc, char *argv[]) {
 
 		connect_attempts_remaining = 6;
 	}
-
+	*/
 
 	std::string payload = argv[1];
 
@@ -86,7 +87,7 @@ int main(int argc, char *argv[]) {
 	std::string base_name = "\\\\.\\pipe\\" + pipe_name;
 	std::string attempt_name;
 	HANDLE pipe = INVALID_HANDLE_VALUE;
-
+	int connect_attempts_remaining = 6;
 	while (connect_attempts_remaining-- > 0 &&
 	       pipe == INVALID_HANDLE_VALUE) {
 		pipe_number = 0;
@@ -107,6 +108,7 @@ int main(int argc, char *argv[]) {
 	}
 	if (pipe == INVALID_HANDLE_VALUE) {
 		printf("Could not open named pipe!");
+		while (true) Sleep(100);
 		return 1;
 	}
 	DWORD mode = PIPE_READMODE_MESSAGE;
@@ -114,6 +116,7 @@ int main(int argc, char *argv[]) {
 	if (!success) {
 		CloseHandle(pipe);
 		printf("Could not configure named pipe!");
+		while (true) Sleep(100);
 		return 1;
 	}
 
@@ -123,9 +126,10 @@ int main(int argc, char *argv[]) {
 	if (!success || written < payload.size()) {
 		printf("Failed to write to named pipe!");
 		CloseHandle(pipe);
+		while (true) Sleep(100);
 		return 1;
 	}
-
 	CloseHandle(pipe);
+	while (true) Sleep(100);
 	return 0;
 }
