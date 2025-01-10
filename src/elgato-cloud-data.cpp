@@ -288,16 +288,17 @@ void ElgatoCloud::LoadPurchasedProducts()
 				products.emplace_back(
 					std::make_unique<ElgatoProduct>(pdat));
 			}
-			loading = false;
-			if (mainWindowOpen && window) {
-				QMetaObject::invokeMethod(
-					QCoreApplication::instance()->thread(),
-					[this]() {
-						window->setLoggedIn();
-						window->setupOwnedProducts();
-					});
-			}
 		}
+		loading = false;
+		if (mainWindowOpen && window) {
+			QMetaObject::invokeMethod(
+				QCoreApplication::instance()->thread(),
+				[this]() {
+					window->setLoggedIn();
+					window->setupOwnedProducts();
+				});
+		}
+
 	} catch (...) {
 		loading = false;
 		connectionError = true;

@@ -342,7 +342,7 @@ ProductGrid::ProductGrid(QWidget *parent) : QWidget(parent)
 
 ProductGrid::~ProductGrid() {}
 
-void ProductGrid::loadProducts()
+size_t ProductGrid::loadProducts()
 {
 	QLayoutItem *item;
 	while ((item = layout()->takeAt(0)) != NULL) {
@@ -355,6 +355,7 @@ void ProductGrid::loadProducts()
 		layout()->addWidget(widget);
 	}
 	repaint();
+	return elgatoCloud->products.size();
 }
 
 void ProductGrid::disableDownload()
@@ -390,7 +391,10 @@ OwnedProducts::OwnedProducts(QWidget *parent) : QWidget(parent)
 		[this](QListWidgetItem *item) {
 			QString val = item->text();
 			if (val == "Purchased") {
-				_content->setCurrentIndex(0);
+				if (_numProducts > 0)
+					_content->setCurrentIndex(0);
+				else
+					_content->setCurrentIndex(2);
 			} else {
 				_content->setCurrentIndex(1);
 			}
@@ -406,16 +410,24 @@ OwnedProducts::OwnedProducts(QWidget *parent) : QWidget(parent)
 	_purchased = new ProductGrid(this);
 	_purchased->setSizePolicy(QSizePolicy::Expanding,
 				  QSizePolicy::Expanding);
-	if (elgatoCloud->loggedIn) {
-		_purchased->loadProducts();
-	}
-	//auto test = new QWidget(this);
-	//test->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-	//test->setStyleSheet("QWidget {background-color: #AAAAAA;}");
-	//scroll->setWidget(test);
+	refreshProducts();
+
+	auto noProducts = new QWidget(this);
+	auto npLayout = new QVBoxLayout(noProducts);
+	npLayout->addStretch();
+	auto npTitle = new QLabel("You don't own any scene collection products yet", noProducts);
+	npTitle->setStyleSheet("QLabel {font-size: 18pt;}");
+	npTitle->setAlignment(Qt::AlignCenter);
+	npLayout->addWidget(npTitle);
+	auto npSubTitle = new QLabel("Your digital assets from Marketplace will appear here", noProducts);
+	npSubTitle->setStyleSheet("QLabel {font-size: 13pt;}");
+	npSubTitle->setAlignment(Qt::AlignCenter);
+	npLayout->addWidget(npSubTitle);
+	npLayout->addStretch();
 	scroll->setWidget(_purchased);
 	_content->addWidget(scroll);
 	_content->addWidget(_installed);
+	_content->addWidget(noProducts);
 	_layout->addWidget(_sideMenu);
 	_layout->addWidget(_content);
 	setLayout(_layout);
@@ -426,7 +438,10 @@ OwnedProducts::~OwnedProducts() {}
 void OwnedProducts::refreshProducts()
 {
 	if (elgatoCloud->loggedIn) {
-		_purchased->loadProducts();
+		_numProducts = _purchased->loadProducts();
+		if (_numProducts == 0) {
+			_content->setCurrentIndex(2);
+		}
 	}
 }
 
@@ -450,7 +465,7 @@ ElgatoCloudWindow::~ElgatoCloudWindow()
 
 void ElgatoCloudWindow::initialize()
 {
-	setWindowTitle(QString("Elgato Cloud"));
+	setWindowTitle(QString("Elgato Marketplace"));
 	setFixedSize(1140, 600);
 
 	QPalette pal = QPalette();
@@ -682,13 +697,6 @@ LoginNeeded::LoginNeeded(QWidget *parent) : QWidget(parent)
 {
 	auto layout = new QVBoxLayout(this);
 
-	auto topSpacer = new QWidget(this);
-	topSpacer->setSizePolicy(QSizePolicy::Preferred,
-				 QSizePolicy::Expanding);
-	auto botSpacer = new QWidget(this);
-	botSpacer->setSizePolicy(QSizePolicy::Preferred,
-				 QSizePolicy::Expanding);
-
 	auto login = new QLabel(this);
 	login->setText("Please Log In");
 	login->setStyleSheet("QLabel {font-size: 18pt;}");
@@ -700,22 +708,15 @@ LoginNeeded::LoginNeeded(QWidget *parent) : QWidget(parent)
 	loginSub->setWordWrap(true);
 	loginSub->setAlignment(Qt::AlignCenter);
 
-	layout->addWidget(topSpacer);
+	layout->addStretch();
 	layout->addWidget(login);
 	layout->addWidget(loginSub);
-	layout->addWidget(botSpacer);
+	layout->addStretch();
 }
 
 ConnectionError::ConnectionError(QWidget *parent) : QWidget(parent)
 {
 	auto layout = new QVBoxLayout(this);
-
-	auto topSpacer = new QWidget(this);
-	topSpacer->setSizePolicy(QSizePolicy::Preferred,
-				 QSizePolicy::Expanding);
-	auto botSpacer = new QWidget(this);
-	botSpacer->setSizePolicy(QSizePolicy::Preferred,
-				 QSizePolicy::Expanding);
 
 	auto connectionError = new QLabel(this);
 	connectionError->setText("Connection Error");
@@ -729,23 +730,15 @@ ConnectionError::ConnectionError(QWidget *parent) : QWidget(parent)
 	connectionErrorSub->setWordWrap(true);
 	connectionErrorSub->setAlignment(Qt::AlignCenter);
 
-	layout->addWidget(topSpacer);
+	layout->addStretch();
 	layout->addWidget(connectionError);
 	layout->addWidget(connectionErrorSub);
-	layout->addWidget(botSpacer);
+	layout->addStretch();
 }
 
 LoadingWidget::LoadingWidget(QWidget *parent) : QWidget(parent)
 {
 	auto layout = new QVBoxLayout(this);
-
-	auto topSpacer = new QWidget(this);
-	topSpacer->setSizePolicy(QSizePolicy::Preferred,
-				 QSizePolicy::Expanding);
-	auto botSpacer = new QWidget(this);
-	botSpacer->setSizePolicy(QSizePolicy::Preferred,
-				 QSizePolicy::Expanding);
-
 	auto loading = new QLabel(this);
 	loading->setText("Loading Your Purchased Products...");
 	loading->setStyleSheet("QLabel {font-size: 18pt;}");
@@ -757,10 +750,10 @@ LoadingWidget::LoadingWidget(QWidget *parent) : QWidget(parent)
 	loadingSub->setWordWrap(true);
 	loadingSub->setAlignment(Qt::AlignCenter);
 
-	layout->addWidget(topSpacer);
+	layout->addStretch();
 	layout->addWidget(loading);
 	layout->addWidget(loadingSub);
-	layout->addWidget(botSpacer);
+	layout->addStretch();
 }
 
 void OpenElgatoCloudWindow()

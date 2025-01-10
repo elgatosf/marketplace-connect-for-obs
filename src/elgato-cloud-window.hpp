@@ -136,7 +136,7 @@ class ProductGrid : public QWidget {
 public:
 	ProductGrid(QWidget *parent);
 	~ProductGrid();
-	void loadProducts();
+	size_t loadProducts();
 	void disableDownload();
 	void enableDownload();
 
@@ -168,6 +168,7 @@ private:
 	QStackedWidget *_content = nullptr;
 	Placeholder *_installed = nullptr;
 	ProductGrid *_purchased = nullptr;
+	size_t _numProducts = 0;
 };
 
 class LoginNeeded : public QWidget {
