@@ -44,6 +44,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 namespace elgatocloud {
 
 DefaultAVWidget* AVWIDGET = nullptr;
+ElgatoCloudConfig* configWindow = nullptr;
 
 DefaultAVWidget::DefaultAVWidget(QWidget* parent)
 	: QWidget(parent)
@@ -461,6 +462,7 @@ void SimpleVolumeMeter::paintEvent(QPaintEvent *event)
 
 ElgatoCloudConfig::ElgatoCloudConfig(QWidget *parent) : QDialog(parent)
 {
+	configWindow = this;
 	std::string imageBaseDir =
 		obs_get_module_data_path(obs_current_module());
 	imageBaseDir += "/images/";
@@ -680,34 +682,22 @@ void ElgatoCloudConfig::_save()
 
 ElgatoCloudConfig::~ElgatoCloudConfig()
 {
-	//obs_display_remove_draw_callback(_videoPreview->GetDisplay(),
-	//				 ElgatoCloudConfig::DrawVideoPreview,
-	//				 this);
-	//_levelsWidget = nullptr;
-	//if (_videoCaptureSource) {
-	//	obs_source_release(_videoCaptureSource);
-	//	obs_source_remove(_videoCaptureSource);
-	//	signal_handler_t *videoSigHandler =
-	//		obs_source_get_signal_handler(_videoCaptureSource);
-	//	signal_handler_disconnect(
-	//		videoSigHandler, "update",
-	//		ElgatoCloudConfig::DefaultVideoUpdated, this);
-	//}
-	//if (_volmeter) {
-	//	obs_volmeter_detach_source(_volmeter);
-	//	obs_volmeter_remove_callback(
-	//		_volmeter, ElgatoCloudConfig::OBSVolumeLevel, this);
-	//	obs_volmeter_destroy(_volmeter);
-	//}
-	//if (_audioCaptureSource) {
-	//	obs_source_release(_audioCaptureSource);
-	//	obs_source_remove(_audioCaptureSource);
-	//	signal_handler_t *audioSigHandler =
-	//		obs_source_get_signal_handler(_audioCaptureSource);
-	//	signal_handler_disconnect(
-	//		audioSigHandler, "update",
-	//		ElgatoCloudConfig::DefaultAudioUpdated, this);
-	//}
+	configWindow = nullptr;
+}
+
+ElgatoCloudConfig* openConfigWindow(QWidget* parent)
+{
+	ElgatoCloudConfig* window = nullptr;
+	if (configWindow == nullptr) {
+		window = new ElgatoCloudConfig(parent);
+		window->show();
+	}
+	else {
+		window = configWindow;
+	}
+	window->raise();
+	window->activateWindow();
+	return window;
 }
 
 } // namespace elgatocloud

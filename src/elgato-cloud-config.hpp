@@ -138,4 +138,6 @@ signals:
 	void closeClicked();
 };
 
+ElgatoCloudConfig* openConfigWindow(QWidget* parent);
+
 } // namespace elgatocloud

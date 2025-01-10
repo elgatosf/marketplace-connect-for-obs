@@ -469,12 +469,7 @@ void ElgatoCloudWindow::initialize()
 
 	_toolbar = new WindowToolBar(_mainWidget);
 	connect(_toolbar, &WindowToolBar::settingsClicked, this, [this]() {
-		//_mainWidget->setVisible(false);
-		//_config->setVisible(true);
-		_config = new ElgatoCloudConfig(this);
-		_config->show();
-		_config->raise();
-		_config->activateWindow();
+		_config = openConfigWindow(this);
 	});
 
 	mainLayout->addWidget(_toolbar);
@@ -507,7 +502,7 @@ void ElgatoCloudWindow::initialize()
 	_mainWidget->setLayout(mainLayout);
 
 	_layout->addWidget(_mainWidget);
-	_layout->addWidget(_config);
+	//_layout->addWidget(_config);
 
 	setLayout(_layout);
 }

@@ -246,7 +246,7 @@ NewCollectionName::NewCollectionName(QWidget *parent, std::string name,
 	_proceedButton->setDisabled(true);
 	connect(_proceedButton, &QPushButton::released, this, [this]() {
 		QString qName = _nameField->text();
-		emit proceedPressed(qName.toStdString());
+		emit proceedPressed(qName.toUtf8().constData());
 	});
 	buttons->addWidget(_proceedButton);
 	layout->addLayout(buttons);
@@ -834,16 +834,20 @@ void StreamPackageSetupWizard::install()
 	obs_data_t* config = elgatoCloud->GetConfig();
 	std::string path = obs_data_get_string(config, "InstallLocation");
 	os_mkdirs(path.c_str());
-	std::string packDirName(_setup.collectionName);
-	std::replace(packDirName.begin(), packDirName.end(), ' ', '_');
-	std::string pack_path = path + "/" + packDirName;
-	obs_log(LOG_INFO, "Elgato Install Path: %s", pack_path.c_str());
+	std::string unsafeDirName(_setup.collectionName);
+	std::string safeDirName;
+	generate_safe_path(unsafeDirName, safeDirName);
+	std::string bundlePath = path + "/" + safeDirName;
+	//std::string dirName(_setup.collectionName);
+	//std::string bundlePath = path + "/" + dirName;
+	
+	obs_log(LOG_INFO, "Elgato Install Path: %s", bundlePath.c_str());
 
 	// TODO: Add dialog with progress indicator.  Put unzipping and
 	//       scene collection loading code into new threads to stop
 	//       from blocking.
 	SceneBundle bundle;
-	if (!bundle.FromElgatoCloudFile(_filename, pack_path)) {
+	if (!bundle.FromElgatoCloudFile(_filename, bundlePath)) {
 		obs_log(LOG_WARNING, "Elgato Install: Could not install %s",
 			_filename.c_str());
 		return;

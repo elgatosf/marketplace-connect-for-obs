@@ -79,3 +79,5 @@ template<class T, class U> auto_closer<T, U> auto_close(T *self, U closer)
 {
 	return auto_closer<T, U>(self, closer);
 }
+
+bool generate_safe_path(std::string unsafe, std::string& safe);

@@ -431,3 +431,38 @@ std::string random_name(size_t length)
 	}
 	return result;
 }
+
+bool generate_safe_path(std::string unsafe, std::string& safe)
+{
+	const size_t base_length = unsafe.length();
+	size_t length = os_utf8_to_wcs(unsafe.c_str(), base_length, nullptr, 0);
+	std::wstring wfile;
+
+	if (!length) {
+		return false;
+	}
+
+	wfile.resize(length);
+	os_utf8_to_wcs(unsafe.c_str(), base_length, &wfile[0], length + 1);
+
+	for (size_t i = wfile.size(); i > 0; i--) {
+		size_t prev = i - 1;
+		if (iswspace(wfile[prev])) {
+			wfile[prev] = '_';
+		}
+		else if (wfile[prev] != '_' && !iswalnum(wfile[prev])) {
+			wfile.erase(prev, 1);
+		}
+	}
+
+	if (wfile.size() == 0) {
+		wfile = L"chars_only";
+	}
+
+	length = os_wcs_to_utf8(wfile.c_str(), wfile.size(), nullptr, 0);
+	if (!length)
+		return false;
+	safe.resize(length);
+	os_wcs_to_utf8(wfile.c_str(), wfile.size(), &safe[0], length + 1);
+	return true;
+}

@@ -71,15 +71,15 @@ bool obs_module_load(void)
 	obs_log(LOG_INFO, "plugin loaded successfully (version %s)",
 		PLUGIN_VERSION);
 	elgatocloud::InitElgatoCloud(obs_current_module());
-	//auto config = elgatocloud::GetElgatoCloudConfig();
-	//bool makerTools = obs_data_get_bool(config, "MakerTools");
-	//obs_data_release(config);
-	//if (makerTools) {
-	//	obs_frontend_add_tools_menu_item("Export Marketplace Scene",
-	//		export_collection, NULL);
-	//	obs_frontend_add_tools_menu_item("Import Marketplace Scene",
-	//		import_collection, NULL);
-	//}
+	auto config = elgatocloud::GetElgatoCloudConfig();
+	bool makerTools = obs_data_get_bool(config, "MakerTools");
+	obs_data_release(config);
+	if (makerTools) {
+		obs_frontend_add_tools_menu_item("Export Marketplace Scene",
+			export_collection, NULL);
+		obs_frontend_add_tools_menu_item("Import Marketplace Scene",
+			import_collection, NULL);
+	}
 	return true;
 }
 
