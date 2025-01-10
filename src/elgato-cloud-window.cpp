@@ -415,11 +415,14 @@ OwnedProducts::OwnedProducts(QWidget *parent) : QWidget(parent)
 	auto noProducts = new QWidget(this);
 	auto npLayout = new QVBoxLayout(noProducts);
 	npLayout->addStretch();
-	auto npTitle = new QLabel("You don't own any scene collection products yet", noProducts);
+	auto npTitle = new QLabel(
+		"You don't own any scene collection products yet", noProducts);
 	npTitle->setStyleSheet("QLabel {font-size: 18pt;}");
 	npTitle->setAlignment(Qt::AlignCenter);
 	npLayout->addWidget(npTitle);
-	auto npSubTitle = new QLabel("Your digital assets from Marketplace will appear here", noProducts);
+	auto npSubTitle = new QLabel(
+		"Your digital assets from Marketplace will appear here",
+		noProducts);
 	npSubTitle->setStyleSheet("QLabel {font-size: 13pt;}");
 	npSubTitle->setAlignment(Qt::AlignCenter);
 	npLayout->addWidget(npSubTitle);
@@ -483,9 +486,8 @@ void ElgatoCloudWindow::initialize()
 	mainLayout->setContentsMargins(0, 0, 0, 0);
 
 	_toolbar = new WindowToolBar(_mainWidget);
-	connect(_toolbar, &WindowToolBar::settingsClicked, this, [this]() {
-		_config = openConfigWindow(this);
-	});
+	connect(_toolbar, &WindowToolBar::settingsClicked, this,
+		[this]() { _config = openConfigWindow(this); });
 
 	mainLayout->addWidget(_toolbar);
 	_stackedContent = new QStackedWidget(_mainWidget);
@@ -793,7 +795,7 @@ void CloseElgatoCloudWindow()
 
 extern void InitElgatoCloud(obs_module_t *module)
 {
-	obs_log(LOG_INFO, "version: %s", "0.0.4");
+	obs_log(LOG_INFO, "version: %s", "0.0.5");
 
 	elgatoCloud = new ElgatoCloud(module);
 	QAction *action = (QAction *)obs_frontend_add_tools_menu_qaction(
