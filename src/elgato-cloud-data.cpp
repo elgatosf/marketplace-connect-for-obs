@@ -90,7 +90,7 @@ void ElgatoCloud::Thread()
 	// Here is our Elgato Cloud loop
 }
 
-void ElgatoCloud::_TokenRefresh(bool loadData)
+void ElgatoCloud::_TokenRefresh(bool loadData, bool loadUserDetails)
 {
 	const auto now = std::chrono::system_clock::now();
 	const auto epoch = now.time_since_epoch();
@@ -101,7 +101,9 @@ void ElgatoCloud::_TokenRefresh(bool loadData)
 	if (seconds.count() < _accessTokenExpiration) {
 		loggedIn = true;
 		loading = loadData;
-		_LoadUserData();
+		if (loadUserDetails) {
+			_LoadUserData();
+		}
 		if (loadData) {
 			LoadPurchasedProducts();
 		}
@@ -315,6 +317,8 @@ nlohmann::json ElgatoCloud::GetPurchaseDownloadLink(std::string variantId)
 	if (!loggedIn) {
 		return nlohmann::json::parse("{\"Error\": \"Not Logged In\"}");
 	}
+
+	_TokenRefresh(false, false);
 
 	auto api = MarketplaceApi::getInstance();
 	std::string api_url = api->gatewayUrl();

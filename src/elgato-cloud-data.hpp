@@ -72,7 +72,7 @@ private:
 	void _ProcessLogin(nlohmann::json &loginData, bool loadData = true);
 	void _SaveState();
 	void _GetSavedState();
-	void _TokenRefresh(bool loadData);
+	void _TokenRefresh(bool loadData, bool loadUserDetails = true);
 	void _LoadUserData(bool loadData = false);
 
 	obs_module_t *_modulePtr = nullptr;

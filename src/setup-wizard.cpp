@@ -35,6 +35,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <QApplication>
 #include <QThread>
 #include <QMetaObject>
+#include <QMessageBox>
 
 #include "elgato-styles.hpp"
 #include "plugin-support.h"
@@ -56,7 +57,14 @@ StreamPackageSetupWizard *GetSetupWizard()
 std::string GetBundleInfo(std::string filename)
 {
 	SceneBundle bundle;
-	return bundle.ExtractBundleInfo(filename);
+	std::string data;
+	try {
+		data = bundle.ExtractBundleInfo(filename);
+	} catch(...) {
+		blog(LOG_INFO, "Bundle Info Not Found");
+		data = "{\"Error\": \"Incompatible File\"}";
+	}
+	return data;
 }
 
 StreamPackageHeader::StreamPackageHeader(QWidget *parent, std::string name,
@@ -662,6 +670,17 @@ void StreamPackageSetupWizard::OpenArchive()
 					obs_log(LOG_ERROR, "Parsing Error.\n  message: %s\n  id: %i",
 						e.what(), e.id);
 					error = true;
+				}
+				if (error || bundleInfo.contains("Error")) {
+					obs_log(LOG_ERROR, "Invalid file.");
+					int ret = QMessageBox::warning(
+						this,
+						"Incompatible file",
+						"Error: This download did not contain a valid bundleInfo.json file and cannot be installed. (note: this is a problem with the submitted scene collection file on the server)",
+						QMessageBox::Ok
+					);
+					close();
+					return;
 				}
 
 				std::map<std::string, std::string> videoSourceLabels =
