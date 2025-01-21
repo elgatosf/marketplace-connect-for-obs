@@ -34,7 +34,7 @@ function(setup_obs_lib_dependency target)
   endif()
 endfunction()
 
-project(elgato-marketplace VERSION 0.0.6)
+project(elgato-marketplace VERSION 0.0.7)
 
 if(${CMAKE_PROJECT_NAME} STREQUAL "obs-studio")
   set(OBS_FRONTEND_API_NAME "frontend-api")

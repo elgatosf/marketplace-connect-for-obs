@@ -392,6 +392,15 @@ void SceneBundle::_ProcessJsonObj(nlohmann::json &obj)
 void SceneBundle::_CreateFileMap(nlohmann::json &item)
 {
 	std::string value = item.template get<std::string>();
+
+	size_t pos = 0;
+	std::string from = "\\";
+	std::string to = "/";
+	while ((pos = value.find(from, pos)) != std::string::npos) {
+		value.replace(pos, from.length(), to);
+		pos += to.length();
+	}
+
 	struct stat st;
 	if (os_stat(value.c_str(), &st) == 0 && st.st_mode & S_IEXEC) {
 		obs_log(LOG_INFO, "_CreativeFileMap: IS EXEC");
