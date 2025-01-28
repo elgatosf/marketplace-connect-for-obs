@@ -46,6 +46,8 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 namespace elgatocloud {
 
 class ElgatoProduct;
+class ElgatoCloudWindow;
+
 
 enum class InstallTypes {
 	Unset,
@@ -102,6 +104,7 @@ public:
 			  std::string thumbnailPath);
 
 private:
+	std::vector<std::string> _existingCollections;
 	QLineEdit *_nameField = nullptr;
 	QPushButton *_proceedButton = nullptr;
 signals:

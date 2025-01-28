@@ -27,6 +27,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <nlohmann/json.hpp>
 #include <QMessageBox>
 #include <QFileDialog>
+#include <obs-frontend-api.h>
 
 namespace miniz_cpp {
 class zip_file;
@@ -52,6 +53,7 @@ private:
 	std::string _packPath;
 	bool _interrupt;
 	SceneBundleStatus _interruptReason;
+	bool _waiting;
 
 public:
 	SceneBundle();
@@ -79,6 +81,8 @@ public:
 
 	std::vector<std::string> FileList();
 	std::map<std::string, std::string> VideoCaptureDevices();
+	static void SceneCollectionCreated(enum obs_frontend_event event, void* obj);
+	static void SceneCollectionChanged(enum obs_frontend_event event, void* obj);
 
 private:
 	void _ProcessJsonObj(nlohmann::json &obj);

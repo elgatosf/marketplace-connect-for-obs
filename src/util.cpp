@@ -121,6 +121,8 @@ std::string get_current_scene_collection_filename()
 {
 	int v = get_major_version();
 	std::string filename;
+
+	// TODO: Convert this to use GetUserConfig() from obs-utils.cpp
 	if (v < 31) { // Get the filename from global.ini
 		      // also in pre-31, the filename in the config file did not
 		      // have a filetype suffix.

@@ -35,6 +35,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include "plugin-support.h"
 #include "platform.h"
 #include "util.h"
+#include "obs-utils.hpp"
 #include "setup-wizard.hpp"
 
 const std::map<std::string, std::string> extensionMap{
@@ -93,6 +94,9 @@ bool SceneBundle::FromCollection(std::string collection_name)
 	for (auto &source : _collection["sources"]) {
 		_ProcessJsonObj(source);
 	}
+	for (auto& transition : _collection["transitions"]) {
+		_ProcessJsonObj(transition);
+	}
 
 	return true;
 }
@@ -120,12 +124,34 @@ std::string SceneBundle::ExtractBundleInfo(std::string filePath)
 	return file.read("bundle_info.json");
 }
 
+void SceneBundle::SceneCollectionCreated(enum obs_frontend_event event, void* obj)
+{
+	if (event == OBS_FRONTEND_EVENT_SCENE_COLLECTION_LIST_CHANGED) {
+		auto inst = static_cast<SceneBundle*>(obj);
+		if (inst) {
+			inst->_waiting = false;
+		}
+	}
+}
+
+void SceneBundle::SceneCollectionChanged(enum obs_frontend_event event, void* obj)
+{
+	if (event == OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGED) {
+		auto inst = static_cast<SceneBundle*>(obj);
+		if (inst) {
+			inst->_waiting = false;
+		}
+	}
+}
+
 void SceneBundle::ToCollection(std::string collection_name,
 			       std::map<std::string, std::string> videoSettings,
 			       std::string audioSettings, QDialog *dialog)
 {
 	dialog->close();
 	elgatocloud::CloseElgatoCloudWindow();
+
+	const auto userConf = GetUserConfig();
 
 	char *current_collection = obs_frontend_get_current_scene_collection();
 	std::string collection_file_path = _packPath + "/collection.json";
@@ -152,41 +178,59 @@ void SceneBundle::ToCollection(std::string collection_name,
 	// TODO: Replacements for OS-specific interfaces, or make built-in OBS
 	//       importers work. Built-in OBS importers would require json11
 
-	// Create a new collection so that it is added to the collections menu
-	// and grab the expected file name of the new collection.
+	// 1. Add callback listener for scene collection list changed event
+	obs_frontend_add_event_callback(SceneBundle::SceneCollectionCreated, this);
+
+	// 2. Set waiting to true, to block execution until scene collection created.
+	_waiting = true;
+
+	// 3. Create a new, blank scene collection with the proper name.
 	obs_frontend_add_scene_collection(collection_name.c_str());
-	auto v = obs_get_version();
-	std::string file_name = get_current_scene_collection_filename();
-	obs_log(LOG_INFO, "Created new blank collection at: %s",
-		file_name.c_str());
-	// Switch back to old scene collection, so that we can write new
-	// .json file for new scene collection without it being overwritten
-	// with blank scene collection.
+	// 4. Wait until _wating is set to false
+	while (_waiting)
+		; // do nothing
+
+	// 5. Remove the callback
+	obs_frontend_remove_event_callback(SceneBundle::SceneCollectionCreated, this);
+
+	// 6. Get new collection name and filename
+	std::string newCollectionName = config_get_string(userConf, "Basic", "SceneCollection");
+	std::string newCollectionFileName = get_current_scene_collection_filename();
+	newCollectionFileName = get_scene_collections_path() + newCollectionFileName;
+
+	// 7. Set waiting to true to block execution until we switch back to the old scene collection
+	_waiting = true;
+
+	// 8. Add a callback for scene collection change
+	obs_frontend_add_event_callback(SceneBundle::SceneCollectionChanged, this);
+
+	// 9. Switch back to old scene collection so we can manually write the new
+	//    collection json file
 	obs_frontend_set_current_scene_collection(current_collection);
 
-	// TODO: Make sure file name is safe
-	std::string scene_collections_path = get_scene_collections_path();
-	std::string collection_json_file_path =
-		scene_collections_path + file_name;
+	// 10. Wait until _wating is set to false
+	while (_waiting)
+		; // do nothing
 
-	// TODO: Add calls to GetUnusedName and GetUnusedSceneCollectionFile *or* a dialog
-	//       to warn of overwriting
-	std::string collection_out = _collection.dump();
+	// 11. Remove the callback
+	obs_frontend_remove_event_callback(SceneBundle::SceneCollectionChanged, this);
 
-	// Convert to a native OBS Data object.
-	obs_data_t *data = obs_data_create_from_json(collection_out.c_str());
-	// So that we can use OBS's save_safe function
+	// 12. Replace newCollectionFileName with imported json data
+	obs_data_t* data = obs_data_create_from_json(_collection.dump().c_str());
 	bool success = obs_data_save_json_safe(
-		data, collection_json_file_path.c_str(), "tmp", "bak");
+		data, newCollectionFileName.c_str(), "tmp", "bak");
 	obs_log(LOG_INFO, "Saved new full collection at: %s",
-		collection_json_file_path.c_str());
+		newCollectionFileName.c_str());
 	obs_data_release(data);
-	// Finally, switch back to the new scene collection.
-	obs_frontend_set_current_scene_collection(collection_name.c_str());
+
+	// 13. Load in the new scene collection with the new data.
+	obs_frontend_set_current_scene_collection(newCollectionName.c_str());
 
 	if (!success) {
 		obs_log(LOG_ERROR, "Unable to create scene collection.");
 	}
+
+	bfree(current_collection);
 }
 
 SceneBundleStatus SceneBundle::ToElgatoCloudFile(

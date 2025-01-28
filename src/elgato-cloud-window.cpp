@@ -786,6 +786,27 @@ void OpenElgatoCloudWindow()
 	}
 }
 
+ElgatoCloudWindow *GetElgatoCloudWindow()
+{
+	if (elgatoCloud->mainWindowOpen) {
+		return ElgatoCloudWindow::window;
+	} else {
+		return nullptr;
+	}
+}
+
+void ElgatoCloudWindowSetEnabled(bool enable)
+{
+	if (elgatoCloud->mainWindowOpen) {
+		ElgatoCloudWindow::window->setEnabled(enable);
+		auto flags = enable ? ElgatoCloudWindow::window->windowFlags() &
+					      ~Qt::FramelessWindowHint
+				    : Qt::FramelessWindowHint;
+		ElgatoCloudWindow::window->setWindowFlags(flags);
+		ElgatoCloudWindow::window->show();
+	}
+}
+
 void CloseElgatoCloudWindow()
 {
 	if (elgatoCloud->mainWindowOpen) {
@@ -795,7 +816,7 @@ void CloseElgatoCloudWindow()
 
 extern void InitElgatoCloud(obs_module_t *module)
 {
-	obs_log(LOG_INFO, "version: %s", "0.0.7");
+	obs_log(LOG_INFO, "version: %s", "0.0.8");
 
 	elgatoCloud = new ElgatoCloud(module);
 	QAction *action = (QAction *)obs_frontend_add_tools_menu_qaction(

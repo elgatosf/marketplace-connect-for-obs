@@ -36,6 +36,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <QThread>
 #include <QMetaObject>
 #include <QMessageBox>
+#include <QMainWindow>
 
 #include "elgato-styles.hpp"
 #include "plugin-support.h"
@@ -47,9 +48,10 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 
 namespace elgatocloud {
 
-StreamPackageSetupWizard *setupWizard = nullptr;
+extern void ElgatoCloudWindowSetEnabled(bool enable);
+StreamPackageSetupWizard* setupWizard = nullptr;
 
-StreamPackageSetupWizard *GetSetupWizard()
+StreamPackageSetupWizard* GetSetupWizard()
 {
 	return setupWizard;
 }
@@ -221,6 +223,7 @@ NewCollectionName::NewCollectionName(QWidget *parent, std::string name,
 				     std::string thumbnailPath)
 	: QWidget(parent)
 {
+	_existingCollections = GetSceneCollectionNames();
 	QVBoxLayout *layout = new QVBoxLayout(this);
 	StreamPackageHeader *header =
 		new StreamPackageHeader(parent, name, thumbnailPath);
@@ -254,7 +257,12 @@ NewCollectionName::NewCollectionName(QWidget *parent, std::string name,
 	_proceedButton->setDisabled(true);
 	connect(_proceedButton, &QPushButton::released, this, [this]() {
 		QString qName = _nameField->text();
-		emit proceedPressed(qName.toUtf8().constData());
+		std::string name = qName.toUtf8().constData();
+		if (std::find(_existingCollections.begin(), _existingCollections.end(), name) != _existingCollections.end()) {
+			QMessageBox::warning(this, "Name in use.", "A scene collection already exists with this name. Please provide another name.");
+			return;
+		}
+		emit proceedPressed(name.c_str());
 	});
 	buttons->addWidget(_proceedButton);
 	layout->addLayout(buttons);
@@ -804,10 +812,16 @@ void StreamPackageSetupWizard::_buildSetupUI(
 	auto *newName =
 		new NewCollectionName(this, _productName, _thumbnailPath);
 	connect(newName, &NewCollectionName::proceedPressed, this,
-		[this](std::string name) {
+		[this, videoSourceLabels](std::string name) {
 			_setup.collectionName = name;
-			_steps->setCurrentIndex(4);
-			setFixedSize(554, 440);
+			if (videoSourceLabels.size() > 0) {
+				_steps->setCurrentIndex(4);
+				setFixedSize(554, 440);
+			} else {
+				_steps->setCurrentIndex(5);
+				setFixedSize(320, 384);
+			}
+
 		});
 	_steps->addWidget(newName);
 
@@ -838,9 +852,14 @@ void StreamPackageSetupWizard::_buildSetupUI(
 			_setup.audioSettings = settings;
 			install();
 		});
-	connect(aSetup, &AudioSetup::backPressed, this, [this]() {
-		_steps->setCurrentIndex(4);
-		setFixedSize(554, 440);
+	connect(aSetup, &AudioSetup::backPressed, this, [this, videoSourceLabels]() {
+		if (videoSourceLabels.size() > 0) {
+			_steps->setCurrentIndex(4);
+			setFixedSize(554, 440);
+		} else {
+			_steps->setCurrentIndex(2);
+			setFixedSize(320, 384);
+		}
 	});
 	_steps->setCurrentIndex(1);
 }

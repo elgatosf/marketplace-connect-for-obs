@@ -226,6 +226,7 @@ private:
 
 void OpenElgatoCloudWindow();
 void CloseElgatoCloudWindow();
-//QWidget *GetElgatoCloudWindow();
+ElgatoCloudWindow *GetElgatoCloudWindow();
+void ElgatoCloudWindowSetEnabled(bool enable);
 
 } // namespace elgatocloud

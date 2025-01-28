@@ -278,7 +278,7 @@ void ElgatoCloud::LoadPurchasedProducts()
 
 	auto api = MarketplaceApi::getInstance();
 	std::string api_url = api->gatewayUrl();
-	api_url += "/my-products?extension=overlays&offset=0&limit=100";
+	api_url += "/my-products?extension=scene-collections&offset=0&limit=100";
 	auto productsResponse = fetch_string_from_get(api_url, _accessToken);
 	obs_log(LOG_INFO, "Products: %s", productsResponse.c_str());
 	products.clear();
