@@ -120,6 +120,8 @@ public:
 
 	void OpenConfigVideoSource();
 	static void DefaultVideoUpdated(void *data, calldata_t *params);
+	void DisableTempSources();
+	void EnableTempSources();
 
 private:
 	obs_source_t *_videoCaptureSource = nullptr;
@@ -197,6 +199,8 @@ private:
 	QStackedWidget *_steps;
 	Setup _setup;
 	std::vector<obs_weak_source_t *> _toEnable;
+	VideoSetup* _vSetup;
+
 	QFuture<void> _future;
 };
 

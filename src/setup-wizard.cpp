@@ -364,6 +364,20 @@ void VideoSetup::DefaultVideoUpdated(void *data, calldata_t *params)
 	UNUSED_PARAMETER(data);
 }
 
+void VideoSetup::DisableTempSources()
+{
+	for (auto const& source : this->_videoSelectors) {
+		source->DisableTempSource();
+	}
+}
+
+void VideoSetup::EnableTempSources()
+{
+	for (auto const& source : this->_videoSelectors) {
+		source->EnableTempSource();
+	}
+}
+
 void VideoSetup::OpenConfigVideoSource()
 {
 	if (!_videoCaptureSource) {
@@ -817,6 +831,7 @@ void StreamPackageSetupWizard::_buildSetupUI(
 			if (videoSourceLabels.size() > 0) {
 				_steps->setCurrentIndex(4);
 				setFixedSize(554, 440);
+				_vSetup->EnableTempSources();
 			} else {
 				_steps->setCurrentIndex(5);
 				setFixedSize(320, 384);
@@ -829,19 +844,22 @@ void StreamPackageSetupWizard::_buildSetupUI(
 	_steps->addWidget(new QWidget(this));
 
 	// Step 3- Set up Video inputs (step index: 4)
-	auto vSetup = new VideoSetup(this, _productName, _thumbnailPath,
+	_vSetup = new VideoSetup(this, _productName, _thumbnailPath,
 				     videoSourceLabels);
-	_steps->addWidget(vSetup);
-	connect(vSetup, &VideoSetup::proceedPressed, this,
+	_vSetup->DisableTempSources();
+	_steps->addWidget(_vSetup);
+	connect(_vSetup, &VideoSetup::proceedPressed, this,
 		[this](std::map<std::string, std::string> settings) {
 			//blog(LOG_INFO, "%s", settings.c_str());
 			_setup.videoSettings = settings;
 			_steps->setCurrentIndex(5);
 			setFixedSize(320, 384);
+			_vSetup->DisableTempSources();
 		});
-	connect(vSetup, &VideoSetup::backPressed, this, [this]() {
+	connect(_vSetup, &VideoSetup::backPressed, this, [this]() {
 		_steps->setCurrentIndex(2);
 		setFixedSize(320, 384);
+		_vSetup->DisableTempSources();
 	});
 	// Step 4- Setup Audio Inputs (step index: 5)
 
@@ -856,6 +874,7 @@ void StreamPackageSetupWizard::_buildSetupUI(
 		if (videoSourceLabels.size() > 0) {
 			_steps->setCurrentIndex(4);
 			setFixedSize(554, 440);
+			_vSetup->EnableTempSources();
 		} else {
 			_steps->setCurrentIndex(2);
 			setFixedSize(320, 384);

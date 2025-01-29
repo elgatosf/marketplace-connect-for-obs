@@ -121,8 +121,8 @@ VideoCaptureSourceSelector::~VideoCaptureSourceSelector()
 		VideoCaptureSourceSelector::DrawVideoPreview,
 		this);
 	if (_videoCaptureSource) {
-		obs_source_release(_videoCaptureSource);
 		obs_source_remove(_videoCaptureSource);
+		obs_source_release(_videoCaptureSource);
 	}
 }
 
@@ -215,4 +215,24 @@ std::string VideoCaptureSourceSelector::GetSourceName() const
 {
 	return _sourceName;
 }
+
+void VideoCaptureSourceSelector::DisableTempSource()
+{
+	calldata_t cd = {};
+	calldata_set_bool(&cd, "active", false);
+	proc_handler_t* ph = obs_source_get_proc_handler(_videoCaptureSource);
+	proc_handler_call(ph, "activate", &cd);
+	calldata_free(&cd);
 }
+
+void VideoCaptureSourceSelector::EnableTempSource()
+{
+	calldata_t cd = {};
+	calldata_set_bool(&cd, "active", true);
+	proc_handler_t* ph = obs_source_get_proc_handler(_videoCaptureSource);
+	proc_handler_call(ph, "activate", &cd);
+	calldata_free(&cd);
+}
+
+}
+

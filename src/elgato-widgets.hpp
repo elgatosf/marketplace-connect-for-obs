@@ -39,6 +39,8 @@ public:
 	static void DrawVideoPreview(void* data, uint32_t cx, uint32_t cy);
 	std::string GetSettings() const;
 	std::string GetSourceName() const;
+	void DisableTempSource();
+	void EnableTempSource();
 
 private:
 	obs_source_t* _videoCaptureSource = nullptr;
