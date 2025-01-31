@@ -1,5 +1,7 @@
 #!/usr/bin/env zsh
-echo 'export PATH="/home/linuxbrew/.linuxbrew/opt/clang-format@18/bin:$PATH"' >> /home/runner/.bash_profile
+path=('/home/linuxbrew/.linuxbrew/opt/clang-format@18/bin' $path)
+export path
+
 builtin emulate -L zsh
 setopt EXTENDED_GLOB
 setopt PUSHD_SILENT
