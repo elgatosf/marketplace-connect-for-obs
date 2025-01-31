@@ -61,14 +61,14 @@ function Package {
     $RemoveArgs = @{
         ErrorAction = 'SilentlyContinue'
         Path        = @(
-            "${ProjectRoot}/release/${ProductName}-*-windows-*.zip"
-            "${ProjectRoot}/release/${ProductName}-*-windows-*.exe"
+            "${ProjectRoot}/release/${ProductName}-windows-*.zip"
+            "${ProjectRoot}/release/${ProductName}-windows-*.exe"
         )
     }
 
     Remove-Item @RemoveArgs
 
-    Log-Group "Archiving ${ProductName}..."
+    Log-Group "Archiving ${ProductName} to ${OutputName}..."
     $CompressArgs = @{
         Path             = (Get-ChildItem -Path "${ProjectRoot}/release/${Configuration}" -Exclude "${OutputName}*.*")
         CompressionLevel = 'Optimal'
