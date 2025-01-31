@@ -56,7 +56,6 @@ runs:
           echo ::endgroup::
 
           echo ::group::Run clang-format-18
-          echo 'export PATH="/home/linuxbrew/.linuxbrew/opt/clang-format@18/bin:$PATH"' >> /home/runner/.bash_profile
           ./build-aux/run-clang-format --fail-${{ inputs.failCondition }} --check
           echo ::endgroup::
         }
