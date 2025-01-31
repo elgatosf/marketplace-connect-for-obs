@@ -46,7 +46,11 @@ function Package {
 
     $BuildSpec = Get-Content -Path ${BuildSpecFile} -Raw | ConvertFrom-Json
     $ProductName = $BuildSpec.name
-    $ProductVersion = "${BuildSpec.versionMajor}.${BuildSpec.versionMinor}.${BuildSpec.versionPatch}.${BuildSpec.buildNumber}"
+    $VersionMajor = $BuildSpec.versionMajor
+    $VersionMinor = $BuildSpec.versionMinor
+    $VersionPatch = $BuildSpec.versionPatch
+    $BuildNumber = $BuildSpec.buildNumber
+    $ProductVersion = "${VersionMajor}.${VersionMinor}.${VersionPatch}.${BuildNumber}"
     $ReleaseType = $BuildSpec.releaseType
     if ($ReleaseType -ne "release") {
         $ProductVersion = "${ProductVersion}_${ReleaseType}"
