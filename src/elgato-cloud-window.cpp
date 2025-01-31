@@ -40,6 +40,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <QMetaObject>
 #include "elgato-cloud-data.hpp"
 #include "elgato-cloud-config.hpp"
+#include "elgato-widgets.hpp"
 #include "setup-wizard.hpp"
 #include "flowlayout.h"
 #include "api.hpp"
@@ -225,7 +226,7 @@ WindowToolBar::WindowToolBar(QWidget *parent) : QWidget(parent)
 	imageBaseDir += "/images/";
 
 	auto api = MarketplaceApi::getInstance();
-	std::string storeUrl = api->storeUrl();
+	std::string storeUrl = api->storeUrl() + "/graphics/scene-collections";
 
 	QPalette pal = QPalette();
 	pal.setColor(QPalette::Window, "#151515");
@@ -510,10 +511,10 @@ void ElgatoCloudWindow::initialize()
 	_stackedContent->addWidget(loadingWidget);
 	//_config = new ElgatoCloudConfig(this);
 	//_config->setVisible(false);
-	connect(_config, &ElgatoCloudConfig::closeClicked, this, [this]() {
-		//_mainWidget->setVisible(true);
-		//_config->setVisible(false);
-	});
+	//connect(_config, &ElgatoCloudConfig::closeClicked, this, [this]() {
+	//	//_mainWidget->setVisible(true);
+	//	//_config->setVisible(false);
+	//});
 
 	mainLayout->addWidget(_stackedContent);
 	_mainWidget->setLayout(mainLayout);
@@ -690,7 +691,6 @@ QPixmap ElgatoProductItem::_setupImage(std::string imagePath)
 void ElgatoProductItem::UpdateDownload(bool downloading, int progress)
 {
 	if (downloading) {
-		obs_log(LOG_INFO, "Download Progress: %i", progress);
 		_downloadButton->setValue(progress);
 	}
 }
@@ -746,15 +746,13 @@ LoadingWidget::LoadingWidget(QWidget *parent) : QWidget(parent)
 	loading->setStyleSheet("QLabel {font-size: 18pt;}");
 	loading->setAlignment(Qt::AlignCenter);
 
-	auto loadingSub = new QLabel(this);
-	loadingSub->setText(
-		"This will be replaced with a nice animated loading widget.");
-	loadingSub->setWordWrap(true);
-	loadingSub->setAlignment(Qt::AlignCenter);
+	//auto spinner = new ProgressSpinner(this);
+	auto spinner = new SpinnerPanel(this, "", "", true);
+	spinner->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 
 	layout->addStretch();
+	layout->addWidget(spinner);
 	layout->addWidget(loading);
-	layout->addWidget(loadingSub);
 	layout->addStretch();
 }
 

@@ -53,4 +53,35 @@ private:
 	bool _noneSelected;
 };
 
+class ProgressSpinner : public QWidget {
+	Q_OBJECT
+	Q_PROPERTY(double valueBlue WRITE setValueBlue READ getValue )
+	Q_PROPERTY(double valueGrey WRITE setValueGrey READ getValue )
+public:
+	ProgressSpinner(QWidget* parent);
+	~ProgressSpinner();
+	inline double getValue() const { return _value; }
+	void setValueGrey(double value);
+	void setValueBlue(double value);
+	
+
+protected:
+	void paintEvent(QPaintEvent* e) override;
+
+private:
+	int _width;
+	int _height;
+	int _progressWidth;
+	double _minimumValue;
+	double _maximumValue;
+	double _value;
+	bool _blue;
+};
+
+class SpinnerPanel : public QWidget {
+	Q_OBJECT
+public:
+	SpinnerPanel(QWidget* parent, std::string title, std::string subTitle, bool background);
+};
+
 }

@@ -23,6 +23,9 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <QLabel>
 #include <QComboBox>
 #include <QPushButton>
+#include <QPainter>
+#include <QPropertyAnimation>
+#include <QSequentialAnimationGroup>
 
 #include "elgato-widgets.hpp"
 #include "elgato-styles.hpp"
@@ -121,7 +124,7 @@ VideoCaptureSourceSelector::~VideoCaptureSourceSelector()
 		VideoCaptureSourceSelector::DrawVideoPreview,
 		this);
 	if (_videoCaptureSource) {
-		obs_source_remove(_videoCaptureSource);
+		//obs_source_remove(_videoCaptureSource);
 		obs_source_release(_videoCaptureSource);
 	}
 }
@@ -232,6 +235,109 @@ void VideoCaptureSourceSelector::EnableTempSource()
 	proc_handler_t* ph = obs_source_get_proc_handler(_videoCaptureSource);
 	proc_handler_call(ph, "activate", &cd);
 	calldata_free(&cd);
+}
+
+
+
+ProgressSpinner::ProgressSpinner(QWidget* parent) : QWidget(parent)
+{
+	_width = 120;
+	_height = 120;
+	_minimumValue = 0;
+	_maximumValue = 100;
+	_value = 0;
+	_progressWidth = 8;
+
+	QPropertyAnimation* animBlue = new QPropertyAnimation(this, "valueBlue", this);
+	animBlue->setDuration(1000);
+	animBlue->setStartValue(0.0);
+	animBlue->setEndValue(100.0);
+	animBlue->setEasingCurve(QEasingCurve::InOutExpo);
+	QPropertyAnimation* animGrey = new QPropertyAnimation(this, "valueGrey", this);
+	animGrey->setDuration(1000);
+	animGrey->setStartValue(0.0);
+	animGrey->setEndValue(100.0);
+	animGrey->setEasingCurve(QEasingCurve::InOutExpo);
+
+	QSequentialAnimationGroup* group = new QSequentialAnimationGroup(this);
+	group->addAnimation(animBlue);
+	group->addAnimation(animGrey);
+	group->setLoopCount(100);
+	group->start();
+}
+
+ProgressSpinner::~ProgressSpinner() {}
+
+void ProgressSpinner::setValueBlue(double value)
+{
+	_blue = true;
+	_value = value;
+	update();
+}
+
+void ProgressSpinner::setValueGrey(double value)
+{
+	_blue = false;
+	_value = value;
+	update();
+}
+
+void ProgressSpinner::paintEvent(QPaintEvent* e)
+{
+	int margin = _progressWidth / 2;
+
+	int width = _width - _progressWidth;
+	int height = _height - _progressWidth;
+
+	double value = 360.0 * (_value - _minimumValue) /
+		(_maximumValue - _minimumValue);
+
+	QPainter paint;
+	paint.begin(this);
+	paint.setRenderHint(QPainter::Antialiasing);
+
+	QRect rect(0, 0, _width, _height);
+	paint.setPen(Qt::NoPen);
+	paint.drawRect(rect);
+
+	QPen pen;
+	QColor fg = _blue ? QColor(32, 76, 254) : QColor(200, 200, 200);
+	QColor bg = _blue ? QColor(200, 200, 200) : QColor(32, 76, 254);
+	pen.setColor(fg);
+	pen.setWidth(_progressWidth);
+
+	paint.setPen(pen);
+	paint.drawArc(margin, margin, width, height, 90.0 * 16.0,
+		-value * 16.0);
+
+	QPen bgPen;
+	bgPen.setColor(bg);
+	bgPen.setWidth(_progressWidth);
+	paint.setPen(bgPen);
+	float remaining = 360.0 - value;
+	paint.drawArc(margin, margin, width, height, 90.0 * 16.0,
+		remaining * 16.0);
+
+	paint.end();
+}
+
+SpinnerPanel::SpinnerPanel(QWidget* parent, std::string title, std::string subTitle, bool background)
+	: QWidget(parent)
+{
+	QVBoxLayout* vLayout = new QVBoxLayout();
+	QHBoxLayout* hLayout = new QHBoxLayout();
+
+	auto spinner = new ProgressSpinner(this);
+	spinner->setFixedHeight(124);
+	spinner->setFixedWidth(124);
+
+	hLayout->addStretch();
+	hLayout->addWidget(spinner);
+	hLayout->addStretch();
+	vLayout->addStretch();
+	vLayout->addLayout(hLayout);
+	vLayout->addStretch();
+	setLayout(vLayout);
 }
 
 }

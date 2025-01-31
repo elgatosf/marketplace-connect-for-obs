@@ -617,16 +617,7 @@ Loading::Loading(QWidget* parent) : QWidget(parent)
 		QSizePolicy::Expanding);
 	layout->addWidget(spacerTop);
 
-	std::string imagesPath = obs_get_module_data_path(obs_current_module());
-	imagesPath += "/images/";
-	std::string spinnerImage = imagesPath + "spinner-white.gif";
-
-	_indicator = new QMovie(spinnerImage.c_str());
-
-	auto spinner = new QLabel(this);
-	spinner->setMovie(_indicator);
-	_indicator->start();
-	spinner->setAlignment(Qt::AlignCenter);
+	auto spinner = new SpinnerPanel(this, "", "", false);
 	layout->addWidget(spinner);
 
 	auto title = new QLabel(this);
