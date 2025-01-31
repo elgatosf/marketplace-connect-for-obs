@@ -39,16 +39,20 @@ function Package {
 
     $UtilityFunctions = Get-ChildItem -Path $PSScriptRoot/utils.pwsh/*.ps1 -Recurse
 
-    foreach( $Utility in $UtilityFunctions ) {
+    foreach ( $Utility in $UtilityFunctions ) {
         Write-Debug "Loading $($Utility.FullName)"
         . $Utility.FullName
     }
 
     $BuildSpec = Get-Content -Path ${BuildSpecFile} -Raw | ConvertFrom-Json
     $ProductName = $BuildSpec.name
-    $ProductVersion = $BuildSpec.version
+    $ProductVersion = "${BuildSpec.versionMajor}.${BuildSpec.versionMinor}.${BuildSpec.versionPatch}.${BuildSpec.buildNumber}"
+    $ReleaseType = $BuildSpec.releaseType
+    if ($ReleaseType -ne "release") {
+        $ProductVersion = "${ProductVersion}_${ReleaseType}"
+    }
 
-    $OutputName = "${ProductName}-${ProductVersion}-windows-${Target}"
+    $OutputName = "${ProductName}-windows-${ProductVersion}"
 
     if ( ! $SkipDeps ) {
         Install-BuildDependencies -WingetFile "${ScriptHome}/.Wingetfile"
@@ -56,7 +60,7 @@ function Package {
 
     $RemoveArgs = @{
         ErrorAction = 'SilentlyContinue'
-        Path = @(
+        Path        = @(
             "${ProjectRoot}/release/${ProductName}-*-windows-*.zip"
             "${ProjectRoot}/release/${ProductName}-*-windows-*.exe"
         )
@@ -66,10 +70,10 @@ function Package {
 
     Log-Group "Archiving ${ProductName}..."
     $CompressArgs = @{
-        Path = (Get-ChildItem -Path "${ProjectRoot}/release/${Configuration}" -Exclude "${OutputName}*.*")
+        Path             = (Get-ChildItem -Path "${ProjectRoot}/release/${Configuration}" -Exclude "${OutputName}*.*")
         CompressionLevel = 'Optimal'
-        DestinationPath = "${ProjectRoot}/release/${OutputName}.zip"
-        Verbose = ($Env:CI -ne $null)
+        DestinationPath  = "${ProjectRoot}/release/${OutputName}.zip"
+        Verbose          = ($Env:CI -ne $null)
     }
     Compress-Archive -Force @CompressArgs
     Log-Group

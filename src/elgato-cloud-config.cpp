@@ -24,6 +24,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include "elgato-widgets.hpp"
 #include "elgato-cloud-config.hpp"
 #include "elgato-cloud-data.hpp"
+#include "util.h"
 #include <plugin-support.h>
 #include "obs-utils.hpp"
 #include <QVBoxLayout>
@@ -553,7 +554,7 @@ ElgatoCloudConfig::ElgatoCloudConfig(QWidget *parent) : QDialog(parent)
 	layout->addStretch();
 
 	std::string version = "v";
-	version += PLUGIN_VERSION;
+	version += versionNoBuild() + releaseType() + " (build " + buildNumber() +")";
 	auto versionLabel = new QLabel(version.c_str(), this);
 	layout->addWidget(versionLabel);
 

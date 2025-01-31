@@ -466,3 +466,32 @@ bool generate_safe_path(std::string unsafe, std::string &safe)
 	os_wcs_to_utf8(wfile.c_str(), wfile.size(), &safe[0], length + 1);
 	return true;
 }
+
+std::string versionNoBuild() {
+	std::string fullVersion = PLUGIN_VERSION;
+	size_t lastPos = fullVersion.find_last_of('.');
+	if (lastPos == std::string::npos) {
+		return fullVersion;
+	}
+	return fullVersion.substr(0, lastPos);
+}
+
+std::string buildNumber()
+{
+	std::string fullVersion = PLUGIN_VERSION;
+	size_t lastPos = fullVersion.find_last_of('.');
+	if (lastPos == std::string::npos) {
+		return fullVersion;
+	}
+	return fullVersion.substr(lastPos + 1);
+}
+
+std::string releaseType()
+{
+	std::string rt = PLUGIN_RELEASE_TYPE;
+	for (auto& c : rt) // convert to lowercase
+	{
+		c = tolower(c);
+	}
+	return rt == "release" ? "" : " " + rt;
+}

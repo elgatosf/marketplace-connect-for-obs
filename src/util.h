@@ -81,3 +81,6 @@ template<class T, class U> auto_closer<T, U> auto_close(T *self, U closer)
 }
 
 bool generate_safe_path(std::string unsafe, std::string &safe);
+std::string versionNoBuild();
+std::string buildNumber();
+std::string releaseType();
