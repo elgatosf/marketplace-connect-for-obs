@@ -29,14 +29,9 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 namespace elgatocloud {
 
 const std::map<std::string, std::string> avatarColors = {
-	{"orange", "#BE5900"},
-	{"magenta", "#C93BA1"},
-	{"green", "#2A863E"},
-	{"teal", "#22837D"},
-	{"cyan", "#0F7EAD"},
-	{"purple", "#A638FE"},
-	{"gray", "#767676"}
-};
+	{"orange", "#BE5900"}, {"magenta", "#C93BA1"}, {"green", "#2A863E"},
+	{"teal", "#22837D"},   {"cyan", "#0F7EAD"},    {"purple", "#A638FE"},
+	{"gray", "#767676"}};
 
 class MarketplaceApi {
 public:

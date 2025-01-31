@@ -33,8 +33,13 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 
 namespace elgatocloud {
 
-VideoCaptureSourceSelector::VideoCaptureSourceSelector(QWidget* parent, std::string sourceLabel, std::string sourceName, obs_data_t* videoData)
-	: QWidget(parent), _sourceName(sourceName), _noneSelected(true)
+VideoCaptureSourceSelector::VideoCaptureSourceSelector(QWidget *parent,
+						       std::string sourceLabel,
+						       std::string sourceName,
+						       obs_data_t *videoData)
+	: QWidget(parent),
+	  _sourceName(sourceName),
+	  _noneSelected(true)
 {
 	std::string imageBaseDir =
 		obs_get_module_data_path(obs_current_module());
@@ -100,44 +105,43 @@ VideoCaptureSourceSelector::VideoCaptureSourceSelector(QWidget* parent, std::str
 			if (index > 0) {
 				auto vSettings = obs_data_create();
 				std::string id = _videoSourceIds[index];
-				obs_data_set_string(vSettings, "video_device_id",
-					id.c_str());
+				obs_data_set_string(vSettings,
+						    "video_device_id",
+						    id.c_str());
 				obs_source_reset_settings(_videoCaptureSource,
-					vSettings);
+							  vSettings);
 				obs_data_release(vSettings);
 				this->_noneSelected = false;
 				this->_videoPreview->show();
 				this->_blank->hide();
-			}
-			else {
+			} else {
 				this->_noneSelected = true;
 				this->_videoPreview->hide();
 				this->_blank->show();
 			}
-
 		});
 }
 
 VideoCaptureSourceSelector::~VideoCaptureSourceSelector()
 {
-	obs_display_remove_draw_callback(_videoPreview->GetDisplay(),
-		VideoCaptureSourceSelector::DrawVideoPreview,
-		this);
+	obs_display_remove_draw_callback(
+		_videoPreview->GetDisplay(),
+		VideoCaptureSourceSelector::DrawVideoPreview, this);
 	if (_videoCaptureSource) {
 		//obs_source_remove(_videoCaptureSource);
 		obs_source_release(_videoCaptureSource);
 	}
 }
 
-void VideoCaptureSourceSelector::_setupTempSource(obs_data_t* videoData)
+void VideoCaptureSourceSelector::_setupTempSource(obs_data_t *videoData)
 {
-	const char* videoSourceId = "dshow_input";
-	const char* vId = obs_get_latest_input_type_id(videoSourceId);
+	const char *videoSourceId = "dshow_input";
+	const char *vId = obs_get_latest_input_type_id(videoSourceId);
 	_videoCaptureSource = obs_source_create_private(
 		vId, "elgato-cloud-video-config", videoData);
 
-	obs_properties_t* vProps = obs_source_properties(_videoCaptureSource);
-	obs_property_t* vDevices =
+	obs_properties_t *vProps = obs_source_properties(_videoCaptureSource);
+	obs_property_t *vDevices =
 		obs_properties_get(vProps, "video_device_id");
 	_videoSources->addItem("None");
 	_videoSourceIds.push_back("NONE");
@@ -149,11 +153,11 @@ void VideoCaptureSourceSelector::_setupTempSource(obs_data_t* videoData)
 	}
 	obs_properties_destroy(vProps);
 
-	obs_data_t* vSettings = obs_source_get_settings(_videoCaptureSource);
+	obs_data_t *vSettings = obs_source_get_settings(_videoCaptureSource);
 	std::string vDevice = obs_data_get_string(vSettings, "video_device_id");
 	if (vDevice != "") {
 		auto it = std::find(_videoSourceIds.begin(),
-			_videoSourceIds.end(), vDevice);
+				    _videoSourceIds.end(), vDevice);
 		if (it != _videoSourceIds.end()) {
 			_videoSources->setCurrentIndex(
 				static_cast<int>(it - _videoSourceIds.begin()));
@@ -162,18 +166,19 @@ void VideoCaptureSourceSelector::_setupTempSource(obs_data_t* videoData)
 	obs_data_release(vSettings);
 
 	auto addDrawCallback = [this]() {
-		obs_display_add_draw_callback(_videoPreview->GetDisplay(),
-			VideoCaptureSourceSelector::DrawVideoPreview,
-			this);
-		};
+		obs_display_add_draw_callback(
+			_videoPreview->GetDisplay(),
+			VideoCaptureSourceSelector::DrawVideoPreview, this);
+	};
 	connect(_videoPreview, &OBSQTDisplay::DisplayCreated, addDrawCallback);
 	//_videoPreview->show();
 	//obs_data_release(videoSettings);
 }
 
-void VideoCaptureSourceSelector::DrawVideoPreview(void* data, uint32_t cx, uint32_t cy)
+void VideoCaptureSourceSelector::DrawVideoPreview(void *data, uint32_t cx,
+						  uint32_t cy)
 {
-	auto config = static_cast<VideoCaptureSourceSelector*>(data);
+	auto config = static_cast<VideoCaptureSourceSelector *>(data);
 
 	if (!config->_videoCaptureSource)
 		return;
@@ -207,8 +212,7 @@ void VideoCaptureSourceSelector::DrawVideoPreview(void* data, uint32_t cx, uint3
 
 std::string VideoCaptureSourceSelector::GetSettings() const
 {
-	obs_data_t *vSettings =
-		obs_source_get_settings(_videoCaptureSource);
+	obs_data_t *vSettings = obs_source_get_settings(_videoCaptureSource);
 	std::string vJson = obs_data_get_json(vSettings);
 	obs_data_release(vSettings);
 	return vJson;
@@ -223,7 +227,7 @@ void VideoCaptureSourceSelector::DisableTempSource()
 {
 	calldata_t cd = {};
 	calldata_set_bool(&cd, "active", false);
-	proc_handler_t* ph = obs_source_get_proc_handler(_videoCaptureSource);
+	proc_handler_t *ph = obs_source_get_proc_handler(_videoCaptureSource);
 	proc_handler_call(ph, "activate", &cd);
 	calldata_free(&cd);
 }
@@ -232,14 +236,12 @@ void VideoCaptureSourceSelector::EnableTempSource()
 {
 	calldata_t cd = {};
 	calldata_set_bool(&cd, "active", true);
-	proc_handler_t* ph = obs_source_get_proc_handler(_videoCaptureSource);
+	proc_handler_t *ph = obs_source_get_proc_handler(_videoCaptureSource);
 	proc_handler_call(ph, "activate", &cd);
 	calldata_free(&cd);
 }
 
-
-
-ProgressSpinner::ProgressSpinner(QWidget* parent) : QWidget(parent)
+ProgressSpinner::ProgressSpinner(QWidget *parent) : QWidget(parent)
 {
 	_width = 120;
 	_height = 120;
@@ -248,18 +250,20 @@ ProgressSpinner::ProgressSpinner(QWidget* parent) : QWidget(parent)
 	_value = 0;
 	_progressWidth = 8;
 
-	QPropertyAnimation* animBlue = new QPropertyAnimation(this, "valueBlue", this);
+	QPropertyAnimation *animBlue =
+		new QPropertyAnimation(this, "valueBlue", this);
 	animBlue->setDuration(1000);
 	animBlue->setStartValue(0.0);
 	animBlue->setEndValue(100.0);
 	animBlue->setEasingCurve(QEasingCurve::InOutExpo);
-	QPropertyAnimation* animGrey = new QPropertyAnimation(this, "valueGrey", this);
+	QPropertyAnimation *animGrey =
+		new QPropertyAnimation(this, "valueGrey", this);
 	animGrey->setDuration(1000);
 	animGrey->setStartValue(0.0);
 	animGrey->setEndValue(100.0);
 	animGrey->setEasingCurve(QEasingCurve::InOutExpo);
 
-	QSequentialAnimationGroup* group = new QSequentialAnimationGroup(this);
+	QSequentialAnimationGroup *group = new QSequentialAnimationGroup(this);
 	group->addAnimation(animBlue);
 	group->addAnimation(animGrey);
 	group->setLoopCount(100);
@@ -282,7 +286,7 @@ void ProgressSpinner::setValueGrey(double value)
 	update();
 }
 
-void ProgressSpinner::paintEvent(QPaintEvent* e)
+void ProgressSpinner::paintEvent(QPaintEvent *e)
 {
 	int margin = _progressWidth / 2;
 
@@ -290,7 +294,7 @@ void ProgressSpinner::paintEvent(QPaintEvent* e)
 	int height = _height - _progressWidth;
 
 	double value = 360.0 * (_value - _minimumValue) /
-		(_maximumValue - _minimumValue);
+		       (_maximumValue - _minimumValue);
 
 	QPainter paint;
 	paint.begin(this);
@@ -308,7 +312,7 @@ void ProgressSpinner::paintEvent(QPaintEvent* e)
 
 	paint.setPen(pen);
 	paint.drawArc(margin, margin, width, height, 90.0 * 16.0,
-		-value * 16.0);
+		      -value * 16.0);
 
 	QPen bgPen;
 	bgPen.setColor(bg);
@@ -316,16 +320,17 @@ void ProgressSpinner::paintEvent(QPaintEvent* e)
 	paint.setPen(bgPen);
 	float remaining = 360.0 - value;
 	paint.drawArc(margin, margin, width, height, 90.0 * 16.0,
-		remaining * 16.0);
+		      remaining * 16.0);
 
 	paint.end();
 }
 
-SpinnerPanel::SpinnerPanel(QWidget* parent, std::string title, std::string subTitle, bool background)
+SpinnerPanel::SpinnerPanel(QWidget *parent, std::string title,
+			   std::string subTitle, bool background)
 	: QWidget(parent)
 {
-	QVBoxLayout* vLayout = new QVBoxLayout();
-	QHBoxLayout* hLayout = new QHBoxLayout();
+	QVBoxLayout *vLayout = new QVBoxLayout();
+	QHBoxLayout *hLayout = new QHBoxLayout();
 
 	auto spinner = new ProgressSpinner(this);
 	spinner->setFixedHeight(124);
@@ -340,5 +345,4 @@ SpinnerPanel::SpinnerPanel(QWidget* parent, std::string title, std::string subTi
 	setLayout(vLayout);
 }
 
-}
-
+} // namespace elgatocloud

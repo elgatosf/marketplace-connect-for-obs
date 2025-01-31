@@ -73,7 +73,7 @@ void GetScaleAndCenterPos(int baseCX, int baseCY, int windowCX, int windowCY,
 	y = windowCY / 2 - newCY / 2;
 }
 
-bool GetFileSafeName(const char* name, std::string& file)
+bool GetFileSafeName(const char *name, std::string &file)
 {
 	size_t base_len = strlen(name);
 	size_t len = os_utf8_to_wcs(name, base_len, nullptr, 0);
@@ -90,8 +90,7 @@ bool GetFileSafeName(const char* name, std::string& file)
 
 		if (iswspace(wfile[im1])) {
 			wfile[im1] = '_';
-		}
-		else if (wfile[im1] != '_' && !iswalnum(wfile[im1])) {
+		} else if (wfile[im1] != '_' && !iswalnum(wfile[im1])) {
 			wfile.erase(im1, 1);
 		}
 	}
@@ -108,7 +107,7 @@ bool GetFileSafeName(const char* name, std::string& file)
 	return true;
 }
 
-bool GetClosestUnusedFileName(std::string& path, const char* extension)
+bool GetClosestUnusedFileName(std::string &path, const char *extension)
 {
 	size_t len = path.size();
 	if (extension) {
@@ -136,7 +135,7 @@ bool GetClosestUnusedFileName(std::string& path, const char* extension)
 std::vector<std::string> GetSceneCollectionNames()
 {
 	char **collections = obs_frontend_get_scene_collections();
-	char** name = collections;
+	char **name = collections;
 	std::vector<std::string> ret;
 
 	while (name && *name) {
@@ -148,12 +147,11 @@ std::vector<std::string> GetSceneCollectionNames()
 }
 
 #if LIBOBS_API_VER < MAKE_SEMANTIC_VERSION(31, 0, 0)
-static config_t* (*get_user_config_func)(void) = nullptr;
-static config_t* user_config = nullptr;
+static config_t *(*get_user_config_func)(void) = nullptr;
+static config_t *user_config = nullptr;
 #endif
 
-
-config_t* GetUserConfig()
+config_t *GetUserConfig()
 {
 #if LIBOBS_API_VER < MAKE_SEMANTIC_VERSION(31, 0, 0)
 	if (user_config)
@@ -161,15 +159,17 @@ config_t* GetUserConfig()
 	if (!get_user_config_func) {
 		if (obs_get_version() < MAKE_SEMANTIC_VERSION(31, 0, 0)) {
 			get_user_config_func = obs_frontend_get_global_config;
-		}
-		else {
+		} else {
 #ifdef __APPLE__
 			auto handle = os_dlopen("obs-frontend-api.dylib");
 #else
 			auto handle = os_dlopen("obs-frontend-api");
 #endif
 			if (handle) {
-				get_user_config_func = (config_t * (*)(void)) os_dlsym(handle, "obs_frontend_get_user_config");
+				get_user_config_func = (config_t * (*)(void))
+					os_dlsym(
+						handle,
+						"obs_frontend_get_user_config");
 				os_dlclose(handle);
 			}
 		}

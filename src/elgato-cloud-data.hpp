@@ -52,7 +52,7 @@ public:
 	void StartLogin();
 	void LogOut();
 	void LoadPurchasedProducts();
-	obs_data_t* GetConfig();
+	obs_data_t *GetConfig();
 	void SaveConfig();
 	nlohmann::json GetPurchaseDownloadLink(std::string variantId);
 
@@ -85,7 +85,7 @@ private:
 	std::string _refreshToken;
 	int64_t _accessTokenExpiration;
 	int64_t _refreshTokenExpiration;
-	obs_data_t* _config;
+	obs_data_t *_config;
 };
 
 class ElgatoCloudThread : public QThread {

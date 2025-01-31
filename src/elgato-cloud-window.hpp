@@ -39,11 +39,11 @@ namespace elgatocloud {
 class Avatar : public QWidget {
 	Q_OBJECT
 public:
-	Avatar(QWidget* parent);
+	Avatar(QWidget *parent);
 	void update();
 
 protected:
-	void paintEvent(QPaintEvent* e);
+	void paintEvent(QPaintEvent *e);
 
 private:
 	std::string _character;
@@ -54,14 +54,14 @@ class DownloadProgress : public QWidget {
 	Q_OBJECT
 
 public:
-	DownloadProgress(QWidget* parent);
+	DownloadProgress(QWidget *parent);
 	~DownloadProgress();
 	void setMinimum(double minimum);
 	void setMaximum(double maximum);
 	void setValue(double value);
 
 protected:
-	void paintEvent(QPaintEvent* e) override;
+	void paintEvent(QPaintEvent *e) override;
 
 private:
 	int _width;
@@ -76,15 +76,15 @@ class DownloadButton : public QWidget {
 	Q_OBJECT
 
 public:
-	DownloadButton(QWidget* parent);
+	DownloadButton(QWidget *parent);
 	void setDisabled(bool disabled);
 	void setValue(double value);
 	void resetDownload();
 
 private:
-	DownloadProgress* _downloadProgress;
-	QPushButton* _downloadButton;
-	QStackedWidget* _stackedWidget;
+	DownloadProgress *_downloadProgress;
+	QPushButton *_downloadButton;
+	QStackedWidget *_stackedWidget;
 
 signals:
 	void downloadClicked();
@@ -118,14 +118,14 @@ public:
 	void updateState();
 
 private:
-	QHBoxLayout* _layout;
-	QLabel* _logo;
-	QPushButton* _settingsButton;
-	QPushButton* _storeButton;
+	QHBoxLayout *_layout;
+	QLabel *_logo;
+	QPushButton *_settingsButton;
+	QPushButton *_storeButton;
 	//QLineEdit *_searchBar;
-	QPushButton* _logInButton;
-	QPushButton* _logOutButton;
-	Avatar* _avatar;
+	QPushButton *_logInButton;
+	QPushButton *_logOutButton;
+	Avatar *_avatar;
 
 signals:
 	void settingsClicked();

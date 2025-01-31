@@ -33,40 +33,41 @@ class VideoCaptureSourceSelector : public QWidget {
 	Q_OBJECT
 
 public:
-	VideoCaptureSourceSelector(QWidget* parent, std::string sourceLabel, std::string sourceName, obs_data_t* videoData);
+	VideoCaptureSourceSelector(QWidget *parent, std::string sourceLabel,
+				   std::string sourceName,
+				   obs_data_t *videoData);
 	~VideoCaptureSourceSelector();
 
-	static void DrawVideoPreview(void* data, uint32_t cx, uint32_t cy);
+	static void DrawVideoPreview(void *data, uint32_t cx, uint32_t cy);
 	std::string GetSettings() const;
 	std::string GetSourceName() const;
 	void DisableTempSource();
 	void EnableTempSource();
 
 private:
-	obs_source_t* _videoCaptureSource = nullptr;
-	OBSQTDisplay* _videoPreview = nullptr;
-	QLabel* _blank = nullptr;
-	QComboBox* _videoSources = nullptr;
+	obs_source_t *_videoCaptureSource = nullptr;
+	OBSQTDisplay *_videoPreview = nullptr;
+	QLabel *_blank = nullptr;
+	QComboBox *_videoSources = nullptr;
 	std::vector<std::string> _videoSourceIds;
 	std::string _sourceName;
-	void _setupTempSource(obs_data_t* videoData);
+	void _setupTempSource(obs_data_t *videoData);
 	bool _noneSelected;
 };
 
 class ProgressSpinner : public QWidget {
 	Q_OBJECT
-	Q_PROPERTY(double valueBlue WRITE setValueBlue READ getValue )
-	Q_PROPERTY(double valueGrey WRITE setValueGrey READ getValue )
+	Q_PROPERTY(double valueBlue WRITE setValueBlue READ getValue)
+	Q_PROPERTY(double valueGrey WRITE setValueGrey READ getValue)
 public:
-	ProgressSpinner(QWidget* parent);
+	ProgressSpinner(QWidget *parent);
 	~ProgressSpinner();
 	inline double getValue() const { return _value; }
 	void setValueGrey(double value);
 	void setValueBlue(double value);
-	
 
 protected:
-	void paintEvent(QPaintEvent* e) override;
+	void paintEvent(QPaintEvent *e) override;
 
 private:
 	int _width;
@@ -81,7 +82,8 @@ private:
 class SpinnerPanel : public QWidget {
 	Q_OBJECT
 public:
-	SpinnerPanel(QWidget* parent, std::string title, std::string subTitle, bool background);
+	SpinnerPanel(QWidget *parent, std::string title, std::string subTitle,
+		     bool background);
 };
 
-}
+} // namespace elgatocloud
