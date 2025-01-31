@@ -17,7 +17,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 */
 
 #include "api.hpp"
-#include "plugin-support.h"
+#include <plugin-support.h>
 
 #include <fstream>
 

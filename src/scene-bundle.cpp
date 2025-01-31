@@ -32,7 +32,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <algorithm>
 #include <zip_file.hpp>
 
-#include "plugin-support.h"
+#include <plugin-support.h>
 #include "platform.h"
 #include "util.h"
 #include "obs-utils.hpp"
@@ -68,9 +68,9 @@ bool SceneBundle::FromCollection(std::string collection_name)
 	// Get the path to the currently active scene collection file.
 	std::string scene_collections_path = get_scene_collections_path();
 	std::string file_name = get_current_scene_collection_filename();
-	std::string collection_file_path =
-		scene_collections_path + file_name;
-	blog(LOG_INFO, "COLLECTION FILE PATH: %s", collection_file_path.c_str());
+	std::string collection_file_path = scene_collections_path + file_name;
+	blog(LOG_INFO, "COLLECTION FILE PATH: %s",
+	     collection_file_path.c_str());
 	// Save the current scene collection to ensure our output is the latest
 	obs_frontend_save();
 
@@ -94,7 +94,7 @@ bool SceneBundle::FromCollection(std::string collection_name)
 	for (auto &source : _collection["sources"]) {
 		_ProcessJsonObj(source);
 	}
-	for (auto& transition : _collection["transitions"]) {
+	for (auto &transition : _collection["transitions"]) {
 		_ProcessJsonObj(transition);
 	}
 
@@ -124,20 +124,22 @@ std::string SceneBundle::ExtractBundleInfo(std::string filePath)
 	return file.read("bundle_info.json");
 }
 
-void SceneBundle::SceneCollectionCreated(enum obs_frontend_event event, void* obj)
+void SceneBundle::SceneCollectionCreated(enum obs_frontend_event event,
+					 void *obj)
 {
 	if (event == OBS_FRONTEND_EVENT_SCENE_COLLECTION_LIST_CHANGED) {
-		auto inst = static_cast<SceneBundle*>(obj);
+		auto inst = static_cast<SceneBundle *>(obj);
 		if (inst) {
 			inst->_waiting = false;
 		}
 	}
 }
 
-void SceneBundle::SceneCollectionChanged(enum obs_frontend_event event, void* obj)
+void SceneBundle::SceneCollectionChanged(enum obs_frontend_event event,
+					 void *obj)
 {
 	if (event == OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGED) {
-		auto inst = static_cast<SceneBundle*>(obj);
+		auto inst = static_cast<SceneBundle *>(obj);
 		if (inst) {
 			inst->_waiting = false;
 		}
@@ -179,7 +181,8 @@ void SceneBundle::ToCollection(std::string collection_name,
 	//       importers work. Built-in OBS importers would require json11
 
 	// 1. Add callback listener for scene collection list changed event
-	obs_frontend_add_event_callback(SceneBundle::SceneCollectionCreated, this);
+	obs_frontend_add_event_callback(SceneBundle::SceneCollectionCreated,
+					this);
 
 	// 2. Set waiting to true, to block execution until scene collection created.
 	_waiting = true;
@@ -191,18 +194,23 @@ void SceneBundle::ToCollection(std::string collection_name,
 		; // do nothing
 
 	// 5. Remove the callback
-	obs_frontend_remove_event_callback(SceneBundle::SceneCollectionCreated, this);
+	obs_frontend_remove_event_callback(SceneBundle::SceneCollectionCreated,
+					   this);
 
 	// 6. Get new collection name and filename
-	std::string newCollectionName = config_get_string(userConf, "Basic", "SceneCollection");
-	std::string newCollectionFileName = get_current_scene_collection_filename();
-	newCollectionFileName = get_scene_collections_path() + newCollectionFileName;
+	std::string newCollectionName =
+		config_get_string(userConf, "Basic", "SceneCollection");
+	std::string newCollectionFileName =
+		get_current_scene_collection_filename();
+	newCollectionFileName =
+		get_scene_collections_path() + newCollectionFileName;
 
 	// 7. Set waiting to true to block execution until we switch back to the old scene collection
 	_waiting = true;
 
 	// 8. Add a callback for scene collection change
-	obs_frontend_add_event_callback(SceneBundle::SceneCollectionChanged, this);
+	obs_frontend_add_event_callback(SceneBundle::SceneCollectionChanged,
+					this);
 
 	// 9. Switch back to old scene collection so we can manually write the new
 	//    collection json file
@@ -213,10 +221,12 @@ void SceneBundle::ToCollection(std::string collection_name,
 		; // do nothing
 
 	// 11. Remove the callback
-	obs_frontend_remove_event_callback(SceneBundle::SceneCollectionChanged, this);
+	obs_frontend_remove_event_callback(SceneBundle::SceneCollectionChanged,
+					   this);
 
 	// 12. Replace newCollectionFileName with imported json data
-	obs_data_t* data = obs_data_create_from_json(_collection.dump().c_str());
+	obs_data_t *data =
+		obs_data_create_from_json(_collection.dump().c_str());
 	bool success = obs_data_save_json_safe(
 		data, newCollectionFileName.c_str(), "tmp", "bak");
 	obs_log(LOG_INFO, "Saved new full collection at: %s",
@@ -346,7 +356,7 @@ void SceneBundle::_ProcessJsonObj(nlohmann::json &obj)
 			obj.erase("settings");
 			obj["settings"] = "{" + name + "}";
 			if (!obj.contains("uuid")) {
-				char* uuid = os_generate_uuid();
+				char *uuid = os_generate_uuid();
 				obj["uuid"] = std::string(uuid);
 				bfree(uuid);
 			}
@@ -496,7 +506,8 @@ bool SceneBundle::_AddFileToZip(std::string filePath, std::string zipPath,
 	if (_interrupt) {
 		return false;
 	}
-	blog(LOG_INFO, "Adding File %s as %s", filePath.c_str(), zipPath.c_str());
+	blog(LOG_INFO, "Adding File %s as %s", filePath.c_str(),
+	     zipPath.c_str());
 	ecFile.write(filePath, zipPath);
 	return true;
 }

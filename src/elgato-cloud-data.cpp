@@ -30,7 +30,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <QMetaObject>
 #include <QDir>
 
-#include "plugin-support.h"
+#include <plugin-support.h>
 #include "elgato-cloud-window.hpp"
 #include "elgato-cloud-data.hpp"
 #include "platform.h"
@@ -69,7 +69,7 @@ ElgatoCloud::~ElgatoCloud()
 	obs_data_release(_config);
 }
 
-obs_data_t* ElgatoCloud::GetConfig()
+obs_data_t *ElgatoCloud::GetConfig()
 {
 	obs_data_addref(_config);
 	return _config;
@@ -113,7 +113,7 @@ void ElgatoCloud::_TokenRefresh(bool loadData, bool loadUserDetails)
 	std::string encodeddata;
 	encodeddata += "grant_type=refresh_token";
 	encodeddata += "&refresh_token=" + _refreshToken;
-	encodeddata += "&client_id=elgato-obs-cloud";
+	encodeddata += "&client_id=elgatolink";
 	std::string url = api->gatewayUrl();
 	url += "/auth/realms/mp/protocol/openid-connect/token?";
 	url += encodeddata;
@@ -128,10 +128,11 @@ void ElgatoCloud::_Listen()
 	_listenThread = std::thread([this]() {
 		listen_on_pipe("elgato_cloud", [this](std::string d) {
 			obs_log(LOG_INFO, "Got Deeplink %s", d.c_str());
-			if (d.find("elgatoobs://auth") == 0) {
+			if (d.find("elgatolink://auth") == 0) {
 				if (mainWindowOpen && window) {
 					QMetaObject::invokeMethod(
-						QCoreApplication::instance()->thread(),
+						QCoreApplication::instance()
+							->thread(),
 						[this]() {
 							window->setLoading();
 							window->show();
@@ -167,10 +168,10 @@ void ElgatoCloud::_Listen()
 				encodeddata += "grant_type=authorization_code";
 				encodeddata += "&code=" + code;
 				encodeddata +=
-					"&redirect_uri=https%3A%2F%2Foauth2-redirect.elgato.com%2Felgatoobs%2Fauth";
+					"&redirect_uri=https%3A%2F%2Foauth2-redirect.elgato.com%2Felgatolink%2Fauth";
 				encodeddata +=
 					"&code_verifier=" + _last_code_verifier;
-				encodeddata += "&client_id=elgato-obs-cloud";
+				encodeddata += "&client_id=elgatolink";
 
 				auto api = MarketplaceApi::getInstance();
 				std::string url = api->gatewayUrl();
@@ -236,7 +237,7 @@ void ElgatoCloud::StartLogin()
 	auto api = MarketplaceApi::getInstance();
 	std::string url =
 		api->gatewayUrl() +
-		"/auth/realms/mp/protocol/openid-connect/auth?response_type=code&client_id=elgato-obs-cloud&redirect_uri=https%3A%2F%2Foauth2-redirect.elgato.com%2Felgatoobs%2Fauth&code_challenge=" +
+		"/auth/realms/mp/protocol/openid-connect/auth?response_type=code&client_id=elgatolink&redirect_uri=https%3A%2F%2Foauth2-redirect.elgato.com%2Felgatolink%2Fauth&code_challenge=" +
 		stringhash + "&code_challenge_method=S256";
 
 	authorizing = true;
@@ -270,15 +271,13 @@ void ElgatoCloud::LoadPurchasedProducts()
 	if (mainWindowOpen && window) {
 		QMetaObject::invokeMethod(
 			QCoreApplication::instance()->thread(),
-			[this]() {
-				window->setLoading();
-			});
+			[this]() { window->setLoading(); });
 	}
-
 
 	auto api = MarketplaceApi::getInstance();
 	std::string api_url = api->gatewayUrl();
-	api_url += "/my-products?extension=scene-collections&offset=0&limit=100";
+	api_url +=
+		"/my-products?extension=scene-collections&offset=0&limit=100";
 	auto productsResponse = fetch_string_from_get(api_url, _accessToken);
 	obs_log(LOG_INFO, "Products: %s", productsResponse.c_str());
 	products.clear();
@@ -326,7 +325,9 @@ nlohmann::json ElgatoCloud::GetPurchaseDownloadLink(std::string variantId)
 	auto response = fetch_string_from_get(api_url, _accessToken);
 	// Todo- Error checking
 	try {
-		blog(LOG_INFO, "============= DOWNLOAD REQUEST API RESPONSE =============\nURL: %s\nResponse: %s", api_url.c_str(), response.c_str());
+		blog(LOG_INFO,
+		     "============= DOWNLOAD REQUEST API RESPONSE =============\nURL: %s\nResponse: %s",
+		     api_url.c_str(), response.c_str());
 		auto responseJson = nlohmann::json::parse(response);
 		return responseJson;
 	} catch (...) {
@@ -370,7 +371,7 @@ void ElgatoCloud::_ProcessLogin(nlohmann::json &loginData, bool loadData)
 		obs_log(LOG_INFO, "Some other issue occurred");
 		connectionError = true;
 	}
-	_LoadUserData(loadData);	
+	_LoadUserData(loadData);
 }
 
 void ElgatoCloud::_LoadUserData(bool loadData)
@@ -379,7 +380,8 @@ void ElgatoCloud::_LoadUserData(bool loadData)
 		auto api = MarketplaceApi::getInstance();
 		std::string api_url = api->gatewayUrl();
 		api_url += "/user";
-		auto userResponse = fetch_string_from_get(api_url, _accessToken);
+		auto userResponse =
+			fetch_string_from_get(api_url, _accessToken);
 		auto userData = nlohmann::json::parse(userResponse);
 		api->setUserDetails(userData);
 		blog(LOG_INFO, "User Response:\n%s", userResponse.c_str());
@@ -396,8 +398,7 @@ void ElgatoCloud::_LoadUserData(bool loadData)
 					}
 				});
 		}
-	}
-	catch (...) {
+	} catch (...) {
 		obs_log(LOG_INFO, "Invalid response from server");
 		connectionError = true;
 	}
@@ -407,8 +408,10 @@ void ElgatoCloud::_SaveState()
 {
 	obs_data_set_string(_config, "AccessToken", _accessToken.c_str());
 	obs_data_set_string(_config, "RefreshToken", _refreshToken.c_str());
-	obs_data_set_int(_config, "AccessTokenExpiration", _accessTokenExpiration);
-	obs_data_set_int(_config, "RefreshTokenExpiration", _refreshTokenExpiration);
+	obs_data_set_int(_config, "AccessTokenExpiration",
+			 _accessTokenExpiration);
+	obs_data_set_int(_config, "RefreshTokenExpiration",
+			 _refreshTokenExpiration);
 	SaveConfig();
 }
 
@@ -416,8 +419,10 @@ void ElgatoCloud::_GetSavedState()
 {
 	_accessToken = obs_data_get_string(_config, "AccessToken");
 	_refreshToken = obs_data_get_string(_config, "RefreshToken");
-	_accessTokenExpiration = obs_data_get_int(_config, "AccessTokenExpiration");
-	_refreshTokenExpiration = obs_data_get_int(_config, "RefreshTokenExpiration");
+	_accessTokenExpiration =
+		obs_data_get_int(_config, "AccessTokenExpiration");
+	_refreshTokenExpiration =
+		obs_data_get_int(_config, "RefreshTokenExpiration");
 }
 
 } // namespace elgatocloud

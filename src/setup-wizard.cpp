@@ -39,7 +39,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <QMainWindow>
 
 #include "elgato-styles.hpp"
-#include "plugin-support.h"
+#include <plugin-support.h>
 #include "setup-wizard.hpp"
 #include "elgato-product.hpp"
 #include "scene-bundle.hpp"
@@ -49,9 +49,9 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 namespace elgatocloud {
 
 extern void ElgatoCloudWindowSetEnabled(bool enable);
-StreamPackageSetupWizard* setupWizard = nullptr;
+StreamPackageSetupWizard *setupWizard = nullptr;
 
-StreamPackageSetupWizard* GetSetupWizard()
+StreamPackageSetupWizard *GetSetupWizard()
 {
 	return setupWizard;
 }
@@ -62,7 +62,7 @@ std::string GetBundleInfo(std::string filename)
 	std::string data;
 	try {
 		data = bundle.ExtractBundleInfo(filename);
-	} catch(...) {
+	} catch (...) {
 		blog(LOG_INFO, "Bundle Info Not Found");
 		data = "{\"Error\": \"Incompatible File\"}";
 	}
@@ -258,8 +258,12 @@ NewCollectionName::NewCollectionName(QWidget *parent, std::string name,
 	connect(_proceedButton, &QPushButton::released, this, [this]() {
 		QString qName = _nameField->text();
 		std::string name = qName.toUtf8().constData();
-		if (std::find(_existingCollections.begin(), _existingCollections.end(), name) != _existingCollections.end()) {
-			QMessageBox::warning(this, "Name in use.", "A scene collection already exists with this name. Please provide another name.");
+		if (std::find(_existingCollections.begin(),
+			      _existingCollections.end(),
+			      name) != _existingCollections.end()) {
+			QMessageBox::warning(
+				this, "Name in use.",
+				"A scene collection already exists with this name. Please provide another name.");
 			return;
 		}
 		emit proceedPressed(name.c_str());
@@ -287,23 +291,24 @@ VideoSetup::VideoSetup(QWidget *parent, std::string name,
 	sourceGrid->setContentsMargins(0, 0, 0, 0);
 	sourceGrid->setSpacing(18);
 
-	obs_data_t* config = elgatoCloud->GetConfig();
+	obs_data_t *config = elgatoCloud->GetConfig();
 
-	std::string videoSettingsJson = obs_data_get_string(config, "DefaultVideoCaptureSettings");
+	std::string videoSettingsJson =
+		obs_data_get_string(config, "DefaultVideoCaptureSettings");
 
-	obs_data_t* videoData =
+	obs_data_t *videoData =
 		videoSettingsJson != ""
-		? obs_data_create_from_json(videoSettingsJson.c_str())
-		: nullptr;
+			? obs_data_create_from_json(videoSettingsJson.c_str())
+			: nullptr;
 
 	int i = 0;
 	int j = 0;
 	bool first = true;
 	for (auto const &[sourceName, label] : videoSourceLabels) {
 
-
 		auto vSource = new VideoCaptureSourceSelector(
-			sourceWidget, label, sourceName, first ? videoData : nullptr);
+			sourceWidget, label, sourceName,
+			first ? videoData : nullptr);
 		sourceGrid->addWidget(vSource, i, j);
 		i += j % 2;
 		j += 1;
@@ -366,14 +371,14 @@ void VideoSetup::DefaultVideoUpdated(void *data, calldata_t *params)
 
 void VideoSetup::DisableTempSources()
 {
-	for (auto const& source : this->_videoSelectors) {
+	for (auto const &source : this->_videoSelectors) {
 		source->DisableTempSource();
 	}
 }
 
 void VideoSetup::EnableTempSources()
 {
-	for (auto const& source : this->_videoSelectors) {
+	for (auto const &source : this->_videoSelectors) {
 		source->EnableTempSource();
 	}
 }
@@ -420,9 +425,10 @@ AudioSetup::AudioSetup(QWidget *parent, std::string name,
 	layout->addWidget(spacer);
 
 	// Get settings
-	obs_data_t* config = elgatoCloud->GetConfig();
+	obs_data_t *config = elgatoCloud->GetConfig();
 
-	std::string audioSettingsJson = obs_data_get_string(config, "DefaultAudioCaptureSettings");
+	std::string audioSettingsJson =
+		obs_data_get_string(config, "DefaultAudioCaptureSettings");
 
 	obs_data_t *audioSettings =
 		audioSettingsJson != ""
@@ -435,28 +441,27 @@ AudioSetup::AudioSetup(QWidget *parent, std::string name,
 
 	obs_data_release(audioSettings);
 
-	connect(_audioSources, &QComboBox::currentIndexChanged, this,
-		[this](int index) {
-			obs_data_t *aSettings =
-				obs_source_get_settings(_audioCaptureSource);
-			std::string id = _audioSourceIds[index];
-			obs_data_set_string(aSettings, "device_id", id.c_str());
+	connect(_audioSources, &QComboBox::currentIndexChanged, this, [this](int index) {
+		obs_data_t *aSettings =
+			obs_source_get_settings(_audioCaptureSource);
+		std::string id = _audioSourceIds[index];
+		obs_data_set_string(aSettings, "device_id", id.c_str());
 
-			if (_volmeter) {
-				obs_volmeter_remove_callback(_volmeter,
-					AudioSetup::OBSVolumeLevel, this);
-				obs_volmeter_destroy(_volmeter);
-				_volmeter = nullptr;
-			}
+		if (_volmeter) {
+			obs_volmeter_remove_callback(
+				_volmeter, AudioSetup::OBSVolumeLevel, this);
+			obs_volmeter_destroy(_volmeter);
+			_volmeter = nullptr;
+		}
 
-			// For some reason, we need to completely deconstruct the temporary
-			// audio capture source in order to connect the new device vol meter
-			// to the volume meter in the UI. It should be possible to inject
-			// the newly selected device, and re-connect the _volmeter callbacks
-			_setupTempSources(aSettings);
-			obs_data_release(aSettings);
-			SetupVolMeter();
-		});
+		// For some reason, we need to completely deconstruct the temporary
+		// audio capture source in order to connect the new device vol meter
+		// to the volume meter in the UI. It should be possible to inject
+		// the newly selected device, and re-connect the _volmeter callbacks
+		_setupTempSources(aSettings);
+		obs_data_release(aSettings);
+		SetupVolMeter();
+	});
 
 	auto buttons = new QHBoxLayout();
 
@@ -487,7 +492,7 @@ AudioSetup::AudioSetup(QWidget *parent, std::string name,
 	obs_data_release(config);
 }
 
-void AudioSetup::_setupTempSources(obs_data_t* audioSettings)
+void AudioSetup::_setupTempSources(obs_data_t *audioSettings)
 {
 	if (_audioCaptureSource) {
 		obs_source_release(_audioCaptureSource);
@@ -502,9 +507,12 @@ void AudioSetup::_setupTempSources(obs_data_t* audioSettings)
 	obs_properties_t *aProps = obs_source_properties(_audioCaptureSource);
 	obs_property_t *aDevices = obs_properties_get(aProps, "device_id");
 	if (_audioSourceIds.size() == 0) {
-		for (size_t i = 0; i < obs_property_list_item_count(aDevices); i++) {
-			std::string name = obs_property_list_item_name(aDevices, i);
-			std::string id = obs_property_list_item_string(aDevices, i);
+		for (size_t i = 0; i < obs_property_list_item_count(aDevices);
+		     i++) {
+			std::string name =
+				obs_property_list_item_name(aDevices, i);
+			std::string id =
+				obs_property_list_item_string(aDevices, i);
 			_audioSourceIds.push_back(id);
 			_audioSources->addItem(name.c_str());
 		}
@@ -608,13 +616,13 @@ AudioSetup::~AudioSetup()
 	}
 }
 
-Loading::Loading(QWidget* parent) : QWidget(parent)
+Loading::Loading(QWidget *parent) : QWidget(parent)
 {
-	QVBoxLayout* layout = new QVBoxLayout(this);
+	QVBoxLayout *layout = new QVBoxLayout(this);
 
 	auto spacerTop = new QWidget(this);
 	spacerTop->setSizePolicy(QSizePolicy::Preferred,
-		QSizePolicy::Expanding);
+				 QSizePolicy::Expanding);
 	layout->addWidget(spacerTop);
 
 	auto spinner = new SpinnerPanel(this, "", "", false);
@@ -637,7 +645,7 @@ Loading::Loading(QWidget* parent) : QWidget(parent)
 
 	auto spacerBottom = new QWidget(this);
 	spacerBottom->setSizePolicy(QSizePolicy::Preferred,
-		QSizePolicy::Expanding);
+				    QSizePolicy::Expanding);
 	layout->addWidget(spacerBottom);
 }
 
@@ -667,61 +675,76 @@ StreamPackageSetupWizard::~StreamPackageSetupWizard()
 
 void StreamPackageSetupWizard::OpenArchive()
 {
-	_future = QtConcurrent::run(GetBundleInfo, _filename)
-		.then([this](std::string bundleInfoStr) {
-		// We are now in a different thread, so we need to execute this
-		// back in the gui thread.  See, threading hell.
-		QMetaObject::invokeMethod(
-			QCoreApplication::instance()->thread(), // main GUI thread
-			[this, bundleInfoStr]() {
-				nlohmann::json bundleInfo;
-				bool error = false;
-				try {
-					bundleInfo = nlohmann::json::parse(bundleInfoStr);
-				}
-				catch (const nlohmann::json::parse_error& e) {
-					obs_log(LOG_ERROR, "Parsing Error.\n  message: %s\n  id: %i",
-						e.what(), e.id);
-					error = true;
-				}
-				if (error || bundleInfo.contains("Error")) {
-					obs_log(LOG_ERROR, "Invalid file.");
-					int ret = QMessageBox::warning(
-						this,
-						"Incompatible file",
-						"Error: This download did not contain a valid bundleInfo.json file and cannot be installed. (note: this is a problem with the submitted scene collection file on the server)",
-						QMessageBox::Ok
-					);
-					close();
-					return;
-				}
+	_future =
+		QtConcurrent::run(GetBundleInfo, _filename)
+			.then([this](std::string bundleInfoStr) {
+				// We are now in a different thread, so we need to execute this
+				// back in the gui thread.  See, threading hell.
+				QMetaObject::invokeMethod(
+					QCoreApplication::instance()
+						->thread(), // main GUI thread
+					[this, bundleInfoStr]() {
+						nlohmann::json bundleInfo;
+						bool error = false;
+						try {
+							bundleInfo = nlohmann::
+								json::parse(
+									bundleInfoStr);
+						} catch (
+							const nlohmann::json::
+								parse_error &e) {
+							obs_log(LOG_ERROR,
+								"Parsing Error.\n  message: %s\n  id: %i",
+								e.what(), e.id);
+							error = true;
+						}
+						if (error ||
+						    bundleInfo.contains(
+							    "Error")) {
+							obs_log(LOG_ERROR,
+								"Invalid file.");
+							int ret = QMessageBox::warning(
+								this,
+								"Incompatible file",
+								"Error: This download did not contain a valid bundleInfo.json file and cannot be installed. (note: this is a problem with the submitted scene collection file on the server)",
+								QMessageBox::Ok);
+							close();
+							return;
+						}
 
-				std::map<std::string, std::string> videoSourceLabels =
-					bundleInfo["video_devices"];
-				std::vector<std::string> requiredPlugins =
-					bundleInfo["plugins_required"];
+						std::map<std::string,
+							 std::string>
+							videoSourceLabels = bundleInfo
+								["video_devices"];
+						std::vector<std::string>
+							requiredPlugins = bundleInfo
+								["plugins_required"];
 
-				// Disable all video capture sources so that single-thread
-				// capture sources, such as the Elgato Facecam, can be properly
-				// selected in the wizard.  Will re-enable any disabled sources
-				// in the wizard destructor.
-				obs_enum_sources(&StreamPackageSetupWizard::DisableVideoCaptureSources,
-					this);
+						// Disable all video capture sources so that single-thread
+						// capture sources, such as the Elgato Facecam, can be properly
+						// selected in the wizard.  Will re-enable any disabled sources
+						// in the wizard destructor.
+						obs_enum_sources(
+							&StreamPackageSetupWizard::
+								DisableVideoCaptureSources,
+							this);
 
-				PluginInfo pi;
-				std::vector<PluginDetails> missing = pi.missing(requiredPlugins);
-				if (missing.size() > 0) {
-					_buildMissingPluginsUI(missing);
-				}
-				else {
-					_buildSetupUI(videoSourceLabels);
-				}
+						PluginInfo pi;
+						std::vector<PluginDetails>
+							missing = pi.missing(
+								requiredPlugins);
+						if (missing.size() > 0) {
+							_buildMissingPluginsUI(
+								missing);
+						} else {
+							_buildSetupUI(
+								videoSourceLabels);
+						}
+					});
+			})
+			.onCanceled([]() {
+
 			});
-		}).onCanceled([]() {
-
-		});
-
-
 }
 
 bool StreamPackageSetupWizard::DisableVideoCaptureSources(void *data,
@@ -779,7 +802,7 @@ void StreamPackageSetupWizard::_buildMissingPluginsUI(
 void StreamPackageSetupWizard::_buildBaseUI()
 {
 	setFixedSize(320, 350);
-	QVBoxLayout* layout = new QVBoxLayout(this);
+	QVBoxLayout *layout = new QVBoxLayout(this);
 	_steps = new QStackedWidget(this);
 
 	auto loading = new Loading(this);
@@ -827,7 +850,6 @@ void StreamPackageSetupWizard::_buildSetupUI(
 				_steps->setCurrentIndex(5);
 				setFixedSize(320, 384);
 			}
-
 		});
 	_steps->addWidget(newName);
 
@@ -836,7 +858,7 @@ void StreamPackageSetupWizard::_buildSetupUI(
 
 	// Step 3- Set up Video inputs (step index: 4)
 	_vSetup = new VideoSetup(this, _productName, _thumbnailPath,
-				     videoSourceLabels);
+				 videoSourceLabels);
 	_vSetup->DisableTempSources();
 	_steps->addWidget(_vSetup);
 	connect(_vSetup, &VideoSetup::proceedPressed, this,
@@ -861,16 +883,17 @@ void StreamPackageSetupWizard::_buildSetupUI(
 			_setup.audioSettings = settings;
 			install();
 		});
-	connect(aSetup, &AudioSetup::backPressed, this, [this, videoSourceLabels]() {
-		if (videoSourceLabels.size() > 0) {
-			_steps->setCurrentIndex(4);
-			setFixedSize(554, 440);
-			_vSetup->EnableTempSources();
-		} else {
-			_steps->setCurrentIndex(2);
-			setFixedSize(320, 384);
-		}
-	});
+	connect(aSetup, &AudioSetup::backPressed, this,
+		[this, videoSourceLabels]() {
+			if (videoSourceLabels.size() > 0) {
+				_steps->setCurrentIndex(4);
+				setFixedSize(554, 440);
+				_vSetup->EnableTempSources();
+			} else {
+				_steps->setCurrentIndex(2);
+				setFixedSize(320, 384);
+			}
+		});
 	_steps->setCurrentIndex(1);
 }
 
@@ -879,7 +902,7 @@ void StreamPackageSetupWizard::install()
 	obs_log(LOG_INFO, "Elgato Req File: %s", _filename.c_str());
 
 	// TODO: Clean up this mess of setting up the pack install path.
-	obs_data_t* config = elgatoCloud->GetConfig();
+	obs_data_t *config = elgatoCloud->GetConfig();
 	std::string path = obs_data_get_string(config, "InstallLocation");
 	os_mkdirs(path.c_str());
 	std::string unsafeDirName(_setup.collectionName);
@@ -888,7 +911,7 @@ void StreamPackageSetupWizard::install()
 	std::string bundlePath = path + "/" + safeDirName;
 	//std::string dirName(_setup.collectionName);
 	//std::string bundlePath = path + "/" + dirName;
-	
+
 	obs_log(LOG_INFO, "Elgato Install Path: %s", bundlePath.c_str());
 
 	// TODO: Add dialog with progress indicator.  Put unzipping and

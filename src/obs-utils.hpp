@@ -28,3 +28,4 @@ bool GetFileSafeName(const char* name, std::string& file);
 bool GetClosestUnusedFileName(std::string& path, const char* extension);
 std::vector<std::string> GetSceneCollectionNames();
 config_t* GetUserConfig();
+std::string GetDataPath();

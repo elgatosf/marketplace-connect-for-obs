@@ -34,7 +34,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 
 #include <obs-frontend-api.h>
 
-#include "plugin-support.h"
+#include <plugin-support.h>
 #include "downloader.h"
 #include "elgato-cloud-data.hpp"
 #include "elgato-cloud-window.hpp"
@@ -43,8 +43,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 
 namespace elgatocloud {
 
-ElgatoProduct::ElgatoProduct(nlohmann::json &productData)
-	: _fileSize(0)
+ElgatoProduct::ElgatoProduct(nlohmann::json &productData) : _fileSize(0)
 {
 	thumbnailPath = QDir::homePath().toStdString();
 	thumbnailPath += "/AppData/Local/Elgato/DeepLinking/Thumbnails";
@@ -77,7 +76,10 @@ ElgatoProduct::ElgatoProduct(nlohmann::json &productData)
 }
 
 ElgatoProduct::ElgatoProduct(std::string collectionName)
-	: name(collectionName), thumbnailUrl(""), variantId(""), _fileSize(0)
+	: name(collectionName),
+	  thumbnailUrl(""),
+	  variantId(""),
+	  _fileSize(0)
 {
 	thumbnailPath = obs_get_module_data_path(obs_current_module());
 	thumbnailPath += "/images/thumbnail-holder.png";
@@ -92,7 +94,8 @@ bool ElgatoProduct::DownloadProduct()
 		// Pop up a modal telling the user the download couldn't happen.
 		QMessageBox msgBox;
 		msgBox.setText("Network Connection Error");
-		msgBox.setInformativeText("Could not connect to the Marketplace. Please try again.");
+		msgBox.setInformativeText(
+			"Could not connect to the Marketplace. Please try again.");
 		msgBox.exec();
 		return false;
 	}
@@ -182,7 +185,8 @@ void ElgatoProduct::SetThumbnail(std::string filename, void *data)
 	obs_log(LOG_INFO, "data: %i", reinterpret_cast<std::size_t>(data));
 }
 
-void ElgatoProduct::Install(std::string filename_utf8, void *data, bool fromDownload)
+void ElgatoProduct::Install(std::string filename_utf8, void *data,
+			    bool fromDownload)
 {
 	auto ep = static_cast<ElgatoProduct *>(data);
 	const auto mainWindow =
@@ -197,8 +201,8 @@ void ElgatoProduct::Install(std::string filename_utf8, void *data, bool fromDown
 		obs_log(LOG_INFO, "Setup Wizard already active.");
 		return;
 	}
-	StreamPackageSetupWizard *setupWizard =
-		new StreamPackageSetupWizard(mainWindow, ep, filename_utf8, fromDownload);
+	StreamPackageSetupWizard *setupWizard = new StreamPackageSetupWizard(
+		mainWindow, ep, filename_utf8, fromDownload);
 	setupWizard->setAttribute(Qt::WA_DeleteOnClose);
 	setupWizard->show();
 	setupWizard->move(hostRect.center() - setupWizard->rect().center());

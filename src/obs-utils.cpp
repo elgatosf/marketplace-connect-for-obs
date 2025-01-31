@@ -182,3 +182,16 @@ config_t* GetUserConfig()
 	return obs_frontend_get_user_config();
 #endif
 }
+
+std::string GetDataPath()
+{
+	std::string basePath = obs_get_module_data_path(obs_current_module());
+	size_t pos = 0;
+	std::string from = "\\";
+	std::string to = "/";
+	while ((pos = basePath.find(from, pos)) != std::string::npos) {
+		basePath.replace(pos, from.length(), to);
+		pos += to.length();
+	}
+	return basePath;
+}
