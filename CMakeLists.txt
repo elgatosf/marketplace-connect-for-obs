@@ -79,6 +79,6 @@ target_sources(
           src/elgato-widgets.hpp)
 
 add_executable(${CMAKE_PROJECT_NAME}-loader loader/main.cpp)
-install(TARGETS ${CMAKE_PROJECT_NAME}-loader RUNTIME DESTINATION data/obs-plugins/${CMAKE_PROJECT_NAME})
+install(TARGETS ${CMAKE_PROJECT_NAME}-loader RUNTIME DESTINATION helper-app/${CMAKE_PROJECT_NAME})
 
 set_target_properties_plugin(${CMAKE_PROJECT_NAME} PROPERTIES OUTPUT_NAME ${_name})
