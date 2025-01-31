@@ -34,7 +34,7 @@ function(setup_obs_lib_dependency target)
   endif()
 endfunction()
 
-project(elgato-deeplinking VERSION 0.0.1)
+project(elgato-marketplace VERSION 0.0.8)
 
 if(${CMAKE_PROJECT_NAME} STREQUAL "obs-studio")
   set(OBS_FRONTEND_API_NAME "frontend-api")
@@ -85,6 +85,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE CURL::libcurl nlohmann_json::nlohm
 target_sources(
   ${PROJECT_NAME}
   PRIVATE src/plugin-module.cpp
+          src/elgato-styles.hpp
           src/zip_file.hpp
           src/api.cpp
           src/api.hpp
@@ -94,6 +95,8 @@ target_sources(
           src/platform.h
           src/util.cpp
           src/util.h
+          src/plugins.cpp
+          src/plugins.hpp
           src/obs-utils.cpp
           src/obs-utils.hpp
           src/display-helpers.hpp
@@ -116,7 +119,9 @@ target_sources(
           src/elgato-cloud-config.cpp
           src/elgato-cloud-config.hpp
           src/elgato-cloud-window.cpp
-          src/elgato-cloud-window.hpp)
+          src/elgato-cloud-window.hpp
+          src/elgato-widgets.cpp
+          src/elgato-widgets.hpp)
 
 target_include_directories(${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
 

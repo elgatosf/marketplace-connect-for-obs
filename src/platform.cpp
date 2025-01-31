@@ -200,7 +200,7 @@ bool listen_on_pipe(const std::string &pipe_name,
 		}
 
 		Sleep(100);
-		obs_log(LOG_INFO, "Connecting...");
+		obs_log(LOG_INFO, "Connecting... to %s", attempt_name.c_str());
 		bool connected = ConnectNamedPipe(pipe, NULL);
 		if (!connected && GetLastError() == ERROR_PIPE_CONNECTED) {
 			connected = true;
@@ -209,7 +209,7 @@ bool listen_on_pipe(const std::string &pipe_name,
 		std::string buffer;
 
 		if (connected) {
-			obs_log(LOG_INFO, "Connected");
+			obs_log(LOG_INFO, "Connected to %s", attempt_name.c_str());
 			while (true) {
 				buffer.resize(2048);
 				DWORD read_count = 0;

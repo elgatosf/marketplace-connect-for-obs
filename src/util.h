@@ -34,6 +34,14 @@ static size_t write_data(void *ptr, size_t size, size_t nmemb, void *userdata)
 
 	return size * nmemb;
 };
+
+obs_data_t* get_module_config();
+void save_module_config(obs_data_t* config);
+
+int get_major_version();
+bool filename_json(std::string& filename);
+std::string get_current_scene_collection_filename();
+
 std::string fetch_string_from_get(std::string url, std::string token);
 std::string fetch_string_from_post(std::string url, std::string postdata);
 std::vector<char> fetch_bytes_from_url(std::string url);
@@ -71,3 +79,5 @@ template<class T, class U> auto_closer<T, U> auto_close(T *self, U closer)
 {
 	return auto_closer<T, U>(self, closer);
 }
+
+bool generate_safe_path(std::string unsafe, std::string& safe);

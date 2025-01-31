@@ -35,12 +35,12 @@
     },
     "platformConfig": {
         "macos": {
-            "bundleId": "com.elgato.deeplinking"
+            "bundleId": "com.elgato.marketplace-plugin"
         }
     },
-    "name": "elgato-deeplinking",
-    "displayName": "Elgato Deep Linking",
-    "version": "0.0.1",
+    "name": "elgato-marketplace",
+    "displayName": "Elgato Marketplace Plugin",
+    "version": "0.0.8",
     "author": "Elgato",
     "website": "https://elgato.com",
     "email": "support@elgato.com",

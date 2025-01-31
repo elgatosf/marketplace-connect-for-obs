@@ -16,7 +16,10 @@ You should have received a copy of the GNU General Public License along
 with this program. If not, see <https://www.gnu.org/licenses/>
 */
 
+#include <QDir>
 #include <obs-module.h>
+#include <util/config-file.h>
+#include <util/platform.h>
 #include "obs-frontend-api.h"
 #include <util/platform.h>
 #include <vector>
@@ -37,6 +40,114 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include "platform.h"
 #include "util.h"
 
+
+obs_data_t* get_module_config()
+{
+	const auto confPath = obs_module_config_path("config.json");
+	obs_data_t* config = obs_data_create_from_json_file_safe(confPath, "bak");
+	bfree(confPath);
+	if (!config) {
+		config = obs_data_create();
+		blog(LOG_WARNING, "Configuration file not found");
+	}
+	else {
+		blog(LOG_INFO, "Loaded configuration file");
+	}
+
+	obs_data_set_default_string(config, "AccessToken", "");
+	obs_data_set_default_string(config, "RefreshToken", "");
+	obs_data_set_default_int(config, "AccessTokenExpiration", 0);
+	obs_data_set_default_int(config, "RefreshTokenExpiration", 0);
+
+	std::string path = QDir::homePath().toStdString();
+	path += "/AppData/Local/Elgato/DeepLinking/SceneCollections";
+	os_mkdirs(path.c_str());
+	obs_data_set_default_string(config, "InstallLocation", path.c_str());
+	obs_data_set_default_bool(config, "MakerTools", false);
+
+	obs_data_set_default_string(config, "DefaultAudioCaptureSettings", "");
+	obs_data_set_default_string(config, "DefaultVideoCaptureSettings", "");
+
+	return config;
+}
+
+void save_module_config(obs_data_t* config)
+{
+	char* configPath = obs_module_config_path("config.json");
+	if (!configPath)
+		return;
+	std::string path = configPath;
+	bfree(configPath);
+
+	size_t pos = path.rfind('/');
+	if (pos == std::string::npos) {
+		blog(LOG_ERROR, "Settings NOT saved.");
+		return;
+	}
+	std::string configDir = path.substr(0, pos);
+
+	os_mkdirs(configDir.c_str());
+	if (obs_data_save_json_safe(config, path.c_str(), "tmp", "bak")) {
+		blog(LOG_INFO, "Settings saved");
+	}
+	else {
+		blog(LOG_ERROR, "Settings NOT saved.");
+	}
+	
+}
+
+
+int get_major_version()
+{
+	std::string v = obs_get_version_string();
+	size_t pos = v.find('.');
+	if (pos != std::string::npos) {
+		std::string major_version = v.substr(0, pos);
+		return std::stoi(major_version);
+	}
+	return -1;
+}
+
+bool filename_json(std::string& filename)
+{
+	const std::string suffix = ".json";
+	if (filename.size() < suffix.size()) {
+		return false;
+	}
+	return filename.compare(filename.size() - suffix.size(), suffix.size(), suffix) == 0;
+}
+
+std::string get_current_scene_collection_filename()
+{
+	int v = get_major_version();
+	std::string filename;
+
+	// TODO: Convert this to use GetUserConfig() from obs-utils.cpp
+	if (v < 31) { // Get the filename from global.ini
+		      // also in pre-31, the filename in the config file did not
+		      // have a filetype suffix.
+		      // so we need to add .json
+#pragma warning (disable : 4996)
+		filename = config_get_string(obs_frontend_get_global_config(), "Basic", "SceneCollectionFile");
+#pragma warning (default : 4996)
+	} else {  // get the filename from user.ini
+	        // in 31+ the filename stored in user.ini *does* have a filetype
+		// suffix.
+		void* obs_frontend_dll = os_dlopen("obs-frontend-api.dll");
+		void* sym = os_dlsym(obs_frontend_dll, "obs_frontend_get_user_config");
+		config_t* (*get_user_config)() = (config_t* (*)())sym;
+		config_t* user_config = get_user_config();
+		os_dlclose(obs_frontend_dll);
+		filename = config_get_string(user_config, "Basic", "SceneCollectionFile");
+	}
+	// OBS is inconsistent with adding .json to SceneCollectionFile value.
+	if (!filename_json(filename)) {
+		filename += ".json";
+	}
+	blog(LOG_INFO, "COLLECTION FILENAME: %s", filename.c_str());
+	return filename;
+}
+
 std::string fetch_string_from_get(std::string url, std::string token)
 {
 	std::string result;
@@ -49,14 +160,18 @@ std::string fetch_string_from_get(std::string url, std::string token)
 	curl_easy_setopt(curl_instance, CURLOPT_USERAGENT, "elgato-cloud 0.0");
 	curl_easy_setopt(curl_instance, CURLOPT_XOAUTH2_BEARER, token.c_str());
 	curl_easy_setopt(curl_instance, CURLOPT_HTTPAUTH, CURLAUTH_BEARER);
-
+	curl_easy_setopt(curl_instance, CURLOPT_CONNECTTIMEOUT, 3);
+	curl_easy_setopt(curl_instance, CURLOPT_TIMEOUT, 5);
 	CURLcode res = curl_easy_perform(curl_instance);
 
 	curl_easy_cleanup(curl_instance);
 	if (res == CURLE_OK) {
 		return result;
 	}
-	return "";
+	else if (res == CURLE_OPERATION_TIMEDOUT) {
+		return "{\"error\": \"Connection Timed Out\"}";
+	}
+	return "{\"error\": \"Unspecified Error\"}";
 }
 
 std::string fetch_string_from_post(std::string url, std::string postdata)
@@ -317,4 +432,39 @@ std::string random_name(size_t length)
 					 (sizeof(random_options) - 1)];
 	}
 	return result;
+}
+
+bool generate_safe_path(std::string unsafe, std::string& safe)
+{
+	const size_t base_length = unsafe.length();
+	size_t length = os_utf8_to_wcs(unsafe.c_str(), base_length, nullptr, 0);
+	std::wstring wfile;
+
+	if (!length) {
+		return false;
+	}
+
+	wfile.resize(length);
+	os_utf8_to_wcs(unsafe.c_str(), base_length, &wfile[0], length + 1);
+
+	for (size_t i = wfile.size(); i > 0; i--) {
+		size_t prev = i - 1;
+		if (iswspace(wfile[prev])) {
+			wfile[prev] = '_';
+		}
+		else if (wfile[prev] != '_' && !iswalnum(wfile[prev])) {
+			wfile.erase(prev, 1);
+		}
+	}
+
+	if (wfile.size() == 0) {
+		wfile = L"chars_only";
+	}
+
+	length = os_wcs_to_utf8(wfile.c_str(), wfile.size(), nullptr, 0);
+	if (!length)
+		return false;
+	safe.resize(length);
+	os_wcs_to_utf8(wfile.c_str(), wfile.size(), &safe[0], length + 1);
+	return true;
 }

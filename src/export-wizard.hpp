@@ -32,6 +32,8 @@ with this program.If not, see < https://www.gnu.org/licenses/>
 #include <QLabel>
 #include <QComboBox>
 #include <QStackedWidget>
+#include <QMovie>
+#include <QTConcurrent>
 
 #include "scene-bundle.hpp"
 
@@ -51,59 +53,70 @@ private:
 	std::vector<std::string> _files;
 };
 
-
 class VideoSourceLabels : public QWidget {
 	Q_OBJECT
 public:
-	VideoSourceLabels(QWidget* parent, std::map<std::string, std::string> devices);
+	VideoSourceLabels(QWidget *parent,
+			  std::map<std::string, std::string> devices);
 	inline std::map<std::string, std::string> Labels() { return _labels; }
 signals:
 	void continuePressed();
 	void backPressed();
+
 private:
 	std::map<std::string, std::string> _labels;
 };
 
-
 class RequiredPlugins : public QWidget {
 	Q_OBJECT
 public:
-	RequiredPlugins(QWidget* parent, std::vector<obs_module_t*> installedPlugins);
+	RequiredPlugins(QWidget *parent,
+			std::vector<obs_module_t *> installedPlugins);
 	std::vector<std::string> RequiredPluginList();
 signals:
 	void continuePressed();
 	void backPressed();
+
 private:
-	std::map<std::string, bool> _pluginStatus;
+	std::map<std::string, std::pair<bool, std::string>> _pluginStatus;
 };
 
+class Exporting : public QWidget {
+	Q_OBJECT
+public:
+	Exporting(QWidget *parent);
+	~Exporting();
+
+private:
+	QMovie *_indicator;
+};
 
 class ExportComplete : public QWidget {
 	Q_OBJECT
 
 public:
-	ExportComplete(QWidget* parent);
+	ExportComplete(QWidget *parent);
 
 signals:
 	void closePressed();
 };
 
-
 class StreamPackageExportWizard : public QDialog {
 	Q_OBJECT
 
 public:
-	StreamPackageExportWizard(QWidget* parent);
+	StreamPackageExportWizard(QWidget *parent);
 	~StreamPackageExportWizard();
 
-	static void AddModule(void* data, obs_module_t* module);
-private:
-	QStackedWidget* _steps;
-	SceneBundle _bundle;
-	std::vector<obs_module_t*> _modules;
-};
+	static void AddModule(void *data, obs_module_t *module);
 
+private:
+	QStackedWidget *_steps;
+	SceneBundle _bundle;
+	std::vector<obs_module_t *> _modules;
+	QFuture<void> _future;
+};
 
 void OpenExportWizard();
 
-}
+} // namespace elgatocloud

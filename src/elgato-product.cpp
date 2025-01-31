@@ -29,6 +29,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <QThread>
 #include <QMetaObject>
 #include <QInputDialog>
+#include <QDir>
 #include "scene-bundle.hpp"
 
 #include <obs-frontend-api.h>
@@ -43,17 +44,20 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 namespace elgatocloud {
 
 ElgatoProduct::ElgatoProduct(nlohmann::json &productData)
+	: _fileSize(0)
 {
-	thumbnailPath = obs_get_module_data_path(obs_current_module());
-	thumbnailPath += "/image_cache";
+	thumbnailPath = QDir::homePath().toStdString();
+	thumbnailPath += "/AppData/Local/Elgato/DeepLinking/Thumbnails";
 	os_mkdirs(thumbnailPath.c_str());
-	std::string tmpPath = obs_get_module_data_path(obs_current_module());
-	tmpPath += "/tmp";
-	os_mkdirs(tmpPath.c_str());
+
+	std::string savePath = QDir::homePath().toStdString();
+	savePath += "/AppData/Local/Elgato/DeepLinking/Downloads";
+	os_mkdirs(savePath.c_str());
+
 	_thumbnailReady = false;
 
 	name = productData["name"];
-	thumbnailUrl = productData["thumbnail"];
+	thumbnailUrl = productData["thumbnail_cdn"];
 	variantId = productData["variants"][0]["id"];
 
 	auto found = thumbnailUrl.find_last_of("/");
@@ -72,10 +76,26 @@ ElgatoProduct::ElgatoProduct(nlohmann::json &productData)
 	}
 }
 
-void ElgatoProduct::DownloadProduct()
+ElgatoProduct::ElgatoProduct(std::string collectionName)
+	: name(collectionName), thumbnailUrl(""), variantId(""), _fileSize(0)
+{
+	thumbnailPath = obs_get_module_data_path(obs_current_module());
+	thumbnailPath += "/images/thumbnail-holder.png";
+	_thumbnailReady = true;
+}
+
+bool ElgatoProduct::DownloadProduct()
 {
 	auto ec = GetElgatoCloud();
 	nlohmann::json dlData = ec->GetPurchaseDownloadLink(variantId);
+	if (dlData.contains("error")) {
+		// Pop up a modal telling the user the download couldn't happen.
+		QMessageBox msgBox;
+		msgBox.setText("Network Connection Error");
+		msgBox.setInformativeText("Could not connect to the Marketplace. Please try again.");
+		msgBox.exec();
+		return false;
+	}
 	std::string url = dlData["direct_link"];
 	_fileSize = dlData["file_size"];
 	obs_log(LOG_INFO, "Download Link: %s", url.c_str());
@@ -89,34 +109,27 @@ void ElgatoProduct::DownloadProduct()
 		msgBox.setText("Invalid File Type");
 		msgBox.setInformativeText("File is not an .elgatoscene file.");
 		msgBox.exec();
-		return;
+		return false;
 	}
 
-	std::string savePath = obs_get_module_data_path(obs_current_module());
-	savePath += "/tmp/";
-
-	char *absPath = os_get_abs_path_ptr(savePath.c_str());
-	savePath = std::string(absPath, strlen(absPath));
-	bfree(absPath);
+	std::string savePath = QDir::homePath().toStdString();
+	savePath += "/AppData/Local/Elgato/DeepLinking/Downloads/";
+	os_mkdirs(savePath.c_str());
 
 	obs_log(LOG_INFO, "Saving to: %s", savePath.c_str());
 
 	std::shared_ptr<Downloader> dl = Downloader::getInstance("");
 	dl->Enqueue(url, savePath, ElgatoProduct::DownloadProgress, this);
+	return true;
 }
 
 void ElgatoProduct::_downloadThumbnail()
 {
 	obs_log(LOG_INFO, "Downloading thumbnail: %s", thumbnailUrl.c_str());
-	std::string savePath = obs_get_module_data_path(obs_current_module());
-	savePath += "/image_cache/";
-
-	char *absPath = os_get_abs_path_ptr(savePath.c_str());
-	savePath = std::string(absPath, strlen(absPath));
-	bfree(absPath);
+	std::string savePath = QDir::homePath().toStdString();
+	savePath += "/AppData/Local/Elgato/DeepLinking/Thumbnails/";
 
 	obs_log(LOG_INFO, "Saving to: %s", savePath.c_str());
-	obs_log(LOG_INFO, "this: %i", reinterpret_cast<size_t>(this));
 
 	std::shared_ptr<Downloader> dl = Downloader::getInstance("");
 	dl->Enqueue(thumbnailUrl, savePath, ElgatoProduct::ThumbnailProgress,
@@ -154,7 +167,6 @@ void ElgatoProduct::DownloadProgress(void *ptr, bool finished, bool downloading,
 					  self._productItem->UpdateDownload(
 						  downloading, pct);
 				  });
-
 }
 
 void ElgatoProduct::SetThumbnail(std::string filename, void *data)
@@ -170,7 +182,7 @@ void ElgatoProduct::SetThumbnail(std::string filename, void *data)
 	obs_log(LOG_INFO, "data: %i", reinterpret_cast<std::size_t>(data));
 }
 
-void ElgatoProduct::Install(std::string filename_utf8, void *data)
+void ElgatoProduct::Install(std::string filename_utf8, void *data, bool fromDownload)
 {
 	auto ep = static_cast<ElgatoProduct *>(data);
 	const auto mainWindow =
@@ -178,9 +190,7 @@ void ElgatoProduct::Install(std::string filename_utf8, void *data)
 	if (ep->_productItem) {
 		QMetaObject::invokeMethod(
 			QCoreApplication::instance()->thread(),
-			[ep]() {
-				ep->_productItem->resetDownload();
-			});
+			[ep]() { ep->_productItem->resetDownload(); });
 	}
 	const QRect &hostRect = mainWindow->geometry();
 	if (GetSetupWizard()) {
@@ -188,10 +198,11 @@ void ElgatoProduct::Install(std::string filename_utf8, void *data)
 		return;
 	}
 	StreamPackageSetupWizard *setupWizard =
-		new StreamPackageSetupWizard(mainWindow, ep, filename_utf8);
+		new StreamPackageSetupWizard(mainWindow, ep, filename_utf8, fromDownload);
 	setupWizard->setAttribute(Qt::WA_DeleteOnClose);
 	setupWizard->show();
 	setupWizard->move(hostRect.center() - setupWizard->rect().center());
+	setupWizard->OpenArchive();
 }
 
 } // namespace elgatocloud

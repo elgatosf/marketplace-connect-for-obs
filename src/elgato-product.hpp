@@ -25,6 +25,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 namespace elgatocloud {
 
 class ElgatoProductItem;
+class StreamPackageSetupWizard;
 
 class ElgatoProduct {
 public:
@@ -36,17 +37,18 @@ public:
 	std::string variantId;
 
 	ElgatoProduct(nlohmann::json &productData);
+	ElgatoProduct(std::string name);
 	inline void SetProductItem(ElgatoProductItem *item)
 	{
 		_productItem = item;
 	}
 	inline ~ElgatoProduct() {};
 	inline bool ready() { return _thumbnailReady; }
-	void DownloadProduct();
+	bool DownloadProduct();
 	static void DownloadProgress(void *ptr, bool finished, bool downloading,
 				     uint64_t fileSize, uint64_t chunkSize,
 				     uint64_t downloaded);
-	static void Install(std::string filename_utf8, void *data);
+	static void Install(std::string filename_utf8, void *data, bool fromDownload);
 	static void ThumbnailProgress(void *ptr, bool finished,
 				      bool downloading, uint64_t fileSize,
 				      uint64_t chunkSize, uint64_t downloaded);

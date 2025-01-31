@@ -36,6 +36,60 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 
 namespace elgatocloud {
 
+class Avatar : public QWidget {
+	Q_OBJECT
+public:
+	Avatar(QWidget* parent);
+	void update();
+
+protected:
+	void paintEvent(QPaintEvent* e);
+
+private:
+	std::string _character;
+	std::string _bgColor;
+};
+
+class DownloadProgress : public QWidget {
+	Q_OBJECT
+
+public:
+	DownloadProgress(QWidget* parent);
+	~DownloadProgress();
+	void setMinimum(double minimum);
+	void setMaximum(double maximum);
+	void setValue(double value);
+
+protected:
+	void paintEvent(QPaintEvent* e) override;
+
+private:
+	int _width;
+	int _height;
+	int _progressWidth;
+	double _minimumValue;
+	double _maximumValue;
+	double _value;
+};
+
+class DownloadButton : public QWidget {
+	Q_OBJECT
+
+public:
+	DownloadButton(QWidget* parent);
+	void setDisabled(bool disabled);
+	void setValue(double value);
+	void resetDownload();
+
+private:
+	DownloadProgress* _downloadProgress;
+	QPushButton* _downloadButton;
+	QStackedWidget* _stackedWidget;
+
+signals:
+	void downloadClicked();
+};
+
 class ElgatoProductItem : public QWidget {
 	Q_OBJECT
 
@@ -50,11 +104,8 @@ public:
 
 private:
 	ElgatoProduct *_product;
-	QStackedWidget *_downloadWidget;
-	QProgressBar *_downloadProgress;
-	QPushButton* _downloadButton;
+	DownloadButton *_downloadButton;
 	QLabel *_labelImg;
-	QStackedWidget *_labelDownload;
 	QPixmap _setupImage(std::string imagePath);
 };
 
@@ -67,14 +118,14 @@ public:
 	void updateState();
 
 private:
-	QHBoxLayout *_layout;
-	QLabel *_logo;
-	QWidget *_spacer;
-	QPushButton *_settingsButton;
-	QPushButton *_storeButton;
-	QLineEdit *_searchBar;
-	QPushButton *_logInButton;
-	QPushButton *_logOutButton;
+	QHBoxLayout* _layout;
+	QLabel* _logo;
+	QPushButton* _settingsButton;
+	QPushButton* _storeButton;
+	//QLineEdit *_searchBar;
+	QPushButton* _logInButton;
+	QPushButton* _logOutButton;
+	Avatar* _avatar;
 
 signals:
 	void settingsClicked();
@@ -85,9 +136,10 @@ class ProductGrid : public QWidget {
 public:
 	ProductGrid(QWidget *parent);
 	~ProductGrid();
-	void loadProducts();
+	size_t loadProducts();
 	void disableDownload();
 	void enableDownload();
+
 private:
 	FlowLayout *_layout;
 };
@@ -116,6 +168,7 @@ private:
 	QStackedWidget *_content = nullptr;
 	Placeholder *_installed = nullptr;
 	ProductGrid *_purchased = nullptr;
+	size_t _numProducts = 0;
 };
 
 class LoginNeeded : public QWidget {
@@ -151,6 +204,7 @@ public:
 
 	void initialize();
 	void setLoggedIn();
+	void setLoading();
 	void setupOwnedProducts();
 
 	static ElgatoCloudWindow *window;
@@ -172,6 +226,7 @@ private:
 
 void OpenElgatoCloudWindow();
 void CloseElgatoCloudWindow();
-//QWidget *GetElgatoCloudWindow();
+ElgatoCloudWindow *GetElgatoCloudWindow();
+void ElgatoCloudWindowSetEnabled(bool enable);
 
 } // namespace elgatocloud

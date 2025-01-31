@@ -27,10 +27,19 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <nlohmann/json.hpp>
 #include <QMessageBox>
 #include <QFileDialog>
+#include <obs-frontend-api.h>
 
 namespace miniz_cpp {
 class zip_file;
 }
+
+enum class SceneBundleStatus {
+	Success,
+	Cancelled,
+	CallerDestroyed,
+	InvalidBundle,
+	Error
+};
 
 class SceneBundle {
 private:
@@ -42,6 +51,9 @@ private:
 	nlohmann::json _collection;
 	nlohmann::json _bundleInfo;
 	std::string _packPath;
+	bool _interrupt;
+	SceneBundleStatus _interruptReason;
+	bool _waiting;
 
 public:
 	SceneBundle();
@@ -51,13 +63,26 @@ public:
 	bool FromElgatoCloudFile(std::string file_path,
 				 std::string destination);
 	void ToCollection(std::string collection_name,
-			  std::string videoSettings, std::string audioSettings,
-			  QDialog *dialog);
-	void ToElgatoCloudFile(std::string file_path, std::vector<std::string> plugins, std::map<std::string, std::string> videoDeviceDescriptions);
+			  std::map<std::string, std::string> videoSettings,
+			  std::string audioSettings, QDialog *dialog);
+	SceneBundleStatus ToElgatoCloudFile(
+		std::string file_path, std::vector<std::string> plugins,
+		std::map<std::string, std::string> videoDeviceDescriptions);
 
 	bool FileCheckDialog();
+
+	inline void interrupt(SceneBundleStatus reason)
+	{
+		_interruptReason = reason;
+		_interrupt = true;
+	}
+
+	std::string ExtractBundleInfo(std::string filePath);
+
 	std::vector<std::string> FileList();
 	std::map<std::string, std::string> VideoCaptureDevices();
+	static void SceneCollectionCreated(enum obs_frontend_event event, void* obj);
+	static void SceneCollectionChanged(enum obs_frontend_event event, void* obj);
 
 private:
 	void _ProcessJsonObj(nlohmann::json &obj);
@@ -66,6 +91,7 @@ private:
 			   miniz_cpp::zip_file &ecFile);
 	bool _AddDirContentsToZip(std::string dirPath, std::string zipDir,
 				  miniz_cpp::zip_file &ecFile);
+	void _reset();
 };
 
 #endif // SCENEBUNDLE_H

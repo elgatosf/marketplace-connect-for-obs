@@ -22,6 +22,7 @@
 
 #pragma once
 
+#include <util/platform.h>
 #include <algorithm>
 #include <cstdint>
 #include <iostream>
@@ -7284,10 +7285,18 @@ public:
 	void extract(const zip_info &member, const std::string &path)
 	{
 		auto file = detail::join_path({path, member.filename});
-		auto target = std::filesystem::path(file).parent_path();
+
+		const size_t file_len = strlen(file.c_str());
+		size_t len = os_utf8_to_wcs(file.c_str(), file_len, nullptr, 0);
+
+		std::wstring wfile;
+		wfile.resize(len);
+		os_utf8_to_wcs(file.c_str(), file_len, &wfile[0], len + 1);
+
+		auto target = std::filesystem::path(wfile).parent_path();
 		if (!std::filesystem::exists(target))
 			std::filesystem::create_directories(target);
-		std::fstream stream(detail::join_path({path, member.filename}),
+		std::fstream stream(wfile,
 				    std::ios::binary | std::ios::out);
 		stream << open(member).rdbuf();
 	}
@@ -7439,7 +7448,7 @@ public:
 
 		if (!mz_zip_writer_add_mem(archive_.get(), arcname.c_str(),
 					   bytes.data(), bytes.size(),
-					   MZ_BEST_COMPRESSION)) {
+					   MZ_NO_COMPRESSION)) {
 			throw std::runtime_error("write error");
 		}
 	}
@@ -7461,7 +7470,7 @@ public:
 			    archive_.get(), info.filename.c_str(), bytes.data(),
 			    bytes.size(), info.comment.c_str(),
 			    static_cast<mz_uint16>(info.comment.size()),
-			    MZ_BEST_COMPRESSION, 0, crc)) {
+			    MZ_NO_COMPRESSION, 0, crc)) {
 			throw std::runtime_error("write error");
 		}
 	}

@@ -48,10 +48,12 @@ public:
 	std::vector<std::unique_ptr<ElgatoProduct>> products;
 
 	ElgatoCloud(obs_module_t *m);
-	inline ~ElgatoCloud() {}
+	~ElgatoCloud();
 	void StartLogin();
 	void LogOut();
 	void LoadPurchasedProducts();
+	obs_data_t* GetConfig();
+	void SaveConfig();
 	nlohmann::json GetPurchaseDownloadLink(std::string variantId);
 
 	obs_module_t *GetModule();
@@ -70,7 +72,8 @@ private:
 	void _ProcessLogin(nlohmann::json &loginData, bool loadData = true);
 	void _SaveState();
 	void _GetSavedState();
-	void _TokenRefresh(bool loadData);
+	void _TokenRefresh(bool loadData, bool loadUserDetails = true);
+	void _LoadUserData(bool loadData = false);
 
 	obs_module_t *_modulePtr = nullptr;
 	//translateFunc _translate = nullptr;
@@ -82,6 +85,7 @@ private:
 	std::string _refreshToken;
 	int64_t _accessTokenExpiration;
 	int64_t _refreshTokenExpiration;
+	obs_data_t* _config;
 };
 
 class ElgatoCloudThread : public QThread {

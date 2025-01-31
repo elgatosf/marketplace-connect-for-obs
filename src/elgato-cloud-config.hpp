@@ -21,6 +21,9 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <QDialog>
 #include <QWidget>
 #include <QLabel>
+#include <QComboBox>
+#include <QCheckBox>
+#include <QStackedWidget>
 #include <obs-frontend-api.h>
 #include <obs-module.h>
 #include <obs.hpp>
@@ -30,6 +33,45 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include "qt-display.hpp"
 
 namespace elgatocloud {
+
+class SimpleVolumeMeter;
+
+class DefaultAVWidget : public QWidget {
+	Q_OBJECT
+public:
+	explicit DefaultAVWidget(QWidget* parent = nullptr);
+	~DefaultAVWidget();
+
+	void SetupVolMeter();
+	void OpenConfigAudioSource();
+
+	static void OBSVolumeLevel(void* data,
+		const float magnitude[MAX_AUDIO_CHANNELS],
+		const float peak[MAX_AUDIO_CHANNELS],
+		const float inputPeak[MAX_AUDIO_CHANNELS]);
+
+	static void DefaultAudioUpdated(void* data, calldata_t* params);
+	void save();
+
+private:
+	obs_source_t* _videoCaptureSource = nullptr;
+	OBSQTDisplay* _videoPreview = nullptr;
+	QPushButton* _settingsButton = nullptr;
+	QLabel* _blank = nullptr;
+	QComboBox* _videoSources = nullptr;
+	std::vector<std::string> _videoSourceIds;
+	std::string _sourceName;
+	QStackedWidget* _stack = nullptr;
+	void _setupTempVideoSource(obs_data_t* videoSettings);
+	bool _noneSelected;
+
+	void _setupTempAudioSource(obs_data_t* audioSettings);
+	SimpleVolumeMeter* _levelsWidget = nullptr;
+	obs_source_t* _audioCaptureSource = nullptr;
+	obs_volmeter_t* _volmeter = nullptr;
+	QComboBox* _audioSources = nullptr;
+	std::vector<std::string> _audioSourceIds;
+};
 
 class SimpleVolumeMeter : public QWidget {
 	Q_OBJECT
@@ -66,7 +108,7 @@ protected:
 	void paintEvent(QPaintEvent *event) override;
 };
 
-class ElgatoCloudConfig : public QWidget {
+class ElgatoCloudConfig : public QDialog {
 	Q_OBJECT
 
 public:
@@ -80,22 +122,22 @@ public:
 				   const float magnitude[MAX_AUDIO_CHANNELS],
 				   const float peak[MAX_AUDIO_CHANNELS],
 				   const float inputPeak[MAX_AUDIO_CHANNELS]);
-
-	static void DefaultVideoUpdated(void *data, calldata_t *params);
-	static void DefaultAudioUpdated(void *data, calldata_t *params);
-
 private:
-	void _SetupTmpSources();
-
+	void _save();
+	DefaultAVWidget* _avWidget;
 	QLabel *_dbValue = nullptr;
 	SimpleVolumeMeter *_levelsWidget = nullptr;
 	obs_source_t *_videoCaptureSource = nullptr;
 	obs_source_t *_audioCaptureSource = nullptr;
 	obs_volmeter_t *_volmeter = nullptr;
 	OBSQTDisplay *_videoPreview = nullptr;
+	QCheckBox* _makerCheckbox = nullptr;
+	std::string _installDirectory;
 
 signals:
 	void closeClicked();
 };
+
+ElgatoCloudConfig* openConfigWindow(QWidget* parent);
 
 } // namespace elgatocloud

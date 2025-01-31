@@ -18,7 +18,13 @@
 #pragma once
 #include <QWindow>
 #include <obs.hpp>
+#include <obs-module.h>
+#include <obs-frontend-api.h>
 
 bool QTToGSWindow(QWindow *window, gs_window &gswindow);
 void GetScaleAndCenterPos(int baseCX, int baseCY, int windowCX, int windowCY,
 			  int &x, int &y, float &scale);
+bool GetFileSafeName(const char* name, std::string& file);
+bool GetClosestUnusedFileName(std::string& path, const char* extension);
+std::vector<std::string> GetSceneCollectionNames();
+config_t* GetUserConfig();

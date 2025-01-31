@@ -23,6 +23,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include "elgato-product.hpp"
 #include <cstring>
 #include <curl/curl.h>
+#include <util/platform.h>
 
 #include <QApplication>
 #include <QThread>
@@ -38,6 +39,9 @@ size_t Downloader::DownloadEntry::write_data(void *ptr, size_t size,
 	DownloadEntry &self = *static_cast<DownloadEntry *>(userdata);
 	//Sleep(100);
 	std::unique_lock l(self.lock);
+	//if (!self.file) {
+	//	return 0;
+	//}
 	self.downloaded += nmemb;
 	if (self.progressCallback) {
 		self.progressCallback(self.callbackData, false, true,
@@ -221,8 +225,17 @@ void Downloader::DownloadEntry::Finish()
 		if (fileName == "") {
 			fileName = random_name();
 		}
+		std::string target = targetDirectory + fileName;
+		char* absPath = os_get_abs_path_ptr(target.c_str());
+		target = std::string(absPath, strlen(absPath));
+		bfree(absPath);
+
+		//absPath = os_get_abs_path_ptr(tmpTargetName.c_str());
+		//tmpTargetName = std::string(absPath, strlen(absPath));
+		//bfree(absPath);
+
 		parent->moveRequests.push_back({tmpTargetName,
-						targetDirectory + fileName,
+						target.c_str(),
 						callbackData});
 	}
 	if (progressCallback) {
@@ -380,7 +393,7 @@ void Downloader::workerJob()
 					QCoreApplication::instance()->thread(),
 					[file, mr]() {
 						elgatocloud::ElgatoProduct::
-							Install(file, mr.data);
+							Install(file, mr.data, true);
 					});
 			} else {
 				// We are downloading a thumbnail.

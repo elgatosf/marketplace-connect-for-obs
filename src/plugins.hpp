@@ -15,27 +15,33 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along
 with this program. If not, see <https://www.gnu.org/licenses/>
 */
+#pragma once
 
-#include <plugin-support.h>
+#include <obs-module.h>
+#include <string>
+#include <vector>
 
-extern void blogva(int log_level, const char *format, va_list args);
+namespace elgatocloud {
 
-const char *PLUGIN_NAME = "elgato-marketplace";
-const char *PLUGIN_VERSION = "0.0.8";
+struct PluginDetails {
+	bool installed;
+	std::string name;
+	std::string url;
+	std::vector<std::string> files;
+};
 
-void obs_log(int log_level, const char *format, ...)
-{
-	size_t length = 4 + strlen(PLUGIN_NAME) + strlen(format);
+class PluginInfo {
+public:
+	PluginInfo();
+	~PluginInfo();
+	static void addModule(void* param, obs_module_t* module);
+	std::vector<PluginDetails> installed() const;
+	std::vector<PluginDetails> missing(std::vector<std::string> required) const;
+private:
+	void _loadInstalled();
+	void _loadApproved();
+	std::vector<PluginDetails> _approvedPlugins;
+	std::vector<std::string> _installedPlugins;
+};
 
-	char *template = malloc(length + 1);
-
-	snprintf(template, length, "[%s] %s", PLUGIN_NAME, format);
-
-	va_list(args);
-
-	va_start(args, format);
-	blogva(log_level, template, args);
-	va_end(args);
-
-	free(template);
-}
+} // namespace elgatocloud

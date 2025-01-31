@@ -35,6 +35,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include "plugin-support.h"
 #include "platform.h"
 #include "util.h"
+#include "obs-utils.hpp"
 #include "setup-wizard.hpp"
 
 const std::map<std::string, std::string> extensionMap{
@@ -44,13 +45,14 @@ const std::map<std::string, std::string> extensionMap{
 	{".mov", "/video/"},      {".mp4", "/video/"},
 	{".mkv", "/video/"},      {".mp3", "/audio/"},
 	{".wav", "/aduio/"},      {".effect", "/shaders/"},
-	{".shader", "/shaders/"}, {".hlsl", "/shaders/"}};
+	{".shader", "/shaders/"}, {".hlsl", "/shaders/"},
+	{".lua", "/scripts/"},    {".py", "/scripts/"}};
 
 // Filter IDs of incompatible filter types, e.g. filters
 // that require external libraries or executables.
 const std::vector<std::string> incompatibleFilters{"vst_filter"};
 
-SceneBundle::SceneBundle()
+SceneBundle::SceneBundle() : _interrupt(false)
 {
 	obs_log(LOG_INFO, "SceneBundle Constructor Called");
 }
@@ -62,14 +64,13 @@ SceneBundle::~SceneBundle()
 
 bool SceneBundle::FromCollection(std::string collection_name)
 {
+	_reset();
 	// Get the path to the currently active scene collection file.
 	std::string scene_collections_path = get_scene_collections_path();
-	std::string file_name =
-		config_get_string(obs_frontend_get_global_config(), "Basic",
-				  "SceneCollectionFile");
+	std::string file_name = get_current_scene_collection_filename();
 	std::string collection_file_path =
-		scene_collections_path + file_name + ".json";
-
+		scene_collections_path + file_name;
+	blog(LOG_INFO, "COLLECTION FILE PATH: %s", collection_file_path.c_str());
 	// Save the current scene collection to ensure our output is the latest
 	obs_frontend_save();
 
@@ -85,9 +86,16 @@ bool SceneBundle::FromCollection(std::string collection_name)
 	}
 
 	bfree(collection_str);
-
+	blog(LOG_INFO, "scripts...");
+	for (auto &script : _collection["modules"]["scripts-tool"]) {
+		_ProcessJsonObj(script);
+	}
+	blog(LOG_INFO, "sources...");
 	for (auto &source : _collection["sources"]) {
 		_ProcessJsonObj(source);
+	}
+	for (auto& transition : _collection["transitions"]) {
+		_ProcessJsonObj(transition);
 	}
 
 	return true;
@@ -96,6 +104,7 @@ bool SceneBundle::FromCollection(std::string collection_name)
 bool SceneBundle::FromElgatoCloudFile(std::string filePath,
 				      std::string packPath)
 {
+	_reset();
 	//Handle the ZIP archive
 	_packPath = packPath;
 	miniz_cpp::zip_file file(filePath);
@@ -105,17 +114,44 @@ bool SceneBundle::FromElgatoCloudFile(std::string filePath,
 	clear_dir(this_pack_dir);
 
 	// TODO: Probe for a valid manifest.json and collection.json before extraction
-
 	file.extractall(packPath);
 	return true;
 }
 
+std::string SceneBundle::ExtractBundleInfo(std::string filePath)
+{
+	miniz_cpp::zip_file file(filePath);
+	return file.read("bundle_info.json");
+}
+
+void SceneBundle::SceneCollectionCreated(enum obs_frontend_event event, void* obj)
+{
+	if (event == OBS_FRONTEND_EVENT_SCENE_COLLECTION_LIST_CHANGED) {
+		auto inst = static_cast<SceneBundle*>(obj);
+		if (inst) {
+			inst->_waiting = false;
+		}
+	}
+}
+
+void SceneBundle::SceneCollectionChanged(enum obs_frontend_event event, void* obj)
+{
+	if (event == OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGED) {
+		auto inst = static_cast<SceneBundle*>(obj);
+		if (inst) {
+			inst->_waiting = false;
+		}
+	}
+}
+
 void SceneBundle::ToCollection(std::string collection_name,
-			       std::string videoSettings,
+			       std::map<std::string, std::string> videoSettings,
 			       std::string audioSettings, QDialog *dialog)
 {
 	dialog->close();
 	elgatocloud::CloseElgatoCloudWindow();
+
+	const auto userConf = GetUserConfig();
 
 	char *current_collection = obs_frontend_get_current_scene_collection();
 	std::string collection_file_path = _packPath + "/collection.json";
@@ -128,8 +164,10 @@ void SceneBundle::ToCollection(std::string collection_name,
 	std::string word = _packPath + "/";
 	replace_all(collectionData, needle, word);
 
-	needle = "\"{VIDEO_CAPTURE_SETTINGS}\"";
-	replace_all(collectionData, needle, videoSettings);
+	for (auto const &[sourceName, settings] : videoSettings) {
+		needle = "\"{" + sourceName + "}\"";
+		replace_all(collectionData, needle, settings);
+	}
 
 	needle = "\"{AUDIO_CAPTURE_SETTINGS}\"";
 	replace_all(collectionData, needle, audioSettings);
@@ -140,46 +178,66 @@ void SceneBundle::ToCollection(std::string collection_name,
 	// TODO: Replacements for OS-specific interfaces, or make built-in OBS
 	//       importers work. Built-in OBS importers would require json11
 
-	// Create a new collection so that it is added to the collections menu
-	// and grab the expected file name of the new collection.
+	// 1. Add callback listener for scene collection list changed event
+	obs_frontend_add_event_callback(SceneBundle::SceneCollectionCreated, this);
+
+	// 2. Set waiting to true, to block execution until scene collection created.
+	_waiting = true;
+
+	// 3. Create a new, blank scene collection with the proper name.
 	obs_frontend_add_scene_collection(collection_name.c_str());
-	std::string file_name =
-		config_get_string(obs_frontend_get_global_config(), "Basic",
-				  "SceneCollectionFile");
-	obs_log(LOG_INFO, "Created new blank collection at: %s",
-		file_name.c_str());
-	// Switch back to old scene collection, so that we can write new
-	// .json file for new scene collection without it being overwritten
-	// with blank scene collection.
+	// 4. Wait until _wating is set to false
+	while (_waiting)
+		; // do nothing
+
+	// 5. Remove the callback
+	obs_frontend_remove_event_callback(SceneBundle::SceneCollectionCreated, this);
+
+	// 6. Get new collection name and filename
+	std::string newCollectionName = config_get_string(userConf, "Basic", "SceneCollection");
+	std::string newCollectionFileName = get_current_scene_collection_filename();
+	newCollectionFileName = get_scene_collections_path() + newCollectionFileName;
+
+	// 7. Set waiting to true to block execution until we switch back to the old scene collection
+	_waiting = true;
+
+	// 8. Add a callback for scene collection change
+	obs_frontend_add_event_callback(SceneBundle::SceneCollectionChanged, this);
+
+	// 9. Switch back to old scene collection so we can manually write the new
+	//    collection json file
 	obs_frontend_set_current_scene_collection(current_collection);
 
-	// TODO: Make sure file name is safe
-	std::string scene_collections_path = get_scene_collections_path();
-	std::string collection_json_file_path =
-		scene_collections_path + file_name + ".json";
+	// 10. Wait until _wating is set to false
+	while (_waiting)
+		; // do nothing
 
-	// TODO: Add calls to GetUnusedName and GetUnusedSceneCollectionFile *or* a dialog
-	//       to warn of overwriting
-	std::string collection_out = _collection.dump();
+	// 11. Remove the callback
+	obs_frontend_remove_event_callback(SceneBundle::SceneCollectionChanged, this);
 
-	// Convert to a native OBS Data object.
-	obs_data_t *data = obs_data_create_from_json(collection_out.c_str());
-	// So that we can use OBS's save_safe function
+	// 12. Replace newCollectionFileName with imported json data
+	obs_data_t* data = obs_data_create_from_json(_collection.dump().c_str());
 	bool success = obs_data_save_json_safe(
-		data, collection_json_file_path.c_str(), "tmp", "bak");
+		data, newCollectionFileName.c_str(), "tmp", "bak");
 	obs_log(LOG_INFO, "Saved new full collection at: %s",
-		collection_json_file_path.c_str());
+		newCollectionFileName.c_str());
 	obs_data_release(data);
-	// Finally, switch back to the new scene collection.
-	obs_frontend_set_current_scene_collection(collection_name.c_str());
+
+	// 13. Load in the new scene collection with the new data.
+	obs_frontend_set_current_scene_collection(newCollectionName.c_str());
 
 	if (!success) {
 		obs_log(LOG_ERROR, "Unable to create scene collection.");
 	}
+
+	bfree(current_collection);
 }
 
-void SceneBundle::ToElgatoCloudFile(std::string file_path, std::vector<std::string> plugins, std::map<std::string, std::string> videoDeviceDescriptions)
+SceneBundleStatus SceneBundle::ToElgatoCloudFile(
+	std::string file_path, std::vector<std::string> plugins,
+	std::map<std::string, std::string> videoDeviceDescriptions)
 {
+	_interrupt = false;
 	miniz_cpp::zip_file ecFile;
 
 	// TODO: Let the bundle author specify the canvas dimensions,
@@ -202,7 +260,7 @@ void SceneBundle::ToElgatoCloudFile(std::string file_path, std::vector<std::stri
 
 	ecFile.writestr("collection.json", collection_json);
 	ecFile.writestr("bundle_info.json", bundleInfo_json);
-
+	blog(LOG_INFO, "Adding files to zip...");
 	// Write all assets to zip archive.
 	for (const auto &file : _fileMap) {
 		std::string oFilename = file.first;
@@ -213,20 +271,32 @@ void SceneBundle::ToElgatoCloudFile(std::string file_path, std::vector<std::stri
 				oFilename.c_str());
 			if (!_AddDirContentsToZip(file.first, file.second,
 						  ecFile)) {
-				return;
+				bool wasInterrupted = _interrupt;
+				_interrupt = false;
+				if (wasInterrupted) {
+					return _interruptReason;
+				}
+				return SceneBundleStatus::Error;
 			}
 		} else if (!_AddFileToZip(file.first, file.second, ecFile)) {
-			return;
+			bool wasInterrupted = _interrupt;
+			_interrupt = false;
+			if (wasInterrupted) {
+				return _interruptReason;
+			}
+			return SceneBundleStatus::Error;
 		}
 	}
 
 	ecFile.save(file_path);
+
+	return SceneBundleStatus::Success;
 }
 
 std::vector<std::string> SceneBundle::FileList()
 {
 	std::vector<std::string> files;
-	for (auto const& [key, val] : _fileMap) {
+	for (auto const &[key, val] : _fileMap) {
 		files.push_back(key);
 	}
 	return files;
@@ -269,10 +339,17 @@ void SceneBundle::_ProcessJsonObj(nlohmann::json &obj)
 {
 	std::string settingsRepalce = "";
 	std::string idKey = "id";
+	std::string nameKey = "name";
 	if (obj.contains(std::string{idKey})) {
+		std::string name = obj[nameKey];
 		if (obj[idKey] == "dshow_input") {
 			obj.erase("settings");
-			obj["settings"] = "{VIDEO_CAPTURE_SETTINGS}";
+			obj["settings"] = "{" + name + "}";
+			if (!obj.contains("uuid")) {
+				char* uuid = os_generate_uuid();
+				obj["uuid"] = std::string(uuid);
+				bfree(uuid);
+			}
 			_videoCaptureDevices[obj["uuid"]] = obj["name"];
 		} else if (obj[idKey] == "wasapi_input_capture") {
 			obj.erase("settings");
@@ -359,7 +436,15 @@ void SceneBundle::_ProcessJsonObj(nlohmann::json &obj)
 void SceneBundle::_CreateFileMap(nlohmann::json &item)
 {
 	std::string value = item.template get<std::string>();
-	obs_log(LOG_INFO, "_CreateFileMap: %s", value.c_str());
+
+	size_t pos = 0;
+	std::string from = "\\";
+	std::string to = "/";
+	while ((pos = value.find(from, pos)) != std::string::npos) {
+		value.replace(pos, from.length(), to);
+		pos += to.length();
+	}
+
 	struct stat st;
 	if (os_stat(value.c_str(), &st) == 0 && st.st_mode & S_IEXEC) {
 		obs_log(LOG_INFO, "_CreativeFileMap: IS EXEC");
@@ -390,7 +475,7 @@ void SceneBundle::_CreateFileMap(nlohmann::json &item)
 				     });
 		int i = 1;
 		while (result != std::end(_fileMap)) {
-			newFileName = directory + base + "_" +
+			newFileName = "Assets" + directory + base + "_" +
 				      std::to_string(i) + extension;
 			result = std::find_if(std::begin(_fileMap),
 					      std::end(_fileMap),
@@ -408,6 +493,10 @@ void SceneBundle::_CreateFileMap(nlohmann::json &item)
 bool SceneBundle::_AddFileToZip(std::string filePath, std::string zipPath,
 				miniz_cpp::zip_file &ecFile)
 {
+	if (_interrupt) {
+		return false;
+	}
+	blog(LOG_INFO, "Adding File %s as %s", filePath.c_str(), zipPath.c_str());
 	ecFile.write(filePath, zipPath);
 	return true;
 }
@@ -443,4 +532,11 @@ bool SceneBundle::_AddDirContentsToZip(std::string dirPath, std::string zipDir,
 	os_closedir(dir);
 
 	return true;
+}
+
+void SceneBundle::_reset()
+{
+	_fileMap.clear();
+	_skippedFilters.clear();
+	_videoCaptureDevices.clear();
 }

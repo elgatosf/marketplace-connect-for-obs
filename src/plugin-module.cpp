@@ -25,51 +25,27 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <QWidget>
 #include <QString>
 #include <QDialog>
+#include <QFileDialog>
+#include <QMainWindow>
 
 #include <scene-bundle.hpp>
 #include <export-wizard.hpp>
+#include <elgato-product.hpp>
+#include <util.h>
 
 OBS_DECLARE_MODULE()
 OBS_MODULE_USE_DEFAULT_LOCALE(PLUGIN_NAME, "en-US")
 
 namespace elgatocloud {
 extern void InitElgatoCloud(obs_module_t *);
+extern obs_data_t* GetElgatoCloudConfig();
 extern void OpenExportWizard();
+extern void ShutDown();
 }
 
 void save_pack()
 {
 	elgatocloud::OpenExportWizard();
-	// First, get the json data for the current scene collection
-	// 
-	//char *current_collection = obs_frontend_get_current_scene_collection();
-	//std::string collection_name = current_collection;
-	//bfree(current_collection);
-
-	//SceneBundle bundle;
-	//if (!bundle.FromCollection(collection_name)) {
-	//	return;
-	//}
-
-	//if (!bundle.FileCheckDialog()) {
-	//	return;
-	//}
-
-	//QWidget *window = (QWidget *)obs_frontend_get_main_window();
-	//QString filename = QFileDialog::getSaveFileName(
-	//	window, "Save As...", QString(), "*.elgatoscene");
-	//if (filename == "") {
-	//	return;
-	//}
-	//if (!filename.endsWith(".elgatoscene")) {
-	//	filename += ".elgatoscene";
-	//}
-
-	//std::string filename_utf8 = filename.toUtf8().constData();
-
-	//bundle.ToElgatoCloudFile(filename_utf8);
-
-	//blog(LOG_INFO, "Saved to %s", filename_utf8.c_str());
 }
 
 void export_collection(void *)
@@ -77,17 +53,38 @@ void export_collection(void *)
 	save_pack();
 }
 
+void import_collection(void*)
+{
+	const auto mainWindow =
+		static_cast<QMainWindow*>(obs_frontend_get_main_window());
+	QString fileName = QFileDialog::getOpenFileName(mainWindow,
+		"Select Bundle", "", "Deeplink File (*.elgatoscene)");
+	if (fileName.size() == 0) {
+		return;
+	}
+	elgatocloud::ElgatoProduct product("Bundle Name");
+	product.Install(fileName.toStdString(), &product, false);
+}
+
 bool obs_module_load(void)
 {
 	obs_log(LOG_INFO, "plugin loaded successfully (version %s)",
 		PLUGIN_VERSION);
 	elgatocloud::InitElgatoCloud(obs_current_module());
-	obs_frontend_add_tools_menu_item("Elgato Cloud Plugin Save",
-					 export_collection, NULL);
+	auto config = elgatocloud::GetElgatoCloudConfig();
+	bool makerTools = obs_data_get_bool(config, "MakerTools");
+	obs_data_release(config);
+	if (makerTools) {
+		obs_frontend_add_tools_menu_item("Export Marketplace Scene",
+			export_collection, NULL);
+		obs_frontend_add_tools_menu_item("Import Marketplace Scene",
+			import_collection, NULL);
+	}
 	return true;
 }
 
 void obs_module_unload(void)
 {
+	elgatocloud::ShutDown();
 	obs_log(LOG_INFO, "plugin unloaded");
 }

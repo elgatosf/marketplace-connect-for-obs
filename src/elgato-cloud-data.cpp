@@ -21,12 +21,14 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 
 #include <obs-frontend-api.h>
 #include <util/config-file.h>
+#include <util/platform.h>
 
 #include <curl/curl.h>
 #include <QCryptographicHash>
 #include <QApplication>
 #include <QThread>
 #include <QMetaObject>
+#include <QDir>
 
 #include "plugin-support.h"
 #include "elgato-cloud-window.hpp"
@@ -62,6 +64,22 @@ ElgatoCloud::ElgatoCloud(obs_module_t *m)
 	_Listen();
 }
 
+ElgatoCloud::~ElgatoCloud()
+{
+	obs_data_release(_config);
+}
+
+obs_data_t* ElgatoCloud::GetConfig()
+{
+	obs_data_addref(_config);
+	return _config;
+}
+
+void ElgatoCloud::SaveConfig()
+{
+	save_module_config(_config);
+}
+
 obs_module_t *ElgatoCloud::GetModule()
 {
 	return _modulePtr;
@@ -72,7 +90,7 @@ void ElgatoCloud::Thread()
 	// Here is our Elgato Cloud loop
 }
 
-void ElgatoCloud::_TokenRefresh(bool loadData)
+void ElgatoCloud::_TokenRefresh(bool loadData, bool loadUserDetails)
 {
 	const auto now = std::chrono::system_clock::now();
 	const auto epoch = now.time_since_epoch();
@@ -83,6 +101,9 @@ void ElgatoCloud::_TokenRefresh(bool loadData)
 	if (seconds.count() < _accessTokenExpiration) {
 		loggedIn = true;
 		loading = loadData;
+		if (loadUserDetails) {
+			_LoadUserData();
+		}
 		if (loadData) {
 			LoadPurchasedProducts();
 		}
@@ -108,6 +129,17 @@ void ElgatoCloud::_Listen()
 		listen_on_pipe("elgato_cloud", [this](std::string d) {
 			obs_log(LOG_INFO, "Got Deeplink %s", d.c_str());
 			if (d.find("elgatoobs://auth") == 0) {
+				if (mainWindowOpen && window) {
+					QMetaObject::invokeMethod(
+						QCoreApplication::instance()->thread(),
+						[this]() {
+							window->setLoading();
+							window->show();
+							window->raise();
+							window->activateWindow();
+						});
+				}
+
 				obs_log(LOG_INFO, "auth detected");
 				std::unique_lock lock(m);
 				if (!authorizing) {
@@ -167,16 +199,7 @@ void ElgatoCloud::_Listen()
 
 void ElgatoCloud::_Initialize()
 {
-	config_t *const global_config = obs_frontend_get_global_config();
-	config_set_default_string(global_config, "ElgatoCloud", "AccessToken",
-				  "");
-	config_set_default_string(global_config, "ElgatoCloud", "RefreshToken",
-				  "");
-	config_set_default_int(global_config, "ElgatoCloud",
-			       "AccessTokenExpiration", 0);
-	config_set_default_int(global_config, "ElgatoCloud",
-			       "RefreshTokenExpiration", 0);
-
+	_config = get_module_config();
 	_GetSavedState();
 
 	const auto now = std::chrono::system_clock::now();
@@ -240,13 +263,22 @@ void ElgatoCloud::LoadPurchasedProducts()
 	if (!loggedIn) {
 		return;
 	}
-
+	loading = true;
 	// Todo- only refresh token if it needs refreshing
 	_TokenRefresh(false);
 
+	if (mainWindowOpen && window) {
+		QMetaObject::invokeMethod(
+			QCoreApplication::instance()->thread(),
+			[this]() {
+				window->setLoading();
+			});
+	}
+
+
 	auto api = MarketplaceApi::getInstance();
 	std::string api_url = api->gatewayUrl();
-	api_url += "/my-products?extension=overlays&offset=0&limit=100";
+	api_url += "/my-products?extension=scene-collections&offset=0&limit=100";
 	auto productsResponse = fetch_string_from_get(api_url, _accessToken);
 	obs_log(LOG_INFO, "Products: %s", productsResponse.c_str());
 	products.clear();
@@ -258,16 +290,17 @@ void ElgatoCloud::LoadPurchasedProducts()
 				products.emplace_back(
 					std::make_unique<ElgatoProduct>(pdat));
 			}
-			loading = false;
-			if (mainWindowOpen && window) {
-				QMetaObject::invokeMethod(
-					QCoreApplication::instance()->thread(),
-					[this]() {
-						window->setLoggedIn();
-						window->setupOwnedProducts();
-					});
-			}
 		}
+		loading = false;
+		if (mainWindowOpen && window) {
+			QMetaObject::invokeMethod(
+				QCoreApplication::instance()->thread(),
+				[this]() {
+					window->setLoggedIn();
+					window->setupOwnedProducts();
+				});
+		}
+
 	} catch (...) {
 		loading = false;
 		connectionError = true;
@@ -285,12 +318,15 @@ nlohmann::json ElgatoCloud::GetPurchaseDownloadLink(std::string variantId)
 		return nlohmann::json::parse("{\"Error\": \"Not Logged In\"}");
 	}
 
+	_TokenRefresh(false, false);
+
 	auto api = MarketplaceApi::getInstance();
-	std::string api_url = api->apiUrl();
-	api_url += "/product/internal/variants/" + variantId + "/direct-link";
+	std::string api_url = api->gatewayUrl();
+	api_url += "/items/" + variantId + "/direct-link";
 	auto response = fetch_string_from_get(api_url, _accessToken);
 	// Todo- Error checking
 	try {
+		blog(LOG_INFO, "============= DOWNLOAD REQUEST API RESPONSE =============\nURL: %s\nResponse: %s", api_url.c_str(), response.c_str());
 		auto responseJson = nlohmann::json::parse(response);
 		return responseJson;
 	} catch (...) {
@@ -334,47 +370,54 @@ void ElgatoCloud::_ProcessLogin(nlohmann::json &loginData, bool loadData)
 		obs_log(LOG_INFO, "Some other issue occurred");
 		connectionError = true;
 	}
-	if (mainWindowOpen && window) {
-		QMetaObject::invokeMethod(
-			QCoreApplication::instance()->thread(),
-			[this, loadData]() {
-				window->setLoggedIn();
-				if (loadData) {
-					LoadPurchasedProducts();
-				}
-			});
-	}
+	_LoadUserData(loadData);	
+}
 
-	auto api = MarketplaceApi::getInstance();
-	std::string api_url = api->gatewayUrl();
-	api_url += "/user";
-	auto userResponse = fetch_string_from_get(api_url, _accessToken);
+void ElgatoCloud::_LoadUserData(bool loadData)
+{
+	try {
+		auto api = MarketplaceApi::getInstance();
+		std::string api_url = api->gatewayUrl();
+		api_url += "/user";
+		auto userResponse = fetch_string_from_get(api_url, _accessToken);
+		auto userData = nlohmann::json::parse(userResponse);
+		api->setUserDetails(userData);
+		blog(LOG_INFO, "User Response:\n%s", userResponse.c_str());
+		if (mainWindowOpen && window) {
+			QMetaObject::invokeMethod(
+				QCoreApplication::instance()->thread(),
+				[this, loadData]() {
+					if (loadData) {
+						loading = true;
+					}
+					window->setLoggedIn();
+					if (loadData) {
+						LoadPurchasedProducts();
+					}
+				});
+		}
+	}
+	catch (...) {
+		obs_log(LOG_INFO, "Invalid response from server");
+		connectionError = true;
+	}
 }
 
 void ElgatoCloud::_SaveState()
 {
-	config_t *const global_config = obs_frontend_get_global_config();
-	config_set_string(global_config, "ElgatoCloud", "AccessToken",
-			  _accessToken.c_str());
-	config_set_string(global_config, "ElgatoCloud", "RefreshToken",
-			  _refreshToken.c_str());
-	config_set_int(global_config, "ElgatoCloud", "AccessTokenExpiration",
-		       _accessTokenExpiration);
-	config_set_int(global_config, "ElgatoCloud", "RefreshTokenExpiration",
-		       _refreshTokenExpiration);
+	obs_data_set_string(_config, "AccessToken", _accessToken.c_str());
+	obs_data_set_string(_config, "RefreshToken", _refreshToken.c_str());
+	obs_data_set_int(_config, "AccessTokenExpiration", _accessTokenExpiration);
+	obs_data_set_int(_config, "RefreshTokenExpiration", _refreshTokenExpiration);
+	SaveConfig();
 }
 
 void ElgatoCloud::_GetSavedState()
 {
-	config_t *const global_config = obs_frontend_get_global_config();
-	_accessToken =
-		config_get_string(global_config, "ElgatoCloud", "AccessToken");
-	_refreshToken =
-		config_get_string(global_config, "ElgatoCloud", "RefreshToken");
-	_accessTokenExpiration = config_get_int(global_config, "ElgatoCloud",
-						"AccessTokenExpiration");
-	_refreshTokenExpiration = config_get_int(global_config, "ElgatoCloud",
-						 "RefreshTokenExpiration");
+	_accessToken = obs_data_get_string(_config, "AccessToken");
+	_refreshToken = obs_data_get_string(_config, "RefreshToken");
+	_accessTokenExpiration = obs_data_get_int(_config, "AccessTokenExpiration");
+	_refreshTokenExpiration = obs_data_get_int(_config, "RefreshTokenExpiration");
 }
 
 } // namespace elgatocloud
