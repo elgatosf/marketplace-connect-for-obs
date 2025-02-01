@@ -65,6 +65,7 @@ public:
 	void Thread();
 	bool mainWindowOpen = false;
 	ElgatoCloudWindow *window = nullptr;
+	inline bool MakerToolsOnStart() const { return _makerToolsOnStart; }
 
 private:
 	void _Initialize();
@@ -86,6 +87,7 @@ private:
 	int64_t _accessTokenExpiration;
 	int64_t _refreshTokenExpiration;
 	obs_data_t *_config;
+	bool _makerToolsOnStart;
 };
 
 class ElgatoCloudThread : public QThread {

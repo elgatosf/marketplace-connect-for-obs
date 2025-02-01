@@ -547,10 +547,21 @@ ElgatoCloudConfig::ElgatoCloudConfig(QWidget *parent) : QDialog(parent)
 	QString checkBoxStyle = ECheckBoxStyle;
 	checkBoxStyle.replace("${checked-img}", checkedImage.c_str());
 	checkBoxStyle.replace("${unchecked-img}", uncheckedImage.c_str());
-
 	_makerCheckbox->setStyleSheet(checkBoxStyle);
 	layout->addWidget(_makerCheckbox);
 
+	connect(_makerCheckbox, &QCheckBox::stateChanged, [this](int state) {
+		bool makerTools = state == Qt::Checked;
+		_makerRestartMsg->setVisible(makerTools != elgatoCloud->MakerToolsOnStart());
+	});
+
+	std::string restartTxt = elgatoCloud->MakerToolsOnStart() ? "Maker tools will be disabled after restarting OBS." : "Maker tools will be enabled after restarting OBS.";
+	_makerRestartMsg = new QLabel(restartTxt.c_str(), this);
+	_makerRestartMsg->setVisible(false);
+	_makerRestartMsg->setStyleSheet(
+		"QLabel {color: #FFFFFF; padding: 8px 16px 0px 16px; font-size: 12pt; font-style: italic; }");
+	_makerRestartMsg->setAlignment(Qt::AlignCenter);
+	layout->addWidget(_makerRestartMsg);
 	layout->addStretch();
 
 	std::string version = "v";

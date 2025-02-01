@@ -133,6 +133,7 @@ private:
 	obs_volmeter_t *_volmeter = nullptr;
 	OBSQTDisplay *_videoPreview = nullptr;
 	QCheckBox *_makerCheckbox = nullptr;
+	QLabel* _makerRestartMsg = nullptr;
 	std::string _installDirectory;
 
 signals:
