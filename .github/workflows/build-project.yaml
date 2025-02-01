@@ -246,6 +246,12 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
+      - name: Update Build Number ⬆️
+        run: |
+          $BuildSpec = Get-Content -Path buildspec.json -Raw | ConvertFrom-Json
+          $BuildSpec.buildNumber = ${{ github.run_number }}
+          $BuildSpec | ConvertTo-Json -depth 32|  set-content -Path buildspec.json
+
       - name: Set Up Environment 🔧
         id: setup
         run: |
@@ -256,7 +262,15 @@ jobs:
 
           $BuildSpec = Get-Content -Path buildspec.json -Raw | ConvertFrom-Json
           $ProductName = $BuildSpec.name
-          $ProductVersion = $BuildSpec.version
+          $VersionMajor = $BuildSpec.versionMajor
+          $VersionMinor = $BuildSpec.versionMinor
+          $VersionPatch = $BuildSpec.versionPatch
+          $BuildNumber = $BuildSpec.buildNumber
+          $ProductVersion = "${VersionMajor}.${VersionMinor}.${VersionPatch}.${BuildNumber}"
+          $ReleaseType = $BuildSpec.releaseType
+          if ($ReleaseType -ne "release") {
+            $ProductVersion = "${ProductVersion}_${ReleaseType}"
+          }
 
           "pluginName=${ProductName}" >> $env:GITHUB_OUTPUT
           "pluginVersion=${ProductVersion}" >> $env:GITHUB_OUTPUT
@@ -277,5 +291,5 @@ jobs:
       - name: Upload Artifacts 📡
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ steps.setup.outputs.pluginName }}-${{ steps.setup.outputs.pluginVersion }}-windows-x64-${{ needs.check-event.outputs.commitHash }}
-          path: ${{ github.workspace }}/release/${{ steps.setup.outputs.pluginName }}-${{ steps.setup.outputs.pluginVersion }}-windows-x64*.*
+          name: ${{ steps.setup.outputs.pluginName }}-windows-${{ steps.setup.outputs.pluginVersion }}-${{ needs.check-event.outputs.commitHash }}
+          path: ${{ github.workspace }}/release/${{ steps.setup.outputs.pluginName }}-windows-${{ steps.setup.outputs.pluginVersion }}*.*

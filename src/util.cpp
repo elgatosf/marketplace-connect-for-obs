@@ -27,7 +27,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <nlohmann/json.hpp>
 #include <stdio.h>
 
-#include "plugin-support.h"
+#include <plugin-support.h>
 
 #include <functional>
 
@@ -40,17 +40,16 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include "platform.h"
 #include "util.h"
 
-
-obs_data_t* get_module_config()
+obs_data_t *get_module_config()
 {
 	const auto confPath = obs_module_config_path("config.json");
-	obs_data_t* config = obs_data_create_from_json_file_safe(confPath, "bak");
+	obs_data_t *config =
+		obs_data_create_from_json_file_safe(confPath, "bak");
 	bfree(confPath);
 	if (!config) {
 		config = obs_data_create();
 		blog(LOG_WARNING, "Configuration file not found");
-	}
-	else {
+	} else {
 		blog(LOG_INFO, "Loaded configuration file");
 	}
 
@@ -71,9 +70,9 @@ obs_data_t* get_module_config()
 	return config;
 }
 
-void save_module_config(obs_data_t* config)
+void save_module_config(obs_data_t *config)
 {
-	char* configPath = obs_module_config_path("config.json");
+	char *configPath = obs_module_config_path("config.json");
 	if (!configPath)
 		return;
 	std::string path = configPath;
@@ -89,13 +88,10 @@ void save_module_config(obs_data_t* config)
 	os_mkdirs(configDir.c_str());
 	if (obs_data_save_json_safe(config, path.c_str(), "tmp", "bak")) {
 		blog(LOG_INFO, "Settings saved");
-	}
-	else {
+	} else {
 		blog(LOG_ERROR, "Settings NOT saved.");
 	}
-	
 }
-
 
 int get_major_version()
 {
@@ -108,13 +104,14 @@ int get_major_version()
 	return -1;
 }
 
-bool filename_json(std::string& filename)
+bool filename_json(std::string &filename)
 {
 	const std::string suffix = ".json";
 	if (filename.size() < suffix.size()) {
 		return false;
 	}
-	return filename.compare(filename.size() - suffix.size(), suffix.size(), suffix) == 0;
+	return filename.compare(filename.size() - suffix.size(), suffix.size(),
+				suffix) == 0;
 }
 
 std::string get_current_scene_collection_filename()
@@ -124,21 +121,24 @@ std::string get_current_scene_collection_filename()
 
 	// TODO: Convert this to use GetUserConfig() from obs-utils.cpp
 	if (v < 31) { // Get the filename from global.ini
-		      // also in pre-31, the filename in the config file did not
-		      // have a filetype suffix.
-		      // so we need to add .json
-#pragma warning (disable : 4996)
-		filename = config_get_string(obs_frontend_get_global_config(), "Basic", "SceneCollectionFile");
-#pragma warning (default : 4996)
-	} else {  // get the filename from user.ini
-	        // in 31+ the filename stored in user.ini *does* have a filetype
+		// also in pre-31, the filename in the config file did not
+		// have a filetype suffix.
+		// so we need to add .json
+#pragma warning(disable : 4996)
+		filename = config_get_string(obs_frontend_get_global_config(),
+					     "Basic", "SceneCollectionFile");
+#pragma warning(default : 4996)
+	} else { // get the filename from user.ini
+		// in 31+ the filename stored in user.ini *does* have a filetype
 		// suffix.
-		void* obs_frontend_dll = os_dlopen("obs-frontend-api.dll");
-		void* sym = os_dlsym(obs_frontend_dll, "obs_frontend_get_user_config");
-		config_t* (*get_user_config)() = (config_t* (*)())sym;
-		config_t* user_config = get_user_config();
+		void *obs_frontend_dll = os_dlopen("obs-frontend-api.dll");
+		void *sym = os_dlsym(obs_frontend_dll,
+				     "obs_frontend_get_user_config");
+		config_t *(*get_user_config)() = (config_t * (*)()) sym;
+		config_t *user_config = get_user_config();
 		os_dlclose(obs_frontend_dll);
-		filename = config_get_string(user_config, "Basic", "SceneCollectionFile");
+		filename = config_get_string(user_config, "Basic",
+					     "SceneCollectionFile");
 	}
 	// OBS is inconsistent with adding .json to SceneCollectionFile value.
 	if (!filename_json(filename)) {
@@ -167,8 +167,7 @@ std::string fetch_string_from_get(std::string url, std::string token)
 	curl_easy_cleanup(curl_instance);
 	if (res == CURLE_OK) {
 		return result;
-	}
-	else if (res == CURLE_OPERATION_TIMEDOUT) {
+	} else if (res == CURLE_OPERATION_TIMEDOUT) {
 		return "{\"error\": \"Connection Timed Out\"}";
 	}
 	return "{\"error\": \"Unspecified Error\"}";
@@ -434,7 +433,7 @@ std::string random_name(size_t length)
 	return result;
 }
 
-bool generate_safe_path(std::string unsafe, std::string& safe)
+bool generate_safe_path(std::string unsafe, std::string &safe)
 {
 	const size_t base_length = unsafe.length();
 	size_t length = os_utf8_to_wcs(unsafe.c_str(), base_length, nullptr, 0);
@@ -451,8 +450,7 @@ bool generate_safe_path(std::string unsafe, std::string& safe)
 		size_t prev = i - 1;
 		if (iswspace(wfile[prev])) {
 			wfile[prev] = '_';
-		}
-		else if (wfile[prev] != '_' && !iswalnum(wfile[prev])) {
+		} else if (wfile[prev] != '_' && !iswalnum(wfile[prev])) {
 			wfile.erase(prev, 1);
 		}
 	}
@@ -467,4 +465,33 @@ bool generate_safe_path(std::string unsafe, std::string& safe)
 	safe.resize(length);
 	os_wcs_to_utf8(wfile.c_str(), wfile.size(), &safe[0], length + 1);
 	return true;
+}
+
+std::string versionNoBuild() {
+	std::string fullVersion = PLUGIN_VERSION;
+	size_t lastPos = fullVersion.find_last_of('.');
+	if (lastPos == std::string::npos) {
+		return fullVersion;
+	}
+	return fullVersion.substr(0, lastPos);
+}
+
+std::string buildNumber()
+{
+	std::string fullVersion = PLUGIN_VERSION;
+	size_t lastPos = fullVersion.find_last_of('.');
+	if (lastPos == std::string::npos) {
+		return fullVersion;
+	}
+	return fullVersion.substr(lastPos + 1);
+}
+
+std::string releaseType()
+{
+	std::string rt = PLUGIN_RELEASE_TYPE;
+	for (auto& c : rt) // convert to lowercase
+	{
+		c = tolower(c);
+	}
+	return rt == "release" ? "" : " " + rt;
 }

@@ -44,8 +44,9 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include "setup-wizard.hpp"
 #include "flowlayout.h"
 #include "api.hpp"
+#include "obs-utils.hpp"
 
-#include "plugin-support.h"
+#include <plugin-support.h>
 
 namespace elgatocloud {
 
@@ -86,8 +87,7 @@ void Avatar::paintEvent(QPaintEvent *e)
 
 DownloadButton::DownloadButton(QWidget *parent) : QWidget(parent)
 {
-	std::string imageBaseDir =
-		obs_get_module_data_path(obs_current_module());
+	std::string imageBaseDir = GetDataPath();
 	imageBaseDir += "/images/";
 
 	//setFixedWidth(48);
@@ -103,6 +103,7 @@ DownloadButton::DownloadButton(QWidget *parent) : QWidget(parent)
 	_downloadButton->setToolTip("Click to Download");
 	std::string downloadIconPath = imageBaseDir + "download.svg";
 	std::string downloadIconHoverPath = imageBaseDir + "download_hover.svg";
+	blog(LOG_INFO, "download img: ", downloadIconPath.c_str());
 	std::string downloadIconDisabledPath =
 		imageBaseDir + "download_hover.svg";
 	QString buttonStyle = EIconHoverDisabledButtonStyle;
@@ -221,8 +222,7 @@ void DownloadProgress::paintEvent(QPaintEvent *e)
 
 WindowToolBar::WindowToolBar(QWidget *parent) : QWidget(parent)
 {
-	std::string imageBaseDir =
-		obs_get_module_data_path(obs_current_module());
+	std::string imageBaseDir = GetDataPath();
 	imageBaseDir += "/images/";
 
 	auto api = MarketplaceApi::getInstance();
@@ -566,8 +566,7 @@ ElgatoProductItem::ElgatoProductItem(QWidget *parent, ElgatoProduct *product)
 {
 	setFixedWidth(270);
 	//setStyleSheet("QWidget { border: 1px solid #FFF; }");
-	std::string imageBaseDir =
-		obs_get_module_data_path(obs_current_module());
+	std::string imageBaseDir = GetDataPath();
 	imageBaseDir += "/images/";
 
 	QVBoxLayout *layout = new QVBoxLayout();
@@ -649,8 +648,7 @@ void ElgatoProductItem::enableDownload()
 
 void ElgatoProductItem::updateImage()
 {
-	std::string imageBaseDir =
-		obs_get_module_data_path(obs_current_module());
+	std::string imageBaseDir = GetDataPath();
 	imageBaseDir += "/images/";
 	std::string imagePath = _product->ready()
 					? _product->thumbnailPath
@@ -814,8 +812,6 @@ void CloseElgatoCloudWindow()
 
 extern void InitElgatoCloud(obs_module_t *module)
 {
-	obs_log(LOG_INFO, "version: %s", "0.0.8");
-
 	elgatoCloud = new ElgatoCloud(module);
 	QAction *action = (QAction *)obs_frontend_add_tools_menu_qaction(
 		"Elgato Marketplace");

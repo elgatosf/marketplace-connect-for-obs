@@ -38,10 +38,10 @@ OBS_MODULE_USE_DEFAULT_LOCALE(PLUGIN_NAME, "en-US")
 
 namespace elgatocloud {
 extern void InitElgatoCloud(obs_module_t *);
-extern obs_data_t* GetElgatoCloudConfig();
+extern obs_data_t *GetElgatoCloudConfig();
 extern void OpenExportWizard();
 extern void ShutDown();
-}
+} // namespace elgatocloud
 
 void save_pack()
 {
@@ -53,12 +53,13 @@ void export_collection(void *)
 	save_pack();
 }
 
-void import_collection(void*)
+void import_collection(void *)
 {
 	const auto mainWindow =
-		static_cast<QMainWindow*>(obs_frontend_get_main_window());
-	QString fileName = QFileDialog::getOpenFileName(mainWindow,
-		"Select Bundle", "", "Deeplink File (*.elgatoscene)");
+		static_cast<QMainWindow *>(obs_frontend_get_main_window());
+	QString fileName =
+		QFileDialog::getOpenFileName(mainWindow, "Select Bundle", "",
+					     "Deeplink File (*.elgatoscene)");
 	if (fileName.size() == 0) {
 		return;
 	}
@@ -76,9 +77,9 @@ bool obs_module_load(void)
 	obs_data_release(config);
 	if (makerTools) {
 		obs_frontend_add_tools_menu_item("Export Marketplace Scene",
-			export_collection, NULL);
+						 export_collection, NULL);
 		obs_frontend_add_tools_menu_item("Import Marketplace Scene",
-			import_collection, NULL);
+						 import_collection, NULL);
 	}
 	return true;
 }

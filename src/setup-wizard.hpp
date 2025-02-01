@@ -48,7 +48,6 @@ namespace elgatocloud {
 class ElgatoProduct;
 class ElgatoCloudWindow;
 
-
 enum class InstallTypes {
 	Unset,
 	NewCollection,
@@ -153,7 +152,7 @@ public:
 	static void DefaultAudioUpdated(void *data, calldata_t *params);
 
 private:
-	void _setupTempSources(obs_data_t* audioSettings);
+	void _setupTempSources(obs_data_t *audioSettings);
 	SimpleVolumeMeter *_levelsWidget = nullptr;
 	obs_source_t *_audioCaptureSource = nullptr;
 	obs_volmeter_t *_volmeter = nullptr;
@@ -168,10 +167,10 @@ signals:
 class Loading : public QWidget {
 	Q_OBJECT
 public:
-	Loading(QWidget* parent);
+	Loading(QWidget *parent);
 
 private:
-	QMovie* _indicator;
+	QMovie *_indicator;
 };
 
 class StreamPackageSetupWizard : public QDialog {
@@ -199,7 +198,7 @@ private:
 	QStackedWidget *_steps;
 	Setup _setup;
 	std::vector<obs_weak_source_t *> _toEnable;
-	VideoSetup* _vSetup;
+	VideoSetup *_vSetup;
 
 	QFuture<void> _future;
 };

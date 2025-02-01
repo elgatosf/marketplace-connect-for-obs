@@ -20,7 +20,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <vector>
 #include <obs-module.h>
 #include "obs-frontend-api.h"
-#include "plugin-support.h"
+#include <plugin-support.h>
 #include <util/platform.h>
 #include <nlohmann/json.hpp>
 
@@ -209,7 +209,8 @@ bool listen_on_pipe(const std::string &pipe_name,
 		std::string buffer;
 
 		if (connected) {
-			obs_log(LOG_INFO, "Connected to %s", attempt_name.c_str());
+			obs_log(LOG_INFO, "Connected to %s",
+				attempt_name.c_str());
 			while (true) {
 				buffer.resize(2048);
 				DWORD read_count = 0;

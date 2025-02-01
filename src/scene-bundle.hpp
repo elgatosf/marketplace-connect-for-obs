@@ -81,8 +81,10 @@ public:
 
 	std::vector<std::string> FileList();
 	std::map<std::string, std::string> VideoCaptureDevices();
-	static void SceneCollectionCreated(enum obs_frontend_event event, void* obj);
-	static void SceneCollectionChanged(enum obs_frontend_event event, void* obj);
+	static void SceneCollectionCreated(enum obs_frontend_event event,
+					   void *obj);
+	static void SceneCollectionChanged(enum obs_frontend_event event,
+					   void *obj);
 
 private:
 	void _ProcessJsonObj(nlohmann::json &obj);

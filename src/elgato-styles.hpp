@@ -40,7 +40,6 @@ inline const QString EListStyle = "QListWidget {"
 				  "border: none;"
 				  "}";
 
-
 inline const QString EMissingPluginsStyle = "QListWidget {"
 					    "border: none;"
 					    "background: #151515;"
@@ -87,19 +86,19 @@ inline const QString EPushButtonDarkStyle = "QPushButton {"
 					    "}";
 
 inline const QString EPushButtonCancelStyle = "QPushButton {"
-					    "font-size: 12pt;"
-					    "padding: 8px 36px 8px 36px;"
-					    "background-color: #414141;"
-					    "border-radius: 8px;"
-					    "border: none;"
-					    "}"
-					    "QPushButton:hover {"
-					    "background-color: #193ed4;"
-					    "}"
-					    "QPushButton:disabled {"
-					    "background-color: #1c1c1c;"
-					    "border: none;"
-	"}";
+					      "font-size: 12pt;"
+					      "padding: 8px 36px 8px 36px;"
+					      "background-color: #414141;"
+					      "border-radius: 8px;"
+					      "border: none;"
+					      "}"
+					      "QPushButton:hover {"
+					      "background-color: #193ed4;"
+					      "}"
+					      "QPushButton:disabled {"
+					      "background-color: #1c1c1c;"
+					      "border: none;"
+					      "}";
 
 inline const QString ELineEditStyle = "QLineEdit {"
 				      "background-color: #151515;"
@@ -169,13 +168,13 @@ inline const QString EComboBoxStyle = "QComboBox {"
 				      "}";
 
 inline const QString EComboBoxStyleLight = "QComboBox {"
-				      "background-color: #FFFFFF;"
-				      "color: #444444;"
-				      "border: none;"
-				      "padding: 12px;"
-				      "font-size: 11pt;"
-				      "border-radius: 8px;"
-				      "}";
+					   "background-color: #FFFFFF;"
+					   "color: #444444;"
+					   "border: none;"
+					   "padding: 12px;"
+					   "font-size: 11pt;"
+					   "border-radius: 8px;"
+					   "}";
 
 inline const QString EIconButtonStyle = "QPushButton {"
 					"background: transparent;"
@@ -227,7 +226,7 @@ inline const QString EIconHoverDisabledButtonStyle =
 	"margin: 0px;"
 	"border-image: url('${img}');"
 	"}"
-	
+
 	"QPushButton:hover {"
 	"border-image: url('${hover-img}');"
 	"}"

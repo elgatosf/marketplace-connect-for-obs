@@ -24,7 +24,8 @@
 bool QTToGSWindow(QWindow *window, gs_window &gswindow);
 void GetScaleAndCenterPos(int baseCX, int baseCY, int windowCX, int windowCY,
 			  int &x, int &y, float &scale);
-bool GetFileSafeName(const char* name, std::string& file);
-bool GetClosestUnusedFileName(std::string& path, const char* extension);
+bool GetFileSafeName(const char *name, std::string &file);
+bool GetClosestUnusedFileName(std::string &path, const char *extension);
 std::vector<std::string> GetSceneCollectionNames();
-config_t* GetUserConfig();
+config_t *GetUserConfig();
+std::string GetDataPath();

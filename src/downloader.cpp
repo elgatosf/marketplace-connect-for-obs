@@ -19,7 +19,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include "downloader.h"
 #include "platform.h"
 #include "util.h"
-#include "plugin-support.h"
+#include <plugin-support.h>
 #include "elgato-product.hpp"
 #include <cstring>
 #include <curl/curl.h>
@@ -226,7 +226,7 @@ void Downloader::DownloadEntry::Finish()
 			fileName = random_name();
 		}
 		std::string target = targetDirectory + fileName;
-		char* absPath = os_get_abs_path_ptr(target.c_str());
+		char *absPath = os_get_abs_path_ptr(target.c_str());
 		target = std::string(absPath, strlen(absPath));
 		bfree(absPath);
 
@@ -234,9 +234,8 @@ void Downloader::DownloadEntry::Finish()
 		//tmpTargetName = std::string(absPath, strlen(absPath));
 		//bfree(absPath);
 
-		parent->moveRequests.push_back({tmpTargetName,
-						target.c_str(),
-						callbackData});
+		parent->moveRequests.push_back(
+			{tmpTargetName, target.c_str(), callbackData});
 	}
 	if (progressCallback) {
 		progressCallback(callbackData, true, false, fileSize, 0,
@@ -393,7 +392,8 @@ void Downloader::workerJob()
 					QCoreApplication::instance()->thread(),
 					[file, mr]() {
 						elgatocloud::ElgatoProduct::
-							Install(file, mr.data, true);
+							Install(file, mr.data,
+								true);
 					});
 			} else {
 				// We are downloading a thumbnail.

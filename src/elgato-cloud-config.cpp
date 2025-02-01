@@ -24,7 +24,8 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include "elgato-widgets.hpp"
 #include "elgato-cloud-config.hpp"
 #include "elgato-cloud-data.hpp"
-#include "plugin-support.h"
+#include "util.h"
+#include <plugin-support.h>
 #include "obs-utils.hpp"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -43,22 +44,20 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 
 namespace elgatocloud {
 
-DefaultAVWidget* AVWIDGET = nullptr;
-ElgatoCloudConfig* configWindow = nullptr;
+DefaultAVWidget *AVWIDGET = nullptr;
+ElgatoCloudConfig *configWindow = nullptr;
 
-DefaultAVWidget::DefaultAVWidget(QWidget* parent)
-	: QWidget(parent)
+DefaultAVWidget::DefaultAVWidget(QWidget *parent) : QWidget(parent)
 {
 	AVWIDGET = this;
-	std::string imageBaseDir =
-		obs_get_module_data_path(obs_current_module());
+	std::string imageBaseDir = GetDataPath();
 	imageBaseDir += "/images/";
 
 	auto layout = new QHBoxLayout();
 
 	auto dropDowns = new QVBoxLayout();
-	
-	auto videoSourceLabel = new QLabel("Default Video Device" ,this);
+
+	auto videoSourceLabel = new QLabel("Default Video Device", this);
 	videoSourceLabel->setStyleSheet("font-size: 12pt;");
 
 	auto audioSourceLabel = new QLabel("Default Audio Device", this);
@@ -87,11 +86,14 @@ DefaultAVWidget::DefaultAVWidget(QWidget* parent)
 	_settingsButton = new QPushButton(this);
 	std::string settingsIconPath = imageBaseDir + "settings.svg";
 	std::string settingsIconHoverPath = imageBaseDir + "settings_hover.svg";
-	std::string settingsIconDisabledPath = imageBaseDir + "settings_disabled.svg";
+	std::string settingsIconDisabledPath =
+		imageBaseDir + "settings_disabled.svg";
 	QString settingsButtonStyle = EIconHoverDisabledButtonStyle;
 	settingsButtonStyle.replace("${img}", settingsIconPath.c_str());
-	settingsButtonStyle.replace("${hover-img}", settingsIconHoverPath.c_str());
-	settingsButtonStyle.replace("${disabled-img}", settingsIconDisabledPath.c_str());
+	settingsButtonStyle.replace("${hover-img}",
+				    settingsIconHoverPath.c_str());
+	settingsButtonStyle.replace("${disabled-img}",
+				    settingsIconDisabledPath.c_str());
 	_settingsButton->setFixedSize(24, 24);
 	_settingsButton->setMaximumHeight(24);
 	_settingsButton->setStyleSheet(settingsButtonStyle);
@@ -102,7 +104,8 @@ DefaultAVWidget::DefaultAVWidget(QWidget* parent)
 	});
 	vsLayout->addWidget(_settingsButton);
 	videoSettings->setLayout(vsLayout);
-	videoSettings->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
+	videoSettings->setSizePolicy(QSizePolicy::Preferred,
+				     QSizePolicy::Preferred);
 	dropDowns->addWidget(videoSourceLabel);
 	dropDowns->addWidget(videoSettings);
 	dropDowns->addWidget(audioSourceLabel);
@@ -119,14 +122,13 @@ DefaultAVWidget::DefaultAVWidget(QWidget* parent)
 	// Get settings
 	auto config = elgatoCloud->GetConfig();
 
-	std::string audioSettingsJson = obs_data_get_string(
-		config, "DefaultAudioCaptureSettings");
+	std::string audioSettingsJson =
+		obs_data_get_string(config, "DefaultAudioCaptureSettings");
 
-	obs_data_t* audioSettings =
+	obs_data_t *audioSettings =
 		audioSettingsJson != ""
-		? obs_data_create_from_json(audioSettingsJson.c_str())
-		: nullptr;
-
+			? obs_data_create_from_json(audioSettingsJson.c_str())
+			: nullptr;
 
 	_audioCaptureSource = nullptr;
 	_setupTempAudioSource(audioSettings);
@@ -134,33 +136,31 @@ DefaultAVWidget::DefaultAVWidget(QWidget* parent)
 
 	obs_data_release(audioSettings);
 
-	connect(_audioSources, &QComboBox::currentIndexChanged, this,
-		[this](int index) {
-			obs_data_t* aSettings =
-				obs_source_get_settings(_audioCaptureSource);
-			std::string id = _audioSourceIds[index];
-			obs_data_set_string(aSettings, "device_id", id.c_str());
+	connect(_audioSources, &QComboBox::currentIndexChanged, this, [this](int index) {
+		obs_data_t *aSettings =
+			obs_source_get_settings(_audioCaptureSource);
+		std::string id = _audioSourceIds[index];
+		obs_data_set_string(aSettings, "device_id", id.c_str());
 
-			if (_volmeter) {
-				obs_volmeter_remove_callback(_volmeter,
-					DefaultAVWidget::OBSVolumeLevel, this);
-				obs_volmeter_destroy(_volmeter);
-				_volmeter = nullptr;
-			}
+		if (_volmeter) {
+			obs_volmeter_remove_callback(
+				_volmeter, DefaultAVWidget::OBSVolumeLevel,
+				this);
+			obs_volmeter_destroy(_volmeter);
+			_volmeter = nullptr;
+		}
 
-			// For some reason, we need to completely deconstruct the temporary
-			// audio capture source in order to connect the new device vol meter
-			// to the volume meter in the UI. It should be possible to inject
-			// the newly selected device, and re-connect the _volmeter callbacks
-			_setupTempAudioSource(aSettings);
-			obs_data_release(aSettings);
-			SetupVolMeter();
-		});
-
+		// For some reason, we need to completely deconstruct the temporary
+		// audio capture source in order to connect the new device vol meter
+		// to the volume meter in the UI. It should be possible to inject
+		// the newly selected device, and re-connect the _volmeter callbacks
+		_setupTempAudioSource(aSettings);
+		obs_data_release(aSettings);
+		SetupVolMeter();
+	});
 
 	dropDowns->addStretch();
 
-	
 	//avSettings->addWidget(_videoPreview);
 	_stack = new QStackedWidget(this);
 	_stack->setFixedSize(300, 150);
@@ -172,13 +172,13 @@ DefaultAVWidget::DefaultAVWidget(QWidget* parent)
 
 	setLayout(layout);
 
-	std::string videoSettingsJson = obs_data_get_string(
-		config, "DefaultVideoCaptureSettings");
+	std::string videoSettingsJson =
+		obs_data_get_string(config, "DefaultVideoCaptureSettings");
 
-	obs_data_t* videoData =
+	obs_data_t *videoData =
 		videoSettingsJson != ""
-		? obs_data_create_from_json(videoSettingsJson.c_str())
-		: nullptr;
+			? obs_data_create_from_json(videoSettingsJson.c_str())
+			: nullptr;
 
 	_setupTempVideoSource(videoData);
 
@@ -195,27 +195,25 @@ DefaultAVWidget::DefaultAVWidget(QWidget* parent)
 	obs_data_release(videoData);
 	obs_data_release(config);
 
-
 	connect(_videoSources, &QComboBox::currentIndexChanged, this,
 		[this](int index) {
 			if (index > 0) {
 				_settingsButton->setDisabled(false);
 				auto vSettings = obs_data_create();
 				std::string id = _videoSourceIds[index];
-				obs_data_set_string(vSettings, "video_device_id",
-					id.c_str());
+				obs_data_set_string(vSettings,
+						    "video_device_id",
+						    id.c_str());
 				obs_source_reset_settings(_videoCaptureSource,
-					vSettings);
+							  vSettings);
 				obs_data_release(vSettings);
 				_noneSelected = false;
 				_stack->setCurrentIndex(1);
-			}
-			else {
+			} else {
 				_settingsButton->setDisabled(true);
 				_noneSelected = true;
 				_stack->setCurrentIndex(0);
 			}
-
 		});
 }
 
@@ -233,9 +231,9 @@ DefaultAVWidget::~DefaultAVWidget()
 		obs_source_remove(_audioCaptureSource);
 		signal_handler_t *audioSigHandler =
 			obs_source_get_signal_handler(_audioCaptureSource);
-		signal_handler_disconnect(
-			audioSigHandler, "update",
-			DefaultAVWidget::DefaultAudioUpdated, this);
+		signal_handler_disconnect(audioSigHandler, "update",
+					  DefaultAVWidget::DefaultAudioUpdated,
+					  this);
 	}
 	if (_videoCaptureSource) {
 		obs_source_release(_videoCaptureSource);
@@ -244,35 +242,38 @@ DefaultAVWidget::~DefaultAVWidget()
 	_levelsWidget = nullptr;
 }
 
-void DefaultAVWidget::_setupTempAudioSource(obs_data_t* audioSettings)
+void DefaultAVWidget::_setupTempAudioSource(obs_data_t *audioSettings)
 {
 	if (_audioCaptureSource) {
 		obs_source_release(_audioCaptureSource);
 		obs_source_remove(_audioCaptureSource);
 	}
 
-	const char* audioSourceId = "wasapi_input_capture";
-	const char* aId = obs_get_latest_input_type_id(audioSourceId);
+	const char *audioSourceId = "wasapi_input_capture";
+	const char *aId = obs_get_latest_input_type_id(audioSourceId);
 	_audioCaptureSource = obs_source_create_private(
 		aId, "elgato-cloud-audio-config", audioSettings);
 
-	obs_properties_t* aProps = obs_source_properties(_audioCaptureSource);
-	obs_property_t* aDevices = obs_properties_get(aProps, "device_id");
+	obs_properties_t *aProps = obs_source_properties(_audioCaptureSource);
+	obs_property_t *aDevices = obs_properties_get(aProps, "device_id");
 	if (_audioSourceIds.size() == 0) {
-		for (size_t i = 0; i < obs_property_list_item_count(aDevices); i++) {
-			std::string name = obs_property_list_item_name(aDevices, i);
-			std::string id = obs_property_list_item_string(aDevices, i);
+		for (size_t i = 0; i < obs_property_list_item_count(aDevices);
+		     i++) {
+			std::string name =
+				obs_property_list_item_name(aDevices, i);
+			std::string id =
+				obs_property_list_item_string(aDevices, i);
 			_audioSourceIds.push_back(id);
 			_audioSources->addItem(name.c_str());
 		}
 	}
 	obs_properties_destroy(aProps);
 
-	obs_data_t* aSettings = obs_source_get_settings(_audioCaptureSource);
+	obs_data_t *aSettings = obs_source_get_settings(_audioCaptureSource);
 	std::string aDevice = obs_data_get_string(aSettings, "device_id");
 	if (aDevice != "") {
 		auto it = std::find(_audioSourceIds.begin(),
-			_audioSourceIds.end(), aDevice);
+				    _audioSourceIds.end(), aDevice);
 		if (it != _audioSourceIds.end()) {
 			_audioSources->setCurrentIndex(
 				static_cast<int>(it - _audioSourceIds.begin()));
@@ -293,10 +294,10 @@ void DefaultAVWidget::save()
 	if (!_noneSelected) {
 		auto vSettings = obs_source_get_settings(_videoCaptureSource);
 		auto vDataStr = obs_data_get_json(vSettings);
-		obs_data_set_string(config, "DefaultVideoCaptureSettings", vDataStr);
+		obs_data_set_string(config, "DefaultVideoCaptureSettings",
+				    vDataStr);
 		obs_data_release(vSettings);
-	}
-	else {
+	} else {
 		obs_data_set_string(config, "DefaultVideoCaptureSettings", "");
 	}
 	obs_data_release(settings);
@@ -314,13 +315,14 @@ void DefaultAVWidget::SetupVolMeter()
 	//}
 	_volmeter = obs_volmeter_create(OBS_FADER_LOG);
 	obs_volmeter_attach_source(_volmeter, _audioCaptureSource);
-	obs_volmeter_add_callback(_volmeter, DefaultAVWidget::OBSVolumeLevel, this);
+	obs_volmeter_add_callback(_volmeter, DefaultAVWidget::OBSVolumeLevel,
+				  this);
 }
 
-void DefaultAVWidget::DefaultAudioUpdated(void* data, calldata_t* params)
+void DefaultAVWidget::DefaultAudioUpdated(void *data, calldata_t *params)
 {
 	UNUSED_PARAMETER(params);
-	auto config = static_cast<DefaultAVWidget*>(data);
+	auto config = static_cast<DefaultAVWidget *>(data);
 	config->SetupVolMeter();
 }
 
@@ -330,8 +332,8 @@ void DefaultAVWidget::OpenConfigAudioSource()
 		return;
 	}
 	obs_frontend_open_source_properties(_audioCaptureSource);
-	obs_properties_t* props = obs_source_properties(_audioCaptureSource);
-	obs_property_t* devices = obs_properties_get(props, "device_id");
+	obs_properties_t *props = obs_source_properties(_audioCaptureSource);
+	obs_property_t *devices = obs_properties_get(props, "device_id");
 	for (size_t i = 0; i < obs_property_list_item_count(devices); i++) {
 		std::string name = obs_property_list_item_name(devices, i);
 		std::string id = obs_property_list_item_string(devices, i);
@@ -340,38 +342,38 @@ void DefaultAVWidget::OpenConfigAudioSource()
 	obs_properties_destroy(props);
 }
 
-void DefaultAVWidget::OBSVolumeLevel(void* data,
-	const float magnitude[MAX_AUDIO_CHANNELS],
-	const float peak[MAX_AUDIO_CHANNELS],
-	const float inputPeak[MAX_AUDIO_CHANNELS])
+void DefaultAVWidget::OBSVolumeLevel(void *data,
+				     const float magnitude[MAX_AUDIO_CHANNELS],
+				     const float peak[MAX_AUDIO_CHANNELS],
+				     const float inputPeak[MAX_AUDIO_CHANNELS])
 {
 	UNUSED_PARAMETER(peak);
 	UNUSED_PARAMETER(inputPeak);
 	//obs_log(LOG_INFO, "OBS Volume Level");
-	auto config = static_cast<DefaultAVWidget*>(data);
+	auto config = static_cast<DefaultAVWidget *>(data);
 	float mag = magnitude[0];
 	float pk = peak[0];
 	float ip = inputPeak[0];
 	config->_levelsWidget->setLevel(mag, pk, ip);
 	QMetaObject::invokeMethod(QCoreApplication::instance()->thread(),
-		[config]() {
-			// TODO: Use proper signals to stop this update from occuring.
-			if (!AVWIDGET) {
-				return;
-			}
-			config->_levelsWidget->update();
-		});
+				  [config]() {
+					  // TODO: Use proper signals to stop this update from occuring.
+					  if (!AVWIDGET) {
+						  return;
+					  }
+					  config->_levelsWidget->update();
+				  });
 }
 
-void DefaultAVWidget::_setupTempVideoSource(obs_data_t* videoSettings)
+void DefaultAVWidget::_setupTempVideoSource(obs_data_t *videoSettings)
 {
-	const char* videoSourceId = "dshow_input";
-	const char* vId = obs_get_latest_input_type_id(videoSourceId);
+	const char *videoSourceId = "dshow_input";
+	const char *vId = obs_get_latest_input_type_id(videoSourceId);
 	_videoCaptureSource = obs_source_create_private(
 		vId, "elgato-cloud-video-config", videoSettings);
 
-	obs_properties_t* vProps = obs_source_properties(_videoCaptureSource);
-	obs_property_t* vDevices =
+	obs_properties_t *vProps = obs_source_properties(_videoCaptureSource);
+	obs_property_t *vDevices =
 		obs_properties_get(vProps, "video_device_id");
 	_videoSources->addItem("None");
 	_videoSourceIds.push_back("NONE");
@@ -383,11 +385,11 @@ void DefaultAVWidget::_setupTempVideoSource(obs_data_t* videoSettings)
 	}
 	obs_properties_destroy(vProps);
 
-	obs_data_t* vSettings = obs_source_get_settings(_videoCaptureSource);
+	obs_data_t *vSettings = obs_source_get_settings(_videoCaptureSource);
 	std::string vDevice = obs_data_get_string(vSettings, "video_device_id");
 	if (vDevice != "") {
 		auto it = std::find(_videoSourceIds.begin(),
-			_videoSourceIds.end(), vDevice);
+				    _videoSourceIds.end(), vDevice);
 		if (it != _videoSourceIds.end()) {
 			_videoSources->setCurrentIndex(
 				static_cast<int>(it - _videoSourceIds.begin()));
@@ -396,10 +398,10 @@ void DefaultAVWidget::_setupTempVideoSource(obs_data_t* videoSettings)
 	obs_data_release(vSettings);
 
 	auto addDrawCallback = [this]() {
-		obs_display_add_draw_callback(_videoPreview->GetDisplay(),
-			VideoCaptureSourceSelector::DrawVideoPreview,
-			this);
-		};
+		obs_display_add_draw_callback(
+			_videoPreview->GetDisplay(),
+			VideoCaptureSourceSelector::DrawVideoPreview, this);
+	};
 	connect(_videoPreview, &OBSQTDisplay::DisplayCreated, addDrawCallback);
 }
 
@@ -463,8 +465,7 @@ void SimpleVolumeMeter::paintEvent(QPaintEvent *event)
 ElgatoCloudConfig::ElgatoCloudConfig(QWidget *parent) : QDialog(parent)
 {
 	configWindow = this;
-	std::string imageBaseDir =
-		obs_get_module_data_path(obs_current_module());
+	std::string imageBaseDir = GetDataPath();
 	imageBaseDir += "/images/";
 
 	setFixedSize(QSize(680, 500));
@@ -492,32 +493,38 @@ ElgatoCloudConfig::ElgatoCloudConfig(QWidget *parent) : QDialog(parent)
 	_installDirectory = obs_data_get_string(config, "InstallLocation");
 
 	auto filePicker = new QWidget(this);
-	filePicker->setStyleSheet("QWidget {background-color: #181818; border-radius: 8px; margin: 0px 8px 0px 8px; padding: 0px 16px 0px 0px;}");
+	filePicker->setStyleSheet(
+		"QWidget {background-color: #181818; border-radius: 8px; margin: 0px 8px 0px 8px; padding: 0px 16px 0px 0px;}");
 	auto fpLayout = new QHBoxLayout();
 	fpLayout->setSpacing(0);
 	fpLayout->setContentsMargins(0, 0, 0, 0);
 	auto directory = new QLabel(_installDirectory.c_str(), filePicker);
 	directory->setFixedHeight(40);
-	directory->setStyleSheet("QLabel {color: #FFFFFF; padding: 0px 16px 0px 16px; font-size: 11pt;}");
+	directory->setStyleSheet(
+		"QLabel {color: #FFFFFF; padding: 0px 16px 0px 16px; font-size: 11pt;}");
 	directory->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 
 	auto directoryPick = new QPushButton(filePicker);
 	directoryPick->setFixedHeight(24);
 	directoryPick->setFixedWidth(40);
 
-	connect(directoryPick, &QPushButton::released, this, [this, directory]() {
-		QFileDialog* dialog = new QFileDialog(this, "Install Directory", _installDirectory.c_str());
-		dialog->setFileMode(QFileDialog::Directory);
-		//dialog->setAttribute(Qt::WA_DeleteOnClose);
-		if (dialog->exec()) {
-			auto files = dialog->selectedFiles();
-			_installDirectory = files[0].toStdString();
-			directory->setText(_installDirectory.c_str());
-		}
-	});
+	connect(directoryPick, &QPushButton::released, this,
+		[this, directory]() {
+			QFileDialog *dialog =
+				new QFileDialog(this, "Install Directory",
+						_installDirectory.c_str());
+			dialog->setFileMode(QFileDialog::Directory);
+			//dialog->setAttribute(Qt::WA_DeleteOnClose);
+			if (dialog->exec()) {
+				auto files = dialog->selectedFiles();
+				_installDirectory = files[0].toStdString();
+				directory->setText(_installDirectory.c_str());
+			}
+		});
 
 	std::string openIconPath = imageBaseDir + "open-file-picker.svg";
-	std::string openIconHoverPath = imageBaseDir + "open-file-picker_hover.svg";
+	std::string openIconHoverPath =
+		imageBaseDir + "open-file-picker_hover.svg";
 
 	QString buttonStyle = EInlineIconHoverButtonStyle;
 	buttonStyle.replace("${img}", openIconPath.c_str());
@@ -547,17 +554,17 @@ ElgatoCloudConfig::ElgatoCloudConfig(QWidget *parent) : QDialog(parent)
 	layout->addStretch();
 
 	std::string version = "v";
-	version += PLUGIN_VERSION;
+	version += versionNoBuild() + releaseType() + " (build " + buildNumber() +")";
 	auto versionLabel = new QLabel(version.c_str(), this);
 	layout->addWidget(versionLabel);
 
 	auto buttons = new QHBoxLayout();
-	
-	QPushButton* cancelButton = new QPushButton(this);
+
+	QPushButton *cancelButton = new QPushButton(this);
 	cancelButton->setText("Cancel");
 	cancelButton->setStyleSheet(EPushButtonCancelStyle);
 
-	QPushButton* saveButton = new QPushButton(this);
+	QPushButton *saveButton = new QPushButton(this);
 	saveButton->setText("Save");
 	saveButton->setStyleSheet(EPushButtonStyle);
 
@@ -566,15 +573,16 @@ ElgatoCloudConfig::ElgatoCloudConfig(QWidget *parent) : QDialog(parent)
 	buttons->addWidget(saveButton);
 	connect(saveButton, &QPushButton::released, this, [this]() {
 		auto config = elgatoCloud->GetConfig();
-		obs_data_set_string(config, "InstallLocation", _installDirectory.c_str());
-		obs_data_set_bool(config, "MakerTools", _makerCheckbox->isChecked());
+		obs_data_set_string(config, "InstallLocation",
+				    _installDirectory.c_str());
+		obs_data_set_bool(config, "MakerTools",
+				  _makerCheckbox->isChecked());
 		obs_data_release(config);
 		_save();
 		close();
 	});
-	connect(cancelButton, &QPushButton::released, this, [this]() {
-		close();
-	});
+	connect(cancelButton, &QPushButton::released, this,
+		[this]() { close(); });
 
 	layout->addLayout(buttons);
 	setStyleSheet("background-color: #232323");
@@ -685,14 +693,13 @@ ElgatoCloudConfig::~ElgatoCloudConfig()
 	configWindow = nullptr;
 }
 
-ElgatoCloudConfig* openConfigWindow(QWidget* parent)
+ElgatoCloudConfig *openConfigWindow(QWidget *parent)
 {
-	ElgatoCloudConfig* window = nullptr;
+	ElgatoCloudConfig *window = nullptr;
 	if (configWindow == nullptr) {
 		window = new ElgatoCloudConfig(parent);
 		window->show();
-	}
-	else {
+	} else {
 		window = configWindow;
 	}
 	window->raise();

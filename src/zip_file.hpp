@@ -7296,8 +7296,7 @@ public:
 		auto target = std::filesystem::path(wfile).parent_path();
 		if (!std::filesystem::exists(target))
 			std::filesystem::create_directories(target);
-		std::fstream stream(wfile,
-				    std::ios::binary | std::ios::out);
+		std::fstream stream(wfile, std::ios::binary | std::ios::out);
 		stream << open(member).rdbuf();
 	}
 

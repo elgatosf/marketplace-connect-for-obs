@@ -34,9 +34,11 @@ class PluginInfo {
 public:
 	PluginInfo();
 	~PluginInfo();
-	static void addModule(void* param, obs_module_t* module);
+	static void addModule(void *param, obs_module_t *module);
 	std::vector<PluginDetails> installed() const;
-	std::vector<PluginDetails> missing(std::vector<std::string> required) const;
+	std::vector<PluginDetails>
+	missing(std::vector<std::string> required) const;
+
 private:
 	void _loadInstalled();
 	void _loadApproved();

@@ -70,7 +70,8 @@ int main(int argc, char *argv[]) {
 		printf("Try create %ls with %ls\n", launch_path.c_str(),
 			    wd.c_str());
 
-		CreateProcessW(launch_path.c_str(), L"", NULL, NULL, FALSE, 0, NULL, wd.c_str(), &si, &pi);
+		WCHAR lpCommandLine[] = L"";
+		CreateProcessW(launch_path.c_str(), lpCommandLine, NULL, NULL, FALSE, 0, NULL, wd.c_str(), &si, &pi);
 
 		CloseHandle(pi.hProcess);
 		CloseHandle(pi.hThread);
