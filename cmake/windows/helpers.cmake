@@ -24,13 +24,13 @@ function(set_target_properties_plugin target)
 
   install(
     TARGETS ${target}
-    RUNTIME DESTINATION "${target}/bin/64bit"
-    LIBRARY DESTINATION "${target}/bin/64bit")
+    RUNTIME DESTINATION "${target}/obs-plugins/64bit"
+    LIBRARY DESTINATION "${target}/obs-plugins/64bit")
 
   install(
     FILES "$<TARGET_PDB_FILE:${target}>"
     CONFIGURATIONS RelWithDebInfo Debug Release
-    DESTINATION "${target}/bin/64bit"
+    DESTINATION "${target}/obs-plugins/64bit"
     OPTIONAL)
 
   if(TARGET plugin-support)
@@ -77,7 +77,7 @@ function(target_install_resources target)
 
     install(
       DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/data/"
-      DESTINATION "${target}/data"
+      DESTINATION "${target}/data/obs-plugins/${CMAKE_PROJECT_NAME}"
       USE_SOURCE_PERMISSIONS)
 
     add_custom_command(
@@ -97,7 +97,7 @@ function(target_add_resource target resource)
 
   install(
     FILES "${resource}"
-    DESTINATION "${target}/data"
+    DESTINATION "${target}/data/obs-plugins/${CMAKE_PROJECT_NAME}"
     COMPONENT Runtime)
 
   add_custom_command(
