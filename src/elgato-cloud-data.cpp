@@ -201,6 +201,9 @@ void ElgatoCloud::_Listen()
 void ElgatoCloud::_Initialize()
 {
 	_config = get_module_config();
+	bool makerTools = obs_data_get_bool(_config, "MakerTools");
+	_makerToolsOnStart = makerTools;
+
 	_GetSavedState();
 
 	const auto now = std::chrono::system_clock::now();
@@ -277,8 +280,9 @@ void ElgatoCloud::LoadPurchasedProducts()
 	auto api = MarketplaceApi::getInstance();
 	std::string api_url = api->gatewayUrl();
 	api_url +=
-		"/my-products?extension=scene-collections&offset=0&limit=100";
+		"/my-products?extension=overlays&offset=0&limit=100";
 	auto productsResponse = fetch_string_from_get(api_url, _accessToken);
+	obs_log(LOG_INFO, "url: %s", api_url.c_str());
 	obs_log(LOG_INFO, "Products: %s", productsResponse.c_str());
 	products.clear();
 	try {
