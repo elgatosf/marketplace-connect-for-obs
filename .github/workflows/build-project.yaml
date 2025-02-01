@@ -246,6 +246,12 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
+      - name: Update Build Number ⬆️
+        run: |
+          $BuildSpec = Get-Content -Path buildspec.json -Raw | ConvertFrom-Json
+          $BuildSpec.buildNumber = ${{ github.run_number }}
+          $BuildSpec | ConvertTo-Json -depth 32|  set-content -Path buildspec.json
+
       - name: Set Up Environment 🔧
         id: setup
         run: |
