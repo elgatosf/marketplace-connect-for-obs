@@ -93,9 +93,10 @@ bool ElgatoProduct::DownloadProduct()
 	if (dlData.contains("error")) {
 		// Pop up a modal telling the user the download couldn't happen.
 		QMessageBox msgBox;
-		msgBox.setText("Network Connection Error");
+		msgBox.setText(
+			obs_module_text("MarketplaceWindow.DownloadProduct.NetworkError.Title"));
 		msgBox.setInformativeText(
-			"Could not connect to the Marketplace. Please try again.");
+			obs_module_text("MarketplaceWindow.DownloadProduct.NetworkError.Subtitle"));
 		msgBox.exec();
 		return false;
 	}
@@ -109,8 +110,10 @@ bool ElgatoProduct::DownloadProduct()
 			_productItem->resetDownload();
 		}
 		QMessageBox msgBox;
-		msgBox.setText("Invalid File Type");
-		msgBox.setInformativeText("File is not an .elgatoscene file.");
+		msgBox.setText(
+			obs_module_text("MarketplaceWindow.DownloadProduct.InvalidFiletype.Title"));
+		msgBox.setInformativeText(
+			obs_module_text("MarketplaceWindow.DownloadProduct.InvalidFiletype.Subtitle"));
 		msgBox.exec();
 		return false;
 	}
@@ -119,8 +122,6 @@ bool ElgatoProduct::DownloadProduct()
 	savePath += "/AppData/Local/Elgato/DeepLinking/Downloads/";
 	os_mkdirs(savePath.c_str());
 
-	obs_log(LOG_INFO, "Saving to: %s", savePath.c_str());
-
 	std::shared_ptr<Downloader> dl = Downloader::getInstance("");
 	dl->Enqueue(url, savePath, ElgatoProduct::DownloadProgress, this);
 	return true;
@@ -128,12 +129,8 @@ bool ElgatoProduct::DownloadProduct()
 
 void ElgatoProduct::_downloadThumbnail()
 {
-	obs_log(LOG_INFO, "Downloading thumbnail: %s", thumbnailUrl.c_str());
 	std::string savePath = QDir::homePath().toStdString();
 	savePath += "/AppData/Local/Elgato/DeepLinking/Thumbnails/";
-
-	obs_log(LOG_INFO, "Saving to: %s", savePath.c_str());
-
 	std::shared_ptr<Downloader> dl = Downloader::getInstance("");
 	dl->Enqueue(thumbnailUrl, savePath, ElgatoProduct::ThumbnailProgress,
 		    this);
@@ -144,14 +141,11 @@ void ElgatoProduct::ThumbnailProgress(void *ptr, bool finished,
 				      uint64_t chunkSize, uint64_t downloaded)
 {
 	UNUSED_PARAMETER(ptr);
+	UNUSED_PARAMETER(finished);
 	UNUSED_PARAMETER(downloading);
 	UNUSED_PARAMETER(fileSize);
 	UNUSED_PARAMETER(chunkSize);
 	UNUSED_PARAMETER(downloaded);
-	if (finished) {
-		obs_log(LOG_INFO, "FINISHED DOWNLOADING THUMBNAIL!");
-		obs_log(LOG_INFO, "address: %i", reinterpret_cast<size_t>(ptr));
-	}
 }
 
 void ElgatoProduct::DownloadProgress(void *ptr, bool finished, bool downloading,
@@ -181,8 +175,6 @@ void ElgatoProduct::SetThumbnail(std::string filename, void *data)
 			QCoreApplication::instance()->thread(),
 			[ep]() { ep->_productItem->updateImage(); });
 	}
-	obs_log(LOG_INFO, "Thumbnail downloaded, %s", filename.c_str());
-	obs_log(LOG_INFO, "data: %i", reinterpret_cast<std::size_t>(data));
 }
 
 void ElgatoProduct::Install(std::string filename_utf8, void *data,
@@ -198,7 +190,6 @@ void ElgatoProduct::Install(std::string filename_utf8, void *data,
 	}
 	const QRect &hostRect = mainWindow->geometry();
 	if (GetSetupWizard()) {
-		obs_log(LOG_INFO, "Setup Wizard already active.");
 		return;
 	}
 	StreamPackageSetupWizard *setupWizard = new StreamPackageSetupWizard(

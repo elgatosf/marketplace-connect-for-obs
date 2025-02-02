@@ -61,26 +61,14 @@ VideoCaptureSourceSelector::VideoCaptureSourceSelector(QWidget *parent,
 	_videoPreview->hide();
 
 	_blank = new QLabel(this);
-	_blank->setText("None Selected");
+	_blank->setText(
+		obs_module_text("MarketplaceWindow.Settings.DefaultVideoDevice.NoneSelected"));
 	_blank->setAlignment(Qt::AlignCenter);
 	_blank->setFixedHeight(144);
 
 	auto videoSettings = new QHBoxLayout(this);
 	videoSettings->addWidget(_videoSources);
 
-	//auto configButton = new QPushButton(this);
-	//std::string settingsIconPath = imageBaseDir + "icon-settings.svg";
-	//QIcon settingsIcon = QIcon();
-	//settingsIcon.addFile(settingsIconPath.c_str(), QSize(), QIcon::Normal,
-	//	QIcon::Off);
-	//configButton->setIcon(settingsIcon);
-	//configButton->setIconSize(QSize(22, 22));
-	//configButton->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
-	//configButton->setStyleSheet(EIconButtonStyle);
-	//connect(configButton, &QPushButton::released, this, [this]() {
-	//	obs_frontend_open_source_properties(_videoCaptureSource);
-	//	});
-	//videoSettings->addWidget(configButton);
 	layout->addWidget(videoDeviceLabel);
 	layout->addLayout(videoSettings);
 	layout->addWidget(_videoPreview);

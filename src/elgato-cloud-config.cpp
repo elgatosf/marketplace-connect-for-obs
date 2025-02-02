@@ -57,10 +57,12 @@ DefaultAVWidget::DefaultAVWidget(QWidget *parent) : QWidget(parent)
 
 	auto dropDowns = new QVBoxLayout();
 
-	auto videoSourceLabel = new QLabel("Default Video Device", this);
+	auto videoSourceLabel = new QLabel(
+		obs_module_text("MarketplaceWindow.Settings.DefaultVideoDevice.Label"), this);
 	videoSourceLabel->setStyleSheet("font-size: 12pt;");
 
-	auto audioSourceLabel = new QLabel("Default Audio Device", this);
+	auto audioSourceLabel = new QLabel(
+		obs_module_text("MarketplaceWindow.Settings.DefaultAudioDevice.Label"), this);
 	audioSourceLabel->setStyleSheet("font-size: 12pt;");
 
 	_videoSources = new QComboBox(this);
@@ -71,7 +73,8 @@ DefaultAVWidget::DefaultAVWidget(QWidget *parent) : QWidget(parent)
 	_videoPreview->hide();
 
 	_blank = new QLabel(this);
-	_blank->setText("None Selected");
+	_blank->setText(
+		obs_module_text("MarketplaceWindow.Settings.DefaultVideoDevice.NoneSelected"));
 	_blank->setAlignment(Qt::AlignCenter);
 	_blank->setFixedHeight(171);
 	_blank->setFixedWidth(304);
@@ -98,7 +101,8 @@ DefaultAVWidget::DefaultAVWidget(QWidget *parent) : QWidget(parent)
 	_settingsButton->setMaximumHeight(24);
 	_settingsButton->setStyleSheet(settingsButtonStyle);
 	_settingsButton->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
-	_settingsButton->setToolTip("Video Capture Device Settings");
+	_settingsButton->setToolTip(
+		obs_module_text("MarketplaceWindow.Settings.DefaultVideoDevice.SettingsButton.Tooltip"));
 	connect(_settingsButton, &QPushButton::released, this, [this]() {
 		obs_frontend_open_source_properties(_videoCaptureSource);
 	});
@@ -306,13 +310,6 @@ void DefaultAVWidget::save()
 
 void DefaultAVWidget::SetupVolMeter()
 {
-	obs_log(LOG_INFO, "SetupVolMeter");
-	//if (_volmeter) {
-	//	obs_volmeter_remove_callback(_volmeter,
-	//				     AudioSetup::OBSVolumeLevel, this);
-	//	obs_volmeter_destroy(_volmeter);
-	//	_volmeter = nullptr;
-	//}
 	_volmeter = obs_volmeter_create(OBS_FADER_LOG);
 	obs_volmeter_attach_source(_volmeter, _audioCaptureSource);
 	obs_volmeter_add_callback(_volmeter, DefaultAVWidget::OBSVolumeLevel,
@@ -337,7 +334,6 @@ void DefaultAVWidget::OpenConfigAudioSource()
 	for (size_t i = 0; i < obs_property_list_item_count(devices); i++) {
 		std::string name = obs_property_list_item_name(devices, i);
 		std::string id = obs_property_list_item_string(devices, i);
-		obs_log(LOG_INFO, "--- MIC: %s [%s]", name.c_str(), id.c_str());
 	}
 	obs_properties_destroy(props);
 }
@@ -474,7 +470,8 @@ ElgatoCloudConfig::ElgatoCloudConfig(QWidget *parent) : QDialog(parent)
 	auto layout = new QVBoxLayout();
 
 	auto title = new QLabel(this);
-	title->setText("Settings");
+	title->setText(
+		obs_module_text("MarketplaceWindow.Settings.Title"));
 	title->setAlignment(Qt::AlignCenter);
 	title->setStyleSheet("QLabel { font-size: 16pt; }");
 	title->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
@@ -486,7 +483,8 @@ ElgatoCloudConfig::ElgatoCloudConfig(QWidget *parent) : QDialog(parent)
 	layout->addWidget(_avWidget);
 
 	// Theme installation location setting
-	auto filePickerLabel = new QLabel("Install Location", this);
+	auto filePickerLabel = new QLabel(
+		obs_module_text("MarketplaceWindow.Settings.InstallLocation"), this);
 	filePickerLabel->setStyleSheet("margin-left: 16px; font-size: 12pt;");
 
 	auto config = elgatoCloud->GetConfig();
@@ -511,7 +509,8 @@ ElgatoCloudConfig::ElgatoCloudConfig(QWidget *parent) : QDialog(parent)
 	connect(directoryPick, &QPushButton::released, this,
 		[this, directory]() {
 			QFileDialog *dialog =
-				new QFileDialog(this, "Install Directory",
+				new QFileDialog(this, 
+						obs_module_text("MarketplaceWindow.Settings.InstallLocation"),
 						_installDirectory.c_str());
 			dialog->setFileMode(QFileDialog::Directory);
 			//dialog->setAttribute(Qt::WA_DeleteOnClose);
@@ -540,7 +539,8 @@ ElgatoCloudConfig::ElgatoCloudConfig(QWidget *parent) : QDialog(parent)
 
 	// Maker Tools toggle.
 	bool makerTools = obs_data_get_bool(config, "MakerTools");
-	_makerCheckbox = new QCheckBox("Enable Maker Tools", this);
+	_makerCheckbox = new QCheckBox(
+		obs_module_text("MarketplaceWindow.Settings.EnableMakerTools"), this);
 	_makerCheckbox->setChecked(makerTools);
 	std::string checkedImage = imageBaseDir + "checkbox_checked.png";
 	std::string uncheckedImage = imageBaseDir + "checkbox_unchecked.png";
@@ -555,7 +555,7 @@ ElgatoCloudConfig::ElgatoCloudConfig(QWidget *parent) : QDialog(parent)
 		_makerRestartMsg->setVisible(makerTools != elgatoCloud->MakerToolsOnStart());
 	});
 
-	std::string restartTxt = elgatoCloud->MakerToolsOnStart() ? "Maker tools will be disabled after restarting OBS." : "Maker tools will be enabled after restarting OBS.";
+	std::string restartTxt = elgatoCloud->MakerToolsOnStart() ? obs_module_text("MarketplaceWindow.Settings.MakerToolsRestartWarning.Disabled") : obs_module_text("MarketplaceWindow.Settings.MakerToolsRestartWarning.Enabled");
 	_makerRestartMsg = new QLabel(restartTxt.c_str(), this);
 	_makerRestartMsg->setVisible(false);
 	_makerRestartMsg->setStyleSheet(
@@ -572,11 +572,13 @@ ElgatoCloudConfig::ElgatoCloudConfig(QWidget *parent) : QDialog(parent)
 	auto buttons = new QHBoxLayout();
 
 	QPushButton *cancelButton = new QPushButton(this);
-	cancelButton->setText("Cancel");
+	cancelButton->setText(
+		obs_module_text("General.CancelButton"));
 	cancelButton->setStyleSheet(EPushButtonCancelStyle);
 
 	QPushButton *saveButton = new QPushButton(this);
-	saveButton->setText("Save");
+	saveButton->setText(
+		obs_module_text("General.SaveButton"));
 	saveButton->setStyleSheet(EPushButtonStyle);
 
 	buttons->addStretch();
@@ -613,8 +615,6 @@ void ElgatoCloudConfig::OpenConfigVideoSource()
 	for (size_t i = 0; i < obs_property_list_item_count(devices); i++) {
 		std::string name = obs_property_list_item_name(devices, i);
 		std::string id = obs_property_list_item_string(devices, i);
-		obs_log(LOG_INFO, "--- VIDEO: %s [%s]", name.c_str(),
-			id.c_str());
 	}
 	obs_properties_destroy(props);
 }

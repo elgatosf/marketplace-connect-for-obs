@@ -46,14 +46,14 @@ FileCollectionCheck::FileCollectionCheck(QWidget *parent,
 	QVBoxLayout *layout = new QVBoxLayout(this);
 
 	auto title = new QLabel(this);
-	title->setText("Media File Check");
+	title->setText(obs_module_text("ExportWizard.MediaFileCheck.Title"));
 	title->setAlignment(Qt::AlignCenter);
 	title->setStyleSheet("QLabel{ font-size: 18pt; font-weight: bold;}");
 	layout->addWidget(title);
 	layout->setSpacing(20);
 	std::string titleText =
 		std::to_string(_files.size()) +
-		" media files were found to bundle.\nIf this is correct, click 'Next' below.";
+		obs_module_text("ExportWizard.MediaFileCheck.Text");
 	auto subTitle = new QLabel(this);
 	subTitle->setText(titleText.c_str());
 	subTitle->setStyleSheet("QLabel {font-size: 12pt;}");
@@ -76,7 +76,7 @@ FileCollectionCheck::FileCollectionCheck(QWidget *parent,
 	QHBoxLayout *buttons = new QHBoxLayout(this);
 
 	QPushButton *continueButton = new QPushButton(this);
-	continueButton->setText("Next");
+	continueButton->setText(obs_module_text("ExportWizard.NextButton"));
 	continueButton->setStyleSheet(EPushButtonStyle);
 	connect(continueButton, &QPushButton::released, this,
 		[this]() { emit continuePressed(); });
@@ -94,7 +94,7 @@ VideoSourceLabels::VideoSourceLabels(QWidget *parent,
 {
 	QVBoxLayout *layout = new QVBoxLayout(this);
 
-	std::string titleText = "Video Source Labels";
+	std::string titleText = obs_module_text("ExportWizard.VideoSourceLabels.Title");
 	auto title = new QLabel(this);
 	title->setAlignment(Qt::AlignCenter);
 	title->setStyleSheet(ETitleStyle);
@@ -103,7 +103,8 @@ VideoSourceLabels::VideoSourceLabels(QWidget *parent,
 	layout->addWidget(title);
 
 	auto description = new QLabel(this);
-	description->setText("Now go ahead and label your video sources.");
+	description->setText(
+		obs_module_text("ExportWizard.VideoSourceLabels.Text"));
 	description->setStyleSheet(
 		"QLabel {font-size: 12pt; margin-bottom: 10px;}");
 	description->setAlignment(Qt::AlignCenter);
@@ -123,7 +124,8 @@ VideoSourceLabels::VideoSourceLabels(QWidget *parent,
 				"QLabel {font-size: 12pt; padding: 12px 0px 8px 0px; }");
 
 			auto field = new QLineEdit(this);
-			field->setPlaceholderText("Description text goes here");
+			field->setPlaceholderText(
+				obs_module_text("ExportWizard.VideoSourceLabels.InputPlaceholder"));
 			field->setStyleSheet(ELineEditStyle);
 			formLayout->addWidget(label);
 			formLayout->addWidget(field);
@@ -150,7 +152,8 @@ VideoSourceLabels::VideoSourceLabels(QWidget *parent,
 					QSizePolicy::Expanding);
 		layout->addWidget(topSpace);
 		auto noVCDevices =
-			new QLabel("No video capture devices found.", this);
+			new QLabel(
+				obs_module_text("ExportWizard.VideoSourceLabels.NoCaptureSourcesText"), this);
 		noVCDevices->setAlignment(Qt::AlignCenter);
 		noVCDevices->setStyleSheet("QLabel{font-size: 18pt;}");
 		layout->addWidget(noVCDevices);
@@ -166,12 +169,14 @@ VideoSourceLabels::VideoSourceLabels(QWidget *parent,
 				    QSizePolicy::Preferred);
 	auto buttons = new QHBoxLayout(this);
 	auto backButton = new QPushButton(this);
-	backButton->setText("Back");
+	backButton->setText(
+		obs_module_text("ExportWizard.BackButton"));
 	backButton->setStyleSheet(EPushButtonStyle);
 	connect(backButton, &QPushButton::released, this,
 		[this]() { emit backPressed(); });
 
-	continueButton->setText("Next");
+	continueButton->setText(
+		obs_module_text("ExportWizard.NextButton"));
 	continueButton->setStyleSheet(EPushButtonStyle);
 
 	connect(continueButton, &QPushButton::released, this,
@@ -200,7 +205,7 @@ RequiredPlugins::RequiredPlugins(QWidget *parent,
 	checklistStyle.replace("${unchecked-img}", uncheckedImage.c_str());
 
 	QVBoxLayout *layout = new QVBoxLayout(this);
-	std::string titleText = "Required Plug-ins";
+	std::string titleText = obs_module_text("ExportWizard.RequiredPlugins.Title");
 	auto title = new QLabel(this);
 	title->setText(titleText.c_str());
 	title->setAlignment(Qt::AlignCenter);
@@ -210,7 +215,7 @@ RequiredPlugins::RequiredPlugins(QWidget *parent,
 
 	auto subTitle = new QLabel(this);
 	subTitle->setText(
-		"Please select all plugins that are required to use this scene collection.");
+		obs_module_text("ExportWizard.RequiredPlugins.Text"));
 	subTitle->setStyleSheet("QLabel {font-size: 12pt;}");
 	subTitle->setAlignment(Qt::AlignCenter);
 	subTitle->setWordWrap(true);
@@ -255,29 +260,28 @@ RequiredPlugins::RequiredPlugins(QWidget *parent,
 					QSizePolicy::Expanding);
 		layout->addWidget(topSpace);
 		auto noPlugins =
-			new QLabel("No installed plugins found.", this);
+			new QLabel(
+				obs_module_text("ExportWizard.RequiredPlugins.NoPluginsFound"), this);
 		noPlugins->setAlignment(Qt::AlignCenter);
 		noPlugins->setStyleSheet("QLabel{font-size: 18pt;}");
 		layout->addWidget(noPlugins);
+		layout->addStretch();
 	}
-
-	//auto spacer = new QWidget(this);
-	//spacer->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
-
-	//layout->addWidget(spacer);
 
 	auto buttons = new QHBoxLayout(this);
 	auto buttonSpacer = new QWidget(this);
 	buttonSpacer->setSizePolicy(QSizePolicy::Expanding,
 				    QSizePolicy::Preferred);
 	auto backButton = new QPushButton(this);
-	backButton->setText("Back");
+	backButton->setText(
+		obs_module_text("ExportWizard.BackButton"));
 	backButton->setStyleSheet(EPushButtonStyle);
 	connect(backButton, &QPushButton::released, this,
 		[this]() { emit backPressed(); });
 
 	auto continueButton = new QPushButton(this);
-	continueButton->setText("Next");
+	continueButton->setText(
+		obs_module_text("ExportWizard.NextButton"));
 	continueButton->setStyleSheet(EPushButtonStyle);
 
 	connect(continueButton, &QPushButton::released, this,
@@ -292,14 +296,14 @@ ExportComplete::ExportComplete(QWidget *parent) : QWidget(parent)
 {
 	QVBoxLayout *layout = new QVBoxLayout(this);
 
-	std::string titleText = "Scene Bundle Exported";
+	std::string titleText = obs_module_text("ExportWizard.ExportComplete.Title");
 	auto title = new QLabel(this);
 	title->setText(titleText.c_str());
 	title->setStyleSheet(ETitleStyle);
 	layout->addWidget(title);
 
 	std::string subText =
-		"Bundle successfully exported. Click 'Close' below to close this window.";
+		obs_module_text("ExportWizard.ExportComplete.Text");
 	auto sub = new QLabel(this);
 	sub->setText(subText.c_str());
 	sub->setStyleSheet("QLabel{ font-size: 11pt; font-style: italic; }");
@@ -314,7 +318,8 @@ ExportComplete::ExportComplete(QWidget *parent) : QWidget(parent)
 	auto buttons = new QHBoxLayout(this);
 
 	auto closeButton = new QPushButton(this);
-	closeButton->setText("Close");
+	closeButton->setText(
+		obs_module_text("ExportWizard.CloseButton"));
 	closeButton->setStyleSheet(EPushButtonStyle);
 	connect(closeButton, &QPushButton::released, this,
 		[this]() { emit closePressed(); });
@@ -356,14 +361,15 @@ Exporting::Exporting(QWidget *parent) : QWidget(parent)
 	layout->addWidget(spinner);
 
 	auto title = new QLabel(this);
-	title->setText("Exporting Bundle...");
+	title->setText(
+		obs_module_text("ExportWizard.Exporting.Title"));
 	title->setStyleSheet(ETitleStyle);
 	title->setAlignment(Qt::AlignCenter);
 	layout->addWidget(title);
 
 	auto subTitle = new QLabel(this);
 	subTitle->setText(
-		"Note: this can take a few minutes for scene collections with large files.");
+		obs_module_text("ExportWizard.Exporting.Text"));
 	subTitle->setStyleSheet(
 		"QLabel{ font-size: 11pt; font-style: italic; }");
 	subTitle->setAlignment(Qt::AlignCenter);
@@ -383,7 +389,7 @@ StreamPackageExportWizard::StreamPackageExportWizard(QWidget *parent)
 	  _steps(nullptr)
 {
 	obs_enum_modules(StreamPackageExportWizard::AddModule, this);
-	setWindowTitle("Elgato Deep Linking Export");
+	setWindowTitle("Elgato Marketplace Scene Collection Export");
 	setStyleSheet("background-color: #232323");
 	std::string homeDir = QDir::homePath().toStdString();
 
@@ -458,12 +464,6 @@ StreamPackageExportWizard::StreamPackageExportWizard(QWidget *parent)
 									Cancelled) {
 								_steps->setCurrentIndex(
 									2);
-							} else if (
-								status ==
-								SceneBundleStatus::
-									CallerDestroyed) {
-								blog(LOG_INFO,
-								     "Wizard Closed");
 							}
 						});
 				})
