@@ -63,7 +63,6 @@ std::string GetBundleInfo(std::string filename)
 	try {
 		data = bundle.ExtractBundleInfo(filename);
 	} catch (...) {
-		blog(LOG_INFO, "Bundle Info Not Found");
 		data = "{\"Error\": \"Incompatible File\"}";
 	}
 	return data;
@@ -129,16 +128,13 @@ MissingPlugins::MissingPlugins(QWidget *parent, std::string name,
 	StreamPackageHeader *header = new StreamPackageHeader(parent, name);
 	layout->addWidget(header);
 	QLabel *title = new QLabel(this);
-	title->setText("Missing Plugins");
+	title->setText(obs_module_text("SetupWizard.MissingPlugins.Title"));
 	title->setAlignment(Qt::AlignCenter);
 	title->setStyleSheet("QLabel {font-size: 14pt;}");
 	layout->addWidget(title);
 
 	QLabel *subTitle = new QLabel(this);
-	subTitle->setText(
-		"The following plugins are required to use this scene collection, "
-		"but are not installed. Please install these plugins, restart "
-		"OBS and attempt to install again.");
+	subTitle->setText(obs_module_text("SetupWizard.MissingPlugins.Text"));
 	subTitle->setAlignment(Qt::AlignCenter);
 	subTitle->setWordWrap(true);
 	subTitle->setStyleSheet("QLabel {font-size: 12pt;}");
@@ -177,7 +173,7 @@ MissingPluginItem::MissingPluginItem(QWidget *parent, std::string label,
 	layout->addWidget(spacer);
 
 	auto downloadButton = new QPushButton(this);
-	downloadButton->setText("Download");
+	downloadButton->setText(obs_module_text("SetupWizard.MissingPlugins.DownloadButton"));
 	downloadButton->setStyleSheet(EPushButtonStyle);
 
 	connect(downloadButton, &QPushButton::released, this,
@@ -194,7 +190,7 @@ InstallType::InstallType(QWidget *parent, std::string name,
 		new StreamPackageHeader(parent, name, thumbnailPath);
 	layout->addWidget(header);
 	QLabel *selectInstall = new QLabel(this);
-	selectInstall->setText("Select Install");
+	selectInstall->setText(obs_module_text("SetupWizard.SelectInstall.Title"));
 	selectInstall->setAlignment(Qt::AlignCenter);
 	selectInstall->setStyleSheet("QLabel {font-size: 14pt;}");
 	layout->addWidget(selectInstall);
@@ -202,13 +198,13 @@ InstallType::InstallType(QWidget *parent, std::string name,
 	// Setup New and Existing buttons.
 	QHBoxLayout *buttons = new QHBoxLayout(this);
 	QPushButton *newButton = new QPushButton(this);
-	newButton->setText("New");
+	newButton->setText(obs_module_text("SetupWizard.SelectInstall.NewInstallButton"));
 	newButton->setStyleSheet(EPushButtonDarkStyle);
 
 	connect(newButton, &QPushButton::released, this,
 		[this]() { emit newCollectionPressed(); });
 	QPushButton *existingButton = new QPushButton(this);
-	existingButton->setText("Existing");
+	existingButton->setText(obs_module_text("SetupWizard.SelectInstall.ExistingInstallButton"));
 	existingButton->setStyleSheet(EPushButtonDarkStyle);
 	existingButton->setDisabled(true);
 	connect(existingButton, &QPushButton::released, this,
@@ -229,13 +225,13 @@ NewCollectionName::NewCollectionName(QWidget *parent, std::string name,
 		new StreamPackageHeader(parent, name, thumbnailPath);
 	layout->addWidget(header);
 	QLabel *nameCollection = new QLabel(this);
-	nameCollection->setText("Create Scene Collection");
+	nameCollection->setText(obs_module_text("SetupWizard.CreateCollection.Title"));
 	nameCollection->setStyleSheet(
 		"QLabel {font-size: 12pt; margin-top: 16px;}");
 	layout->addWidget(nameCollection);
 
 	_nameField = new QLineEdit(this);
-	_nameField->setPlaceholderText("Collection Name");
+	_nameField->setPlaceholderText(obs_module_text("SetupWizard.CreateCollection.NewNamePlaceholder"));
 	_nameField->setStyleSheet(ELineEditStyle);
 	layout->addWidget(_nameField);
 	connect(_nameField, &QLineEdit::textChanged,
@@ -251,7 +247,7 @@ NewCollectionName::NewCollectionName(QWidget *parent, std::string name,
 	spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
 	buttons->addWidget(hSpacer);
 	_proceedButton = new QPushButton(this);
-	_proceedButton->setText("Next");
+	_proceedButton->setText(obs_module_text("SetupWizard.NextButton"));
 	_proceedButton->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
 	_proceedButton->setStyleSheet(EPushButtonStyle);
 	_proceedButton->setDisabled(true);
@@ -262,8 +258,9 @@ NewCollectionName::NewCollectionName(QWidget *parent, std::string name,
 			      _existingCollections.end(),
 			      name) != _existingCollections.end()) {
 			QMessageBox::warning(
-				this, "Name in use.",
-				"A scene collection already exists with this name. Please provide another name.");
+				this, 
+				obs_module_text("SetupWziard.NameInUseError.Title"),
+				obs_module_text("SetupWziard.NameInUseError.Text"));
 			return;
 		}
 		emit proceedPressed(name.c_str());
@@ -334,11 +331,11 @@ VideoSetup::VideoSetup(QWidget *parent, std::string name,
 	spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
 
 	QPushButton *backButton = new QPushButton(this);
-	backButton->setText("Back");
+	backButton->setText(obs_module_text("SetupWizard.BackButton"));
 	backButton->setStyleSheet(EPushButtonStyle);
 
 	QPushButton *proceedButton = new QPushButton(this);
-	proceedButton->setText("Next");
+	proceedButton->setText(obs_module_text("SetupWizard.NextButton"));
 	proceedButton->setStyleSheet(EPushButtonStyle);
 
 	buttons->addWidget(spacer);
@@ -395,8 +392,6 @@ void VideoSetup::OpenConfigVideoSource()
 	for (size_t i = 0; i < obs_property_list_item_count(devices); i++) {
 		std::string name = obs_property_list_item_name(devices, i);
 		std::string id = obs_property_list_item_string(devices, i);
-		obs_log(LOG_INFO, "--- VIDEO: %s [%s]", name.c_str(),
-			id.c_str());
 	}
 	obs_properties_destroy(props);
 }
@@ -410,7 +405,7 @@ AudioSetup::AudioSetup(QWidget *parent, std::string name,
 	layout->setContentsMargins(0, 0, 0, 0);
 
 	QLabel *audioDeviceLabel = new QLabel(this);
-	audioDeviceLabel->setText("Audio Device");
+	audioDeviceLabel->setText(obs_module_text("SetupWizard.AudioSetup.Device.Text"));
 	_audioSources = new QComboBox(this);
 	_audioSources->setStyleSheet(EComboBoxStyle);
 
@@ -469,11 +464,11 @@ AudioSetup::AudioSetup(QWidget *parent, std::string name,
 	bSpacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
 
 	QPushButton *backButton = new QPushButton(this);
-	backButton->setText("Back");
+	backButton->setText(obs_module_text("SetupWizard.BackButton"));
 	backButton->setStyleSheet(EPushButtonStyle);
 
 	QPushButton *proceedButton = new QPushButton(this);
-	proceedButton->setText("Next");
+	proceedButton->setText(obs_module_text("SetupWizard.NextButton"));
 	proceedButton->setStyleSheet(EPushButtonStyle);
 
 	buttons->addWidget(bSpacer);
@@ -532,21 +527,10 @@ void AudioSetup::_setupTempSources(obs_data_t *audioSettings)
 	obs_data_release(aSettings);
 
 	_levelsWidget->show();
-	//signal_handler_t *audioSigHandler =
-	//	obs_source_get_signal_handler(_audioCaptureSource);
-	//signal_handler_connect_ref(audioSigHandler, "update",
-	//			   AudioSetup::DefaultAudioUpdated, this);
 }
 
 void AudioSetup::SetupVolMeter()
 {
-	obs_log(LOG_INFO, "SetupVolMeter");
-	//if (_volmeter) {
-	//	obs_volmeter_remove_callback(_volmeter,
-	//				     AudioSetup::OBSVolumeLevel, this);
-	//	obs_volmeter_destroy(_volmeter);
-	//	_volmeter = nullptr;
-	//}
 	_volmeter = obs_volmeter_create(OBS_FADER_LOG);
 	obs_volmeter_attach_source(_volmeter, _audioCaptureSource);
 	obs_volmeter_add_callback(_volmeter, AudioSetup::OBSVolumeLevel, this);
@@ -629,14 +613,14 @@ Loading::Loading(QWidget *parent) : QWidget(parent)
 	layout->addWidget(spinner);
 
 	auto title = new QLabel(this);
-	title->setText("Loading Collection...");
+	title->setText(obs_module_text("SetupWizard.Loading.Title"));
 	title->setStyleSheet(ETitleStyle);
 	title->setAlignment(Qt::AlignCenter);
 	layout->addWidget(title);
 
 	auto subTitle = new QLabel(this);
 	subTitle->setText(
-		"Note: this can take some time for scene collections with large files.");
+		obs_module_text("SetupWizard.Loading.Text"));
 	subTitle->setStyleSheet(
 		"QLabel{ font-size: 11pt; font-style: italic; }");
 	subTitle->setAlignment(Qt::AlignCenter);
@@ -705,8 +689,8 @@ void StreamPackageSetupWizard::OpenArchive()
 								"Invalid file.");
 							int ret = QMessageBox::warning(
 								this,
-								"Incompatible file",
-								"Error: This download did not contain a valid bundleInfo.json file and cannot be installed. (note: this is a problem with the submitted scene collection file on the server)",
+								obs_module_text("SetupWizard.IncompatibleFile.Title"),
+								obs_module_text("SetupWizard.IncompatibleFile.Text"),
 								QMessageBox::Ok);
 							close();
 							return;
@@ -809,7 +793,7 @@ void StreamPackageSetupWizard::_buildBaseUI()
 	_steps->addWidget(loading);
 
 	setupWizard = this;
-	setWindowTitle("Install Scene Collection");
+	setWindowTitle(obs_module_text("SetupWizard.WindowTitle"));
 	setStyleSheet("background-color: #232323");
 
 	layout->addWidget(_steps);
@@ -899,8 +883,6 @@ void StreamPackageSetupWizard::_buildSetupUI(
 
 void StreamPackageSetupWizard::install()
 {
-	obs_log(LOG_INFO, "Elgato Req File: %s", _filename.c_str());
-
 	// TODO: Clean up this mess of setting up the pack install path.
 	obs_data_t *config = elgatoCloud->GetConfig();
 	std::string path = obs_data_get_string(config, "InstallLocation");
@@ -909,10 +891,6 @@ void StreamPackageSetupWizard::install()
 	std::string safeDirName;
 	generate_safe_path(unsafeDirName, safeDirName);
 	std::string bundlePath = path + "/" + safeDirName;
-	//std::string dirName(_setup.collectionName);
-	//std::string bundlePath = path + "/" + dirName;
-
-	obs_log(LOG_INFO, "Elgato Install Path: %s", bundlePath.c_str());
 
 	// TODO: Add dialog with progress indicator.  Put unzipping and
 	//       scene collection loading code into new threads to stop

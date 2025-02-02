@@ -100,7 +100,7 @@ DownloadButton::DownloadButton(QWidget *parent) : QWidget(parent)
 				      QSizePolicy::Preferred);
 
 	_downloadButton = new QPushButton(this);
-	_downloadButton->setToolTip("Click to Download");
+	_downloadButton->setToolTip(obs_module_text("MarketplaceWindow.DownloadButton.Tooltip"));
 	std::string downloadIconPath = imageBaseDir + "download.svg";
 	std::string downloadIconHoverPath = imageBaseDir + "download_hover.svg";
 	blog(LOG_INFO, "download img: ", downloadIconPath.c_str());
@@ -245,7 +245,7 @@ WindowToolBar::WindowToolBar(QWidget *parent) : QWidget(parent)
 	_layout->addStretch();
 
 	_settingsButton = new QPushButton(this);
-	_settingsButton->setToolTip("Settings");
+	_settingsButton->setToolTip(obs_module_text("MarketplaceWindow.OpenSettingsButton.Tooltip"));
 	std::string settingsIconPath = imageBaseDir + "settings.svg";
 	std::string settingsIconHoverPath = imageBaseDir + "settings_hover.svg";
 	QString settingsButtonStyle = EIconHoverButtonStyle;
@@ -262,7 +262,7 @@ WindowToolBar::WindowToolBar(QWidget *parent) : QWidget(parent)
 	_layout->addWidget(_settingsButton);
 
 	_storeButton = new QPushButton(this);
-	_storeButton->setToolTip("Go to Elgato Marketplace");
+	_storeButton->setToolTip(obs_module_text("MarketplaceWindow.StoreButton.Tooltip"));
 	std::string storeIconPath = imageBaseDir + "marketplace-logo.svg";
 	std::string storeIconHoverPath =
 		imageBaseDir + "marketplace-logo_hover.svg";
@@ -281,7 +281,7 @@ WindowToolBar::WindowToolBar(QWidget *parent) : QWidget(parent)
 	_layout->addWidget(_storeButton);
 
 	_logInButton = new QPushButton(this);
-	_logInButton->setText("Log In");
+	_logInButton->setText(obs_module_text("MarketplaceWindow.LoginButton.LogIn"));
 	_logInButton->setHidden(elgatoCloud->loggedIn);
 	_logInButton->setStyleSheet(
 		"QPushButton {font-size: 12pt; border-radius: 8px; padding: 8px; background-color: #232323; border: none; } "
@@ -291,7 +291,7 @@ WindowToolBar::WindowToolBar(QWidget *parent) : QWidget(parent)
 		[this]() { elgatoCloud->StartLogin(); });
 
 	_logOutButton = new QPushButton(this);
-	_logOutButton->setText("Sign Out");
+	_logOutButton->setText(obs_module_text("MarketplaceWindow.LoginButton.LogOut"));
 	_logOutButton->setHidden(!elgatoCloud->loggedIn);
 	_logOutButton->setStyleSheet(
 		"QPushButton {font-size: 12pt; border-radius: 8px; padding: 8px; background-color: #232323; border: none; } "
@@ -381,7 +381,7 @@ OwnedProducts::OwnedProducts(QWidget *parent) : QWidget(parent)
 {
 	_layout = new QHBoxLayout(this);
 	_sideMenu = new QListWidget(this);
-	_sideMenu->addItem("Purchased");
+	_sideMenu->addItem(obs_module_text("MarketplaceWindow.PurchasedTab"));
 	//_sideMenu->addItem("Installed (#)");
 	_sideMenu->setSizePolicy(QSizePolicy::Preferred,
 				 QSizePolicy::Expanding);
@@ -391,7 +391,7 @@ OwnedProducts::OwnedProducts(QWidget *parent) : QWidget(parent)
 	connect(_sideMenu, &QListWidget::itemPressed, this,
 		[this](QListWidgetItem *item) {
 			QString val = item->text();
-			if (val == "Purchased") {
+			if (val == obs_module_text("MarketplaceWindow.PurchasedTab")) {
 				if (_numProducts > 0)
 					_content->setCurrentIndex(0);
 				else
@@ -417,12 +417,12 @@ OwnedProducts::OwnedProducts(QWidget *parent) : QWidget(parent)
 	auto npLayout = new QVBoxLayout(noProducts);
 	npLayout->addStretch();
 	auto npTitle = new QLabel(
-		"You don't own any scene collection products yet", noProducts);
+		obs_module_text("MarketplaceWindow.Purchased.NoPurchasesTitle"), noProducts);
 	npTitle->setStyleSheet("QLabel {font-size: 18pt;}");
 	npTitle->setAlignment(Qt::AlignCenter);
 	npLayout->addWidget(npTitle);
 	auto npSubTitle = new QLabel(
-		"Your digital assets from Marketplace will appear here",
+		obs_module_text("MarketplaceWindow.Purchased.NoPurchasesSubtitle"),
 		noProducts);
 	npSubTitle->setStyleSheet("QLabel {font-size: 13pt;}");
 	npSubTitle->setAlignment(Qt::AlignCenter);
@@ -469,7 +469,7 @@ ElgatoCloudWindow::~ElgatoCloudWindow()
 
 void ElgatoCloudWindow::initialize()
 {
-	setWindowTitle(QString("Elgato Marketplace"));
+	setWindowTitle(QString("Elgato Marketplace Connect"));
 	setFixedSize(1140, 600);
 
 	QPalette pal = QPalette();
@@ -509,18 +509,11 @@ void ElgatoCloudWindow::initialize()
 
 	auto loadingWidget = new LoadingWidget(this); // Loading widget, id: 3
 	_stackedContent->addWidget(loadingWidget);
-	//_config = new ElgatoCloudConfig(this);
-	//_config->setVisible(false);
-	//connect(_config, &ElgatoCloudConfig::closeClicked, this, [this]() {
-	//	//_mainWidget->setVisible(true);
-	//	//_config->setVisible(false);
-	//});
 
 	mainLayout->addWidget(_stackedContent);
 	_mainWidget->setLayout(mainLayout);
 
 	_layout->addWidget(_mainWidget);
-	//_layout->addWidget(_config);
 
 	setLayout(_layout);
 }
@@ -590,7 +583,7 @@ ElgatoProductItem::ElgatoProductItem(QWidget *parent, ElgatoProduct *product)
 	label->setStyleSheet("QLabel {font-size: 11pt;}");
 
 	titleLayout->addWidget(label);
-	auto subTitle = new QLabel("Stream Package", this);
+	auto subTitle = new QLabel("Scene Collection", this);
 	subTitle->setStyleSheet("QLabel {font-size: 10pt; color: #7E7E7E; }");
 	titleLayout->addWidget(subTitle);
 
@@ -698,13 +691,12 @@ LoginNeeded::LoginNeeded(QWidget *parent) : QWidget(parent)
 	auto layout = new QVBoxLayout(this);
 
 	auto login = new QLabel(this);
-	login->setText("Please Log In");
+	login->setText(obs_module_text("MarketplaceWindow.LoginNeeded.Title"));
 	login->setStyleSheet("QLabel {font-size: 18pt;}");
 	login->setAlignment(Qt::AlignCenter);
 
 	auto loginSub = new QLabel(this);
-	loginSub->setText(
-		"Click the Log In button above to log into your account and begin using the Elgato Marketplace plugin.");
+	loginSub->setText(obs_module_text("MarketplaceWindow.LoginNeeded.Subtitle"));
 	loginSub->setWordWrap(true);
 	loginSub->setAlignment(Qt::AlignCenter);
 
@@ -719,14 +711,14 @@ ConnectionError::ConnectionError(QWidget *parent) : QWidget(parent)
 	auto layout = new QVBoxLayout(this);
 
 	auto connectionError = new QLabel(this);
-	connectionError->setText("Connection Error");
+	connectionError->setText(
+		obs_module_text("MarketplaceWindow.ConnectionError.Title"));
 	connectionError->setStyleSheet("QLabel {font-size: 18pt;}");
 	connectionError->setAlignment(Qt::AlignCenter);
 
 	auto connectionErrorSub = new QLabel(this);
-	// TODO- CHANGE THIS TEXT IF NOT INTERNAL
 	connectionErrorSub->setText(
-		"Could not connect to the server. (make sure you are using the VPN to connect to staging)");
+		obs_module_text("MarketplaceWindow.ConnectionError.Subtitle"));
 	connectionErrorSub->setWordWrap(true);
 	connectionErrorSub->setAlignment(Qt::AlignCenter);
 
@@ -740,7 +732,7 @@ LoadingWidget::LoadingWidget(QWidget *parent) : QWidget(parent)
 {
 	auto layout = new QVBoxLayout(this);
 	auto loading = new QLabel(this);
-	loading->setText("Loading Your Purchased Products...");
+	loading->setText(obs_module_text("MarketplaceWindow.Loading.Title"));
 	loading->setStyleSheet("QLabel {font-size: 18pt;}");
 	loading->setAlignment(Qt::AlignCenter);
 
