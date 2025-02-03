@@ -61,6 +61,7 @@ public:
 	bool loading = false;
 	bool authorizing = false;
 	bool connectionError = false;
+	bool loginError = false;
 
 	void Thread();
 	bool mainWindowOpen = false;

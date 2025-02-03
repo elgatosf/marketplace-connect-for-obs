@@ -510,6 +510,9 @@ void ElgatoCloudWindow::initialize()
 	auto loadingWidget = new LoadingWidget(this); // Loading widget, id: 3
 	_stackedContent->addWidget(loadingWidget);
 
+	auto loginErrorWidget = new LoginError(this); // Login error widget, id: 4
+	_stackedContent->addWidget(loginErrorWidget);
+
 	mainLayout->addWidget(_stackedContent);
 	_mainWidget->setLayout(mainLayout);
 
@@ -537,6 +540,8 @@ void ElgatoCloudWindow::setLoggedIn()
 {
 	if (elgatoCloud->connectionError) {
 		_stackedContent->setCurrentIndex(2);
+	} else if (elgatoCloud->loginError) {
+		_stackedContent->setCurrentIndex(4);
 	} else if (!elgatoCloud->loggedIn) {
 		_stackedContent->setCurrentIndex(1);
 	} else if (elgatoCloud->loading) {
@@ -697,6 +702,26 @@ LoginNeeded::LoginNeeded(QWidget *parent) : QWidget(parent)
 
 	auto loginSub = new QLabel(this);
 	loginSub->setText(obs_module_text("MarketplaceWindow.LoginNeeded.Subtitle"));
+	loginSub->setWordWrap(true);
+	loginSub->setAlignment(Qt::AlignCenter);
+
+	layout->addStretch();
+	layout->addWidget(login);
+	layout->addWidget(loginSub);
+	layout->addStretch();
+}
+
+LoginError::LoginError(QWidget* parent) : QWidget(parent)
+{
+	auto layout = new QVBoxLayout(this);
+
+	auto login = new QLabel(this);
+	login->setText(obs_module_text("MarketplaceWindow.LoginError.Title"));
+	login->setStyleSheet("QLabel {font-size: 18pt;}");
+	login->setAlignment(Qt::AlignCenter);
+
+	auto loginSub = new QLabel(this);
+	loginSub->setText(obs_module_text("MarketplaceWindow.LoginError.Subtitle"));
 	loginSub->setWordWrap(true);
 	loginSub->setAlignment(Qt::AlignCenter);
 
