@@ -1,4 +1,4 @@
-name: Push to master
+name: Build and tag release
 run-name: ${{ github.ref_name }} push run 🚀
 
 on:
@@ -24,6 +24,7 @@ permissions:
 concurrency:
   group: "${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}"
   cancel-in-progress: ${{ github.ref_type == 'tag' }}
+
 jobs:
   # check-format:
   #   name: Check Formatting 🔍
