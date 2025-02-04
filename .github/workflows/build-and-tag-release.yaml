@@ -1,5 +1,6 @@
-name: Push to master
+name: Build and tag release
 run-name: ${{ github.ref_name }} push run 🚀
+
 on:
   push:
     branches:
@@ -8,11 +9,22 @@ on:
       - "release/**"
     tags:
       - "*"
+
+  workflow_dispatch:
+
+  pull_request:
+    paths-ignore:
+      - "**.md"
+    branches: [master, main]
+    types: [opened, synchronize, reopened]
+
 permissions:
   contents: write
+
 concurrency:
-  group: "${{ github.workflow }} @ ${{ github.ref }}"
+  group: "${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}"
   cancel-in-progress: ${{ github.ref_type == 'tag' }}
+
 jobs:
   # check-format:
   #   name: Check Formatting 🔍
