@@ -1,3 +1,21 @@
+/*
+Elgato Deep-Linking OBS Plug-In
+Copyright (C) 2024 Corsair Memory Inc. oss.elgato@corsair.com
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along
+with this program. If not, see <https://www.gnu.org/licenses/>
+*/
+
 #include <algorithm>
 
 #include "export-wizard.hpp"
@@ -388,12 +406,22 @@ StreamPackageExportWizard::StreamPackageExportWizard(QWidget *parent)
 	: QDialog(parent),
 	  _steps(nullptr)
 {
+	// Save the current scene collection to ensure our output is the latest
+	obs_frontend_save();
+
+	// Since scene collection save is threaded as a Queued connection
+	// queue the SetupUI to execute *after* the frontend is completely saved.
+	QMetaObject::invokeMethod(this, "SetupUI", Qt::QueuedConnection);
+}
+
+void StreamPackageExportWizard::SetupUI()
+{
 	obs_enum_modules(StreamPackageExportWizard::AddModule, this);
 	setWindowTitle("Elgato Marketplace Scene Collection Export");
 	setStyleSheet("background-color: #232323");
 	std::string homeDir = QDir::homePath().toStdString();
 
-	char *currentCollection = obs_frontend_get_current_scene_collection();
+	char* currentCollection = obs_frontend_get_current_scene_collection();
 	std::string collectionName = currentCollection;
 	bfree(currentCollection);
 
@@ -404,7 +432,7 @@ StreamPackageExportWizard::StreamPackageExportWizard(QWidget *parent)
 	std::map<std::string, std::string> vidDevs =
 		bundle->VideoCaptureDevices();
 
-	QVBoxLayout *layout = new QVBoxLayout(this);
+	QVBoxLayout* layout = new QVBoxLayout(this);
 	_steps = new QStackedWidget(this);
 
 	// Step 1- check the media files to be bundled (step index: 0)
@@ -428,7 +456,7 @@ StreamPackageExportWizard::StreamPackageExportWizard(QWidget *parent)
 	connect(reqPlugins, &RequiredPlugins::continuePressed, this, [this, videoLabels, reqPlugins]() {
 		auto vidDevLabels = videoLabels->Labels();
 		auto plugins = reqPlugins->RequiredPluginList();
-		QWidget *window = (QWidget *)obs_frontend_get_main_window();
+		QWidget* window = (QWidget*)obs_frontend_get_main_window();
 		QString filename = QFileDialog::getSaveFileName(
 			window, "Save As...", QString(), "*.elgatoscene");
 		if (filename == "") {
@@ -445,33 +473,34 @@ StreamPackageExportWizard::StreamPackageExportWizard(QWidget *parent)
 		// installer handler thread handling object.
 		_future =
 			QtConcurrent::run(createBundle, filename_utf8, plugins,
-					  vidDevLabels)
-				.then([this](SceneBundleStatus status) {
-					// We are now in a different thread, so we need to execute this
-					// back in the gui thread.  See, threading hell.
-					QMetaObject::invokeMethod(
-						QCoreApplication::instance()
-							->thread(), // main GUI thread
-						[this, status]() {
-							if (status ==
-							    SceneBundleStatus::
-								    Success) {
-								_steps->setCurrentIndex(
-									4);
-							} else if (
-								status ==
-								SceneBundleStatus::
-									Cancelled) {
-								_steps->setCurrentIndex(
-									2);
-							}
-						});
+				vidDevLabels)
+			.then([this](SceneBundleStatus status) {
+			// We are now in a different thread, so we need to execute this
+			// back in the gui thread.  See, threading hell.
+			QMetaObject::invokeMethod(
+				QCoreApplication::instance()
+				->thread(), // main GUI thread
+				[this, status]() {
+					if (status ==
+						SceneBundleStatus::
+						Success) {
+						_steps->setCurrentIndex(
+							4);
+					}
+					else if (
+						status ==
+						SceneBundleStatus::
+						Cancelled) {
+						_steps->setCurrentIndex(
+							2);
+					}
+				});
 				})
-				.onCanceled([]() {
+			.onCanceled([]() {
 
 				});
 		//createBundle(filename_utf8, plugins, vidDevLabels);
-	});
+		});
 	connect(reqPlugins, &RequiredPlugins::backPressed, this,
 		[this]() { _steps->setCurrentIndex(1); });
 	_steps->addWidget(reqPlugins);

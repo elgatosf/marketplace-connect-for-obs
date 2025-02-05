@@ -71,8 +71,6 @@ bool SceneBundle::FromCollection(std::string collection_name)
 	std::string collection_file_path = scene_collections_path + file_name;
 	blog(LOG_INFO, "COLLECTION FILE PATH: %s",
 	     collection_file_path.c_str());
-	// Save the current scene collection to ensure our output is the latest
-	obs_frontend_save();
 
 	// Load the current collection file into a json object
 	char *collection_str =
@@ -127,7 +125,7 @@ std::string SceneBundle::ExtractBundleInfo(std::string filePath)
 void SceneBundle::SceneCollectionCreated(enum obs_frontend_event event,
 					 void *obj)
 {
-	if (event == OBS_FRONTEND_EVENT_SCENE_COLLECTION_LIST_CHANGED) {
+	if (event == OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGED) {
 		auto inst = static_cast<SceneBundle *>(obj);
 		if (inst) {
 			inst->_waiting = false;
@@ -204,6 +202,9 @@ void SceneBundle::ToCollection(std::string collection_name,
 		get_current_scene_collection_filename();
 	newCollectionFileName =
 		get_scene_collections_path() + newCollectionFileName;
+
+	//config_set_string(userConf, "Basic", "SceneCollection", "elgatompplugintemp");
+	//config_set_string(userConf, "Basic", "SceneCollectionFile", "elgatompplugintemp");
 
 	// 7. Set waiting to true to block execution until we switch back to the old scene collection
 	_waiting = true;

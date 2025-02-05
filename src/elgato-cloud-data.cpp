@@ -197,8 +197,6 @@ void ElgatoCloud::_Listen()
 					loginError = false;
 					_ProcessLogin(responseJson);
 				}
-				
-
 				authorizing = false;
 				return;
 			}
