@@ -285,8 +285,8 @@ NewCollectionName::NewCollectionName(QWidget *parent, std::string name,
 			      name) != _existingCollections.end()) {
 			QMessageBox::warning(
 				this, 
-				obs_module_text("SetupWziard.NameInUseError.Title"),
-				obs_module_text("SetupWziard.NameInUseError.Text"));
+				obs_module_text("SetupWizard.NameInUseError.Title"),
+				obs_module_text("SetupWizard.NameInUseError.Text"));
 			return;
 		}
 		emit proceedPressed(name.c_str());
