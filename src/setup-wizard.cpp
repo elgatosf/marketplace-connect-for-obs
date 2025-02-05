@@ -215,6 +215,32 @@ InstallType::InstallType(QWidget *parent, std::string name,
 	layout->addLayout(buttons);
 }
 
+StartInstall::StartInstall(QWidget* parent, std::string name,
+	std::string thumbnailPath)
+	: QWidget(parent)
+{
+	QVBoxLayout* layout = new QVBoxLayout(this);
+	StreamPackageHeader* header =
+		new StreamPackageHeader(parent, name, thumbnailPath);
+	layout->addWidget(header);
+	QLabel* startInstall = new QLabel(this);
+	startInstall->setText(obs_module_text("SetupWizard.StartInstall.Title"));
+	startInstall->setAlignment(Qt::AlignCenter);
+	startInstall->setStyleSheet("QLabel {font-size: 14pt;}");
+	layout->addWidget(startInstall);
+
+	// Setup New and Existing buttons.
+	QHBoxLayout* buttons = new QHBoxLayout(this);
+	QPushButton* continueButton = new QPushButton(this);
+	continueButton->setText(obs_module_text("SetupWizard.NextButton"));
+	continueButton->setStyleSheet(EPushButtonDarkStyle);
+
+	connect(continueButton, &QPushButton::released, this,
+		[this]() { emit continuePressed(); });
+	buttons->addWidget(continueButton);
+	layout->addLayout(buttons);
+}
+
 NewCollectionName::NewCollectionName(QWidget *parent, std::string name,
 				     std::string thumbnailPath)
 	: QWidget(parent)
@@ -803,22 +829,33 @@ void StreamPackageSetupWizard::_buildSetupUI(
 	std::map<std::string, std::string> &videoSourceLabels)
 {
 
-	// Step 1- select a new or existing install (step index: 1)
-	InstallType *installerType =
-		new InstallType(this, _productName, _thumbnailPath);
-	connect(installerType, &InstallType::newCollectionPressed, this,
+	// Step -1- select a new or existing install (step index: -1)
+	//InstallType *installerType =
+	//	new InstallType(this, _productName, _thumbnailPath);
+	//connect(installerType, &InstallType::newCollectionPressed, this,
+	//	[this]() {
+	//		_setup.installType = InstallTypes::NewCollection;
+	//		_steps->setCurrentIndex(2);
+	//		setFixedSize(320, 384);
+	//	});
+	//connect(installerType, &InstallType::existingCollectionPressed, this,
+	//	[this]() {
+	//		_setup.installType = InstallTypes::AddToCollection;
+	//		_steps->setCurrentIndex(3);
+	//		setFixedSize(320, 384);
+	//	});
+	//_steps->addWidget(installerType);
+
+	// Step 1 start install screen
+	StartInstall* startInstall =
+		new StartInstall(this, _productName, _thumbnailPath);
+	connect(startInstall, &StartInstall::continuePressed, this,
 		[this]() {
 			_setup.installType = InstallTypes::NewCollection;
 			_steps->setCurrentIndex(2);
 			setFixedSize(320, 384);
 		});
-	connect(installerType, &InstallType::existingCollectionPressed, this,
-		[this]() {
-			_setup.installType = InstallTypes::AddToCollection;
-			_steps->setCurrentIndex(3);
-			setFixedSize(320, 384);
-		});
-	_steps->addWidget(installerType);
+	_steps->addWidget(startInstall);
 
 	// Step 2a- Provide a name for the new collection (step index: 2)
 	auto *newName =

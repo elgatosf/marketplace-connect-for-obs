@@ -96,6 +96,15 @@ signals:
 	void existingCollectionPressed();
 };
 
+class StartInstall : public QWidget {
+	Q_OBJECT
+public:
+	StartInstall(QWidget* parent, std::string name,
+		std::string thumbnailPath);
+signals:
+	void continuePressed();
+};
+
 class NewCollectionName : public QWidget {
 	Q_OBJECT
 public:
