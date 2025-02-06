@@ -177,6 +177,12 @@ public:
 	LoginNeeded(QWidget *parent);
 };
 
+class LoginError : public QWidget {
+	Q_OBJECT
+public:
+	LoginError(QWidget* parent);
+};
+
 class ConnectionError : public QWidget {
 	Q_OBJECT
 public:

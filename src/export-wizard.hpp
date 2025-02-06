@@ -110,11 +110,15 @@ public:
 
 	static void AddModule(void *data, obs_module_t *module);
 
+public slots:
+	void SetupUI();
+
 private:
 	QStackedWidget *_steps;
 	SceneBundle _bundle;
 	std::vector<obs_module_t *> _modules;
 	QFuture<void> _future;
+	bool _waiting;
 };
 
 void OpenExportWizard();

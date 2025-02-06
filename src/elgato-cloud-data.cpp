@@ -182,13 +182,21 @@ void ElgatoCloud::_Listen()
 				auto response = fetch_string_from_post(
 					url, encodeddata);
 
-				auto responseJson =
-					nlohmann::json::parse(response);
-				obs_log(LOG_INFO,
-					"Access and refresh token fetched from login.");
+				auto responseJson = nlohmann::json::parse(response);
 
-				_ProcessLogin(responseJson);
-
+				if (responseJson.contains("error")) {
+					if (mainWindowOpen && window) {
+						QMetaObject::invokeMethod(
+							QCoreApplication::instance()->thread(),
+							[this]() {
+								loginError = true;
+								window->setLoggedIn();
+							});
+					}
+				} else {
+					loginError = false;
+					_ProcessLogin(responseJson);
+				}
 				authorizing = false;
 				return;
 			}
@@ -344,6 +352,7 @@ void ElgatoCloud::_ProcessLogin(nlohmann::json &loginData, bool loadData)
 {
 	try {
 		connectionError = false;
+		loginError = false;
 		const auto now = std::chrono::system_clock::now();
 		const auto epoch = now.time_since_epoch();
 		const auto seconds =
@@ -371,9 +380,11 @@ void ElgatoCloud::_ProcessLogin(nlohmann::json &loginData, bool loadData)
 	} catch (const nlohmann::json::out_of_range &e) {
 		obs_log(LOG_INFO, "Bad Login, %i not found", e.id);
 		connectionError = true;
+		return;
 	} catch (...) {
 		obs_log(LOG_INFO, "Some other issue occurred");
 		connectionError = true;
+		return;
 	}
 	_LoadUserData(loadData);
 }
