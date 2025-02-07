@@ -34,8 +34,9 @@ std::mutex MarketplaceApi::_mtx;
 
 MarketplaceApi::MarketplaceApi()
 	: _gatewayUrl(DEFAULT_GATEWAY_URL),
-	  _apiUrl(DEFAULT_API_URL),
-	  _storeUrl(DEFAULT_STORE_URL)
+	  _authUrl(DEFAULT_AUTH_URL),
+	  _storeUrl(DEFAULT_STORE_URL),
+	  _loggedIn(false)
 {
 	std::string dataPath = obs_get_module_data_path(obs_current_module());
 	dataPath += "/" + std::string(API_URLS_FILE);
@@ -44,7 +45,7 @@ MarketplaceApi::MarketplaceApi()
 		try {
 			json data = json::parse(f);
 			_gatewayUrl = data.at("gateway_url");
-			_apiUrl = data.at("api_url");
+			_authUrl = data.at("auth_url");
 			_storeUrl = data.at("store_url");
 			obs_log(LOG_INFO, "Url file loaded.");
 		} catch (...) {
@@ -55,7 +56,7 @@ MarketplaceApi::MarketplaceApi()
 		obs_log(LOG_INFO, "No url file found.");
 	}
 	obs_log(LOG_INFO, "Gateway Url: %s", _gatewayUrl.c_str());
-	obs_log(LOG_INFO, "API Url: %s", _apiUrl.c_str());
+	obs_log(LOG_INFO, "Auth Url: %s", _authUrl.c_str());
 	obs_log(LOG_INFO, "Store Url: %s", _storeUrl.c_str());
 }
 

@@ -22,8 +22,8 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <nlohmann/json.hpp>
 
 #define DEFAULT_GATEWAY_URL "https://mp-gateway.elgato.com"
-#define DEFAULT_API_URL "https://mp.elgato.com"
 #define DEFAULT_STORE_URL "https://marketplace.elgato.com"
+#define DEFAULT_AUTH_URL "https://account.elgato.com"
 #define API_URLS_FILE "api-urls.json"
 
 namespace elgatocloud {
@@ -37,8 +37,8 @@ class MarketplaceApi {
 public:
 	static MarketplaceApi *getInstance();
 	inline std::string gatewayUrl() const { return _gatewayUrl; }
-	inline std::string apiUrl() const { return _apiUrl; }
 	inline std::string storeUrl() const { return _storeUrl; }
+	inline std::string authUrl() const { return _authUrl; }
 	inline std::string firstName() const { return _firstName; }
 	inline std::string lastName() const { return _lastName; }
 	inline std::string avatarColor() const { return _avatarColor; }
@@ -50,8 +50,8 @@ private:
 	MarketplaceApi(const MarketplaceApi &cpy) = delete;
 
 	std::string _gatewayUrl;
-	std::string _apiUrl;
 	std::string _storeUrl;
+	std::string _authUrl;
 	bool _loggedIn;
 	std::string _firstName;
 	std::string _lastName;

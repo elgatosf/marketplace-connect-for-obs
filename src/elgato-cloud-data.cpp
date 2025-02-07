@@ -114,7 +114,7 @@ void ElgatoCloud::_TokenRefresh(bool loadData, bool loadUserDetails)
 	encodeddata += "grant_type=refresh_token";
 	encodeddata += "&refresh_token=" + _refreshToken;
 	encodeddata += "&client_id=elgatolink";
-	std::string url = api->gatewayUrl();
+	std::string url = api->authUrl();
 	url += "/auth/realms/mp/protocol/openid-connect/token?";
 	url += encodeddata;
 	obs_log(LOG_INFO, "Token Refresh Called");
@@ -188,7 +188,7 @@ void ElgatoCloud::_Listen()
 				encodeddata += "&client_id=elgatolink";
 
 				auto api = MarketplaceApi::getInstance();
-				std::string url = api->gatewayUrl();
+				std::string url = api->authUrl();
 
 				url += "/auth/realms/mp/protocol/openid-connect/token?";
 				url += encodeddata;
@@ -261,7 +261,7 @@ void ElgatoCloud::StartLogin()
 
 	auto api = MarketplaceApi::getInstance();
 	std::string url =
-		api->gatewayUrl() +
+		api->authUrl() +
 		"/auth/realms/mp/protocol/openid-connect/auth?response_type=code&client_id=elgatolink&redirect_uri=https%3A%2F%2Foauth2-redirect.elgato.com%2Felgatolink%2Fauth&code_challenge=" +
 		stringhash + "&code_challenge_method=S256";
 
