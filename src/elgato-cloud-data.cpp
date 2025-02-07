@@ -119,8 +119,22 @@ void ElgatoCloud::_TokenRefresh(bool loadData, bool loadUserDetails)
 	url += encodeddata;
 	obs_log(LOG_INFO, "Token Refresh Called");
 	auto response = fetch_string_from_post(url, encodeddata);
-	auto responseJson = nlohmann::json::parse(response);
-	_ProcessLogin(responseJson, loadData);
+	try {
+		auto responseJson = nlohmann::json::parse(response);
+		_ProcessLogin(responseJson, loadData);
+	} catch (...) {
+		loggedIn = false;
+		loading = false;
+		authorizing = false;
+		loginError = true;
+		if (mainWindowOpen && window) {
+			QMetaObject::invokeMethod(
+				QCoreApplication::instance()->thread(),
+				[this]() {
+					window->setLoggedIn();
+				});
+		}
+	}
 }
 
 void ElgatoCloud::_Listen()
