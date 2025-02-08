@@ -241,7 +241,7 @@ DefaultAVWidget::~DefaultAVWidget()
 	}
 	if (_videoCaptureSource) {
 		obs_source_release(_videoCaptureSource);
-		obs_source_remove(_videoCaptureSource);
+		//obs_source_remove(_videoCaptureSource);
 	}
 	_levelsWidget = nullptr;
 }
