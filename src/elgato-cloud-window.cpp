@@ -705,9 +705,22 @@ LoginNeeded::LoginNeeded(QWidget *parent) : QWidget(parent)
 	loginSub->setWordWrap(true);
 	loginSub->setAlignment(Qt::AlignCenter);
 
+	auto hLayout = new QHBoxLayout();
+	auto loginButton = new QPushButton(this);
+	loginButton->setText(obs_module_text("MarketplaceWindow.LoginButton.LogIn"));
+	loginButton->setHidden(elgatoCloud->loggedIn);
+	loginButton->setStyleSheet(
+		"QPushButton {font-size: 12pt; border-radius: 8px; padding: 8px; background-color: #232323; border: none; } "
+		"QPushButton:hover {background-color: #444444; }");
+	connect(loginButton, &QPushButton::clicked, this,
+		[this]() { elgatoCloud->StartLogin(); });
+	hLayout->addStretch();
+	hLayout->addWidget(loginButton);
+	hLayout->addStretch();
 	layout->addStretch();
 	layout->addWidget(login);
 	layout->addWidget(loginSub);
+	layout->addLayout(hLayout);
 	layout->addStretch();
 }
 
