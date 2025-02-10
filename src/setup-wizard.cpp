@@ -902,6 +902,7 @@ void StreamPackageSetupWizard::_buildSetupUI(
 	connect(aSetup, &AudioSetup::proceedPressed, this,
 		[this](std::string settings) {
 			_setup.audioSettings = settings;
+			// Nuke the video preview window
 			install();
 		});
 	connect(aSetup, &AudioSetup::backPressed, this,

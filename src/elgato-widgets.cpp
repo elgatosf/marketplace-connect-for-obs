@@ -39,13 +39,15 @@ VideoCaptureSourceSelector::VideoCaptureSourceSelector(QWidget *parent,
 						       obs_data_t *videoData)
 	: QWidget(parent),
 	  _sourceName(sourceName),
-	  _noneSelected(true)
+	  _noneSelected(true),
+	  _deactivated(false)
 {
 	std::string imageBaseDir =
 		obs_get_module_data_path(obs_current_module());
 	imageBaseDir += "/images/";
 
 	setFixedWidth(258);
+	_loading = true;
 
 	auto layout = new QVBoxLayout(this);
 	layout->setContentsMargins(0, 0, 0, 16);
@@ -90,22 +92,17 @@ VideoCaptureSourceSelector::VideoCaptureSourceSelector(QWidget *parent,
 
 	connect(_videoSources, &QComboBox::currentIndexChanged, this,
 		[this](int index) {
+			_loading = true;
 			if (index > 0) {
 				auto vSettings = obs_data_create();
 				std::string id = _videoSourceIds[index];
 				obs_data_set_string(vSettings,
-						    "video_device_id",
-						    id.c_str());
-				obs_source_reset_settings(_videoCaptureSource,
-							  vSettings);
+					"video_device_id",
+					id.c_str());
+				_changeSource(vSettings);
 				obs_data_release(vSettings);
-				this->_noneSelected = false;
-				this->_videoPreview->show();
-				this->_blank->hide();
 			} else {
-				this->_noneSelected = true;
-				this->_videoPreview->hide();
-				this->_blank->show();
+				_changeSource(nullptr);
 			}
 		});
 }
@@ -163,11 +160,44 @@ void VideoCaptureSourceSelector::_setupTempSource(obs_data_t *videoData)
 	//obs_data_release(videoSettings);
 }
 
+void VideoCaptureSourceSelector::_changeSource(obs_data_t *vSettings)
+{
+	if (vSettings != nullptr) {
+		blog(LOG_INFO, "_changeSource called.");
+		if (_videoCaptureSource) {
+			obs_source_t* tmp = _videoCaptureSource;
+			_videoCaptureSource = nullptr;
+			obs_source_release(tmp);
+		}
+
+		const char* videoSourceId = "dshow_input";
+		const char* vId = obs_get_latest_input_type_id(videoSourceId);
+		_videoCaptureSource = obs_source_create_private(
+			vId, "elgato-cloud-video-config", vSettings);
+
+		this->_noneSelected = false;
+		this->_videoPreview->show();
+		this->_blank->hide();
+	} else {
+		this->_noneSelected = true;
+		this->_videoPreview->hide();
+		this->_blank->show();
+		if (_videoCaptureSource) {
+			obs_source_t* tmp = _videoCaptureSource;
+			_videoCaptureSource = nullptr;
+			obs_source_release(tmp);
+		}
+	}
+
+}
+
 void VideoCaptureSourceSelector::DrawVideoPreview(void *data, uint32_t cx,
 						  uint32_t cy)
 {
 	auto config = static_cast<VideoCaptureSourceSelector *>(data);
-
+	if (config->_loading) {
+		config->_loading = false;
+	}
 	if (!config->_videoCaptureSource)
 		return;
 

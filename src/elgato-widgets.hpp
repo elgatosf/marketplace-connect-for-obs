@@ -52,7 +52,10 @@ private:
 	std::vector<std::string> _videoSourceIds;
 	std::string _sourceName;
 	void _setupTempSource(obs_data_t *videoData);
+	void _changeSource(obs_data_t* vSettings);
 	bool _noneSelected;
+	bool _loading;
+	bool _deactivated;
 };
 
 class ProgressSpinner : public QWidget {
