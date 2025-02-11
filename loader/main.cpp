@@ -3,6 +3,8 @@
 #include <tlhelp32.h>
 #include <algorithm>
 
+#include <iostream>
+
 #define BUFFER_SIZE 8000
 
 
@@ -71,10 +73,15 @@ BOOL CALLBACK WindowToForeground(HWND hwnd, LPARAM lParam) {
 	GetWindowThreadProcessId(hwnd, &processId);
 
 	if (processId == lParam) {
+		wchar_t windowTitle[256];
+		int titleLength = GetWindowTextW(hwnd, windowTitle, sizeof(windowTitle) / sizeof(wchar_t));
+		std::wstring title = windowTitle;
 		// Bring the window to the foreground
-		SetForegroundWindow(hwnd);
-		ShowWindow(hwnd, SW_RESTORE);  // Restore if minimized
-		return FALSE;  // Stop enumerating windows (we found the window)
+		if (title.rfind(L"OBS ", 0) == 0) { // the main OBS window title starts with 'OBS '
+			SetForegroundWindow(hwnd);
+			ShowWindow(hwnd, SW_RESTORE);  // Restore if minimized
+			return FALSE;  // Stop enumerating windows (we found the window)
+		}
 	}
 	return TRUE;  // Continue enumerating windows
 }
