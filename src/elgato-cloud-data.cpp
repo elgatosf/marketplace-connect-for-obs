@@ -29,10 +29,12 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <QThread>
 #include <QMetaObject>
 #include <QDir>
+#include <QVersionNumber>
 
 #include <plugin-support.h>
 #include "elgato-cloud-window.hpp"
 #include "elgato-cloud-data.hpp"
+#include "elgato-update-modal.hpp"
 #include "platform.h"
 #include "util.h"
 #include "api.hpp"
@@ -284,6 +286,44 @@ void ElgatoCloud::LogOut()
 	}
 }
 
+void ElgatoCloud::CheckUpdates(bool forceCheck)
+{
+	try {
+		std::string updateUrl = "https://gc-updates.elgato.com/windows/marketplace-plugin-for-obs/final/app-version-check.json.php";
+		auto response = fetch_string_from_get(updateUrl, "");
+		blog(LOG_INFO, response.c_str());
+		auto responseJson = nlohmann::json::parse(response);
+		if (responseJson.contains("Automatic")) {
+			auto details = responseJson["Automatic"];
+			std::string version = details["Version"];
+			std::string downloadUrl = details["downloadURL"];
+			auto updateVersion = QVersionNumber::fromString(version);
+			auto currentVersion = QVersionNumber::fromString(PLUGIN_VERSION);
+			std::string skip = _skipUpdate == "" ? "0.0.0" : _skipUpdate;
+			blog(LOG_INFO, "update: %s, current: %s, skip: %s", version.c_str(), PLUGIN_VERSION, skip.c_str());
+			auto skipVersion = QVersionNumber::fromString(skip);
+			if ((forceCheck || skipVersion != updateVersion) && updateVersion > currentVersion) {
+				// Reset the "skip this update" flag because we now have a
+				// new update.
+				_skipUpdate = !forceCheck ? "" : _skipUpdate;  
+				blog(LOG_INFO, "UPDATE FOUND.");
+				openUpdateModal(version, downloadUrl);
+			}
+		} else {
+			throw("Error");
+		}
+	}
+	catch (...) {
+		blog(LOG_INFO, "Unable to contact update server.");
+	}
+}
+
+void ElgatoCloud::SetSkipVersion(std::string version)
+{
+	_skipUpdate = version;
+	_SaveState();
+}
+
 void ElgatoCloud::LoadPurchasedProducts()
 {
 	if (!loggedIn) {
@@ -441,6 +481,7 @@ void ElgatoCloud::_SaveState()
 			 _accessTokenExpiration);
 	obs_data_set_int(_config, "RefreshTokenExpiration",
 			 _refreshTokenExpiration);
+	obs_data_set_string(_config, "SkipUpdate", _skipUpdate.c_str());
 	SaveConfig();
 }
 
@@ -452,6 +493,7 @@ void ElgatoCloud::_GetSavedState()
 		obs_data_get_int(_config, "AccessTokenExpiration");
 	_refreshTokenExpiration =
 		obs_data_get_int(_config, "RefreshTokenExpiration");
+	_skipUpdate = obs_data_get_string(_config, "SkipUpdate");
 }
 
 } // namespace elgatocloud

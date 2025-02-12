@@ -7,7 +7,6 @@
 
 #define BUFFER_SIZE 8000
 
-
 void ToLowerCase(std::wstring& str) {
 	std::transform(str.begin(), str.end(), str.begin(), ::towlower);
 }
@@ -19,14 +18,14 @@ bool IsObs64Running() {
 		return false;  // Failed to take snapshot
 	}
 
-	PROCESSENTRY32 pe32;
-	pe32.dwSize = sizeof(PROCESSENTRY32);
+	PROCESSENTRY32 processEntry;
+	processEntry.dwSize = sizeof(PROCESSENTRY32);
 
 	// Start iterating through processes
-	if (Process32First(hProcessSnap, &pe32)) {
+	if (Process32First(hProcessSnap, &processEntry)) {
 		do {
 			// Convert the process name to lowercase for comparison
-			std::wstring processName(pe32.szExeFile);
+			std::wstring processName(processEntry.szExeFile);
 			ToLowerCase(processName);
 
 			// Compare process name to "obs64.exe" in lowercase
@@ -34,7 +33,7 @@ bool IsObs64Running() {
 				CloseHandle(hProcessSnap);
 				return true;  // obs64.exe is running
 			}
-		} while (Process32Next(hProcessSnap, &pe32));  // Move to next process
+		} while (Process32Next(hProcessSnap, &processEntry));  // Move to next process
 	}
 
 	CloseHandle(hProcessSnap);
@@ -79,7 +78,7 @@ BOOL CALLBACK WindowToForeground(HWND hwnd, LPARAM lParam) {
 		// Bring the window to the foreground
 		if (title.rfind(L"OBS ", 0) == 0) { // the main OBS window title starts with 'OBS '
 			SetForegroundWindow(hwnd);
-			ShowWindow(hwnd, SW_RESTORE);  // Restore if minimized
+			ShowWindow(hwnd, SW_RESTORE);
 			return FALSE;  // Stop enumerating windows (we found the window)
 		}
 	}

@@ -67,6 +67,11 @@ void import_collection(void *)
 	product.Install(fileName.toStdString(), &product, false);
 }
 
+const char* obs_module_name(void)
+{
+	return "Elgato Marketplace Connect for OBS";
+}
+
 bool obs_module_load(void)
 {
 	obs_log(LOG_INFO, "plugin loaded successfully (version %s)",
@@ -76,11 +81,12 @@ bool obs_module_load(void)
 	bool makerTools = obs_data_get_bool(config, "MakerTools");
 	obs_data_release(config);
 	if (makerTools) {
-		obs_frontend_add_tools_menu_item("Export Marketplace Scene",
+		obs_frontend_add_tools_menu_item("Export Maker Scene Collection",
 						 export_collection, NULL);
-		obs_frontend_add_tools_menu_item("Import Marketplace Scene",
+		obs_frontend_add_tools_menu_item("Import Maker Scene Collection",
 						 import_collection, NULL);
 	}
+	
 	return true;
 }
 

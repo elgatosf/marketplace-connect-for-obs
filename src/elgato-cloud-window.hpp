@@ -234,5 +234,7 @@ void OpenElgatoCloudWindow();
 void CloseElgatoCloudWindow();
 ElgatoCloudWindow *GetElgatoCloudWindow();
 void ElgatoCloudWindowSetEnabled(bool enable);
+void CheckForUpdates(bool forceCheck);
+void CheckForUpdatesOnLaunch(enum obs_frontend_event event, void* private_data);
 
 } // namespace elgatocloud

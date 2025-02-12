@@ -844,8 +844,9 @@ extern void InitElgatoCloud(obs_module_t *module)
 {
 	elgatoCloud = new ElgatoCloud(module);
 	QAction *action = (QAction *)obs_frontend_add_tools_menu_qaction(
-		"Elgato Marketplace");
+		"Elgato Marketplace Connect");
 	action->connect(action, &QAction::triggered, OpenElgatoCloudWindow);
+	obs_frontend_add_event_callback(CheckForUpdatesOnLaunch, nullptr);
 }
 
 extern void ShutDown()
@@ -859,6 +860,22 @@ extern obs_data_t *GetElgatoCloudConfig()
 		return elgatoCloud->GetConfig();
 	}
 	return nullptr;
+}
+
+extern void CheckForUpdates(bool forceCheck)
+{
+	if (!elgatoCloud) {
+		return;
+	}
+	elgatoCloud->CheckUpdates(forceCheck);
+}
+
+extern void CheckForUpdatesOnLaunch(enum obs_frontend_event event, void* private_data)
+{
+	if (event == OBS_FRONTEND_EVENT_FINISHED_LOADING) {
+		obs_frontend_remove_event_callback(CheckForUpdatesOnLaunch, nullptr);
+		CheckForUpdates(false);
+	}
 }
 
 } // namespace elgatocloud
