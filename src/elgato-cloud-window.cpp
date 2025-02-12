@@ -226,7 +226,7 @@ WindowToolBar::WindowToolBar(QWidget *parent) : QWidget(parent)
 	imageBaseDir += "/images/";
 
 	auto api = MarketplaceApi::getInstance();
-	std::string storeUrl = api->storeUrl() + "/graphics/scene-collections";
+	std::string storeUrl = api->storeUrl() + "/obs/scene-collections?utm_source=mp_connect";
 
 	QPalette pal = QPalette();
 	pal.setColor(QPalette::Window, "#151515");
@@ -305,6 +305,11 @@ WindowToolBar::WindowToolBar(QWidget *parent) : QWidget(parent)
 }
 
 WindowToolBar::~WindowToolBar() {}
+
+void WindowToolBar::disableLogout(bool disabled)
+{
+	_logOutButton->setDisabled(disabled);
+}
 
 void WindowToolBar::updateState()
 {
@@ -523,6 +528,7 @@ void ElgatoCloudWindow::initialize()
 
 void ElgatoCloudWindow::setLoading()
 {
+	_toolbar->disableLogout(true);
 	_stackedContent->setCurrentIndex(3);
 }
 
@@ -538,6 +544,7 @@ void ElgatoCloudWindow::on_logOutButton_clicked()
 
 void ElgatoCloudWindow::setLoggedIn()
 {
+	_toolbar->disableLogout(false);
 	if (elgatoCloud->connectionError) {
 		_stackedContent->setCurrentIndex(2);
 	} else if (elgatoCloud->loginError) {
@@ -545,6 +552,7 @@ void ElgatoCloudWindow::setLoggedIn()
 	} else if (!elgatoCloud->loggedIn) {
 		_stackedContent->setCurrentIndex(1);
 	} else if (elgatoCloud->loading) {
+		_toolbar->disableLogout(true);
 		_stackedContent->setCurrentIndex(3);
 	} else {
 		_stackedContent->setCurrentIndex(0);

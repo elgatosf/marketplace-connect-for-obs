@@ -116,6 +116,7 @@ public:
 	WindowToolBar(QWidget *parent);
 	~WindowToolBar();
 	void updateState();
+	void disableLogout(bool disabled);
 
 private:
 	QHBoxLayout *_layout;
