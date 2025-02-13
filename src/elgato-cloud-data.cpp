@@ -494,6 +494,7 @@ void ElgatoCloud::_GetSavedState()
 	_refreshTokenExpiration =
 		obs_data_get_int(_config, "RefreshTokenExpiration");
 	_skipUpdate = obs_data_get_string(_config, "SkipUpdate");
+	_skipUpdate = "";
 }
 
 } // namespace elgatocloud
