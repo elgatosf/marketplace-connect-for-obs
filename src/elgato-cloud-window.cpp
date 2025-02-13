@@ -226,7 +226,7 @@ WindowToolBar::WindowToolBar(QWidget *parent) : QWidget(parent)
 	imageBaseDir += "/images/";
 
 	auto api = MarketplaceApi::getInstance();
-	std::string storeUrl = api->storeUrl() + "/obs/scene-collections?utm_source=mp_connect";
+	std::string storeUrl = api->storeUrl() + "/obs/scene-collections?utm_source=mp_connect&utm_medium=direct_software&utm_campaign=v_1.0";
 
 	QPalette pal = QPalette();
 	pal.setColor(QPalette::Window, "#151515");
