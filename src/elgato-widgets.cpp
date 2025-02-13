@@ -230,6 +230,9 @@ void VideoCaptureSourceSelector::DrawVideoPreview(void *data, uint32_t cx,
 
 std::string VideoCaptureSourceSelector::GetSettings() const
 {
+	if (!_videoCaptureSource) {
+		return "{}";
+	}
 	obs_data_t *vSettings = obs_source_get_settings(_videoCaptureSource);
 	std::string vJson = obs_data_get_json(vSettings);
 	obs_data_release(vSettings);
