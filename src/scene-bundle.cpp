@@ -153,6 +153,38 @@ void SceneBundle::ToCollection(std::string collection_name,
 
 	const auto userConf = GetUserConfig();
 
+	std::string curCollectionName =
+		config_get_string(userConf, "Basic", "SceneCollection");
+	std::string curCollectionFileName =
+		get_current_scene_collection_filename();
+	curCollectionFileName =
+		get_scene_collections_path() + curCollectionFileName;
+
+	char* ccpath = os_get_abs_path_ptr(curCollectionFileName.c_str());
+	std::string curCollectionPath = std::string(ccpath);
+
+	size_t pos = 0;
+	std::string from = "\\";
+	std::string to = "/";
+	while ((pos = curCollectionPath.find(from, pos)) != std::string::npos) {
+		curCollectionPath.replace(pos, from.length(), to);
+		pos += to.length();
+	}
+
+	bfree(ccpath);
+
+	std::string savePath = QDir::homePath().toStdString();
+	savePath += "/AppData/Local/Elgato/DeepLinking/SCBackups/";
+	os_mkdirs(savePath.c_str());
+
+	std::string backupFilename = get_current_scene_collection_filename();
+	savePath += backupFilename;
+
+	if (os_file_exists(savePath.c_str())) {
+		os_unlink(savePath.c_str());
+	}
+	os_copyfile(curCollectionPath.c_str(), savePath.c_str());
+
 	char *current_collection = obs_frontend_get_current_scene_collection();
 	std::string collection_file_path = _packPath + "/collection.json";
 	char *collection_str =
