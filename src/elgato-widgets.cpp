@@ -63,8 +63,8 @@ VideoCaptureSourceSelector::VideoCaptureSourceSelector(QWidget *parent,
 	_videoPreview->hide();
 
 	_blank = new QLabel(this);
-	_blank->setText(
-		obs_module_text("MarketplaceWindow.Settings.DefaultVideoDevice.NoneSelected"));
+	_blank->setText(obs_module_text(
+		"MarketplaceWindow.Settings.DefaultVideoDevice.NoneSelected"));
 	_blank->setAlignment(Qt::AlignCenter);
 	_blank->setFixedHeight(144);
 
@@ -97,8 +97,8 @@ VideoCaptureSourceSelector::VideoCaptureSourceSelector(QWidget *parent,
 				auto vSettings = obs_data_create();
 				std::string id = _videoSourceIds[index];
 				obs_data_set_string(vSettings,
-					"video_device_id",
-					id.c_str());
+						    "video_device_id",
+						    id.c_str());
 				_changeSource(vSettings);
 				obs_data_release(vSettings);
 			} else {
@@ -163,15 +163,14 @@ void VideoCaptureSourceSelector::_setupTempSource(obs_data_t *videoData)
 void VideoCaptureSourceSelector::_changeSource(obs_data_t *vSettings)
 {
 	if (vSettings != nullptr) {
-		blog(LOG_INFO, "_changeSource called.");
 		if (_videoCaptureSource) {
-			obs_source_t* tmp = _videoCaptureSource;
+			obs_source_t *tmp = _videoCaptureSource;
 			_videoCaptureSource = nullptr;
 			obs_source_release(tmp);
 		}
 
-		const char* videoSourceId = "dshow_input";
-		const char* vId = obs_get_latest_input_type_id(videoSourceId);
+		const char *videoSourceId = "dshow_input";
+		const char *vId = obs_get_latest_input_type_id(videoSourceId);
 		_videoCaptureSource = obs_source_create_private(
 			vId, "elgato-cloud-video-config", vSettings);
 
@@ -183,12 +182,11 @@ void VideoCaptureSourceSelector::_changeSource(obs_data_t *vSettings)
 		this->_videoPreview->hide();
 		this->_blank->show();
 		if (_videoCaptureSource) {
-			obs_source_t* tmp = _videoCaptureSource;
+			obs_source_t *tmp = _videoCaptureSource;
 			_videoCaptureSource = nullptr;
 			obs_source_release(tmp);
 		}
 	}
-
 }
 
 void VideoCaptureSourceSelector::DrawVideoPreview(void *data, uint32_t cx,

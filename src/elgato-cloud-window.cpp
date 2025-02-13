@@ -100,10 +100,10 @@ DownloadButton::DownloadButton(QWidget *parent) : QWidget(parent)
 				      QSizePolicy::Preferred);
 
 	_downloadButton = new QPushButton(this);
-	_downloadButton->setToolTip(obs_module_text("MarketplaceWindow.DownloadButton.Tooltip"));
+	_downloadButton->setToolTip(
+		obs_module_text("MarketplaceWindow.DownloadButton.Tooltip"));
 	std::string downloadIconPath = imageBaseDir + "download.svg";
 	std::string downloadIconHoverPath = imageBaseDir + "download_hover.svg";
-	blog(LOG_INFO, "download img: ", downloadIconPath.c_str());
 	std::string downloadIconDisabledPath =
 		imageBaseDir + "download_hover.svg";
 	QString buttonStyle = EIconHoverDisabledButtonStyle;
@@ -226,7 +226,9 @@ WindowToolBar::WindowToolBar(QWidget *parent) : QWidget(parent)
 	imageBaseDir += "/images/";
 
 	auto api = MarketplaceApi::getInstance();
-	std::string storeUrl = api->storeUrl() + "/obs/scene-collections?utm_source=mp_connect&utm_medium=direct_software&utm_campaign=v_1.0";
+	std::string storeUrl =
+		api->storeUrl() +
+		"/obs/scene-collections?utm_source=mp_connect&utm_medium=direct_software&utm_campaign=v_1.0";
 
 	QPalette pal = QPalette();
 	pal.setColor(QPalette::Window, "#151515");
@@ -245,7 +247,8 @@ WindowToolBar::WindowToolBar(QWidget *parent) : QWidget(parent)
 	_layout->addStretch();
 
 	_settingsButton = new QPushButton(this);
-	_settingsButton->setToolTip(obs_module_text("MarketplaceWindow.OpenSettingsButton.Tooltip"));
+	_settingsButton->setToolTip(obs_module_text(
+		"MarketplaceWindow.OpenSettingsButton.Tooltip"));
 	std::string settingsIconPath = imageBaseDir + "settings.svg";
 	std::string settingsIconHoverPath = imageBaseDir + "settings_hover.svg";
 	QString settingsButtonStyle = EIconHoverButtonStyle;
@@ -262,7 +265,8 @@ WindowToolBar::WindowToolBar(QWidget *parent) : QWidget(parent)
 	_layout->addWidget(_settingsButton);
 
 	_storeButton = new QPushButton(this);
-	_storeButton->setToolTip(obs_module_text("MarketplaceWindow.StoreButton.Tooltip"));
+	_storeButton->setToolTip(
+		obs_module_text("MarketplaceWindow.StoreButton.Tooltip"));
 	std::string storeIconPath = imageBaseDir + "marketplace-logo.svg";
 	std::string storeIconHoverPath =
 		imageBaseDir + "marketplace-logo_hover.svg";
@@ -281,7 +285,8 @@ WindowToolBar::WindowToolBar(QWidget *parent) : QWidget(parent)
 	_layout->addWidget(_storeButton);
 
 	_logInButton = new QPushButton(this);
-	_logInButton->setText(obs_module_text("MarketplaceWindow.LoginButton.LogIn"));
+	_logInButton->setText(
+		obs_module_text("MarketplaceWindow.LoginButton.LogIn"));
 	_logInButton->setHidden(elgatoCloud->loggedIn);
 	_logInButton->setStyleSheet(
 		"QPushButton {font-size: 12pt; border-radius: 8px; padding: 8px; background-color: #232323; border: none; } "
@@ -291,7 +296,8 @@ WindowToolBar::WindowToolBar(QWidget *parent) : QWidget(parent)
 		[this]() { elgatoCloud->StartLogin(); });
 
 	_logOutButton = new QPushButton(this);
-	_logOutButton->setText(obs_module_text("MarketplaceWindow.LoginButton.LogOut"));
+	_logOutButton->setText(
+		obs_module_text("MarketplaceWindow.LoginButton.LogOut"));
 	_logOutButton->setHidden(!elgatoCloud->loggedIn);
 	_logOutButton->setStyleSheet(
 		"QPushButton {font-size: 12pt; border-radius: 8px; padding: 8px; background-color: #232323; border: none; } "
@@ -396,7 +402,8 @@ OwnedProducts::OwnedProducts(QWidget *parent) : QWidget(parent)
 	connect(_sideMenu, &QListWidget::itemPressed, this,
 		[this](QListWidgetItem *item) {
 			QString val = item->text();
-			if (val == obs_module_text("MarketplaceWindow.PurchasedTab")) {
+			if (val ==
+			    obs_module_text("MarketplaceWindow.PurchasedTab")) {
 				if (_numProducts > 0)
 					_content->setCurrentIndex(0);
 				else
@@ -422,12 +429,14 @@ OwnedProducts::OwnedProducts(QWidget *parent) : QWidget(parent)
 	auto npLayout = new QVBoxLayout(noProducts);
 	npLayout->addStretch();
 	auto npTitle = new QLabel(
-		obs_module_text("MarketplaceWindow.Purchased.NoPurchasesTitle"), noProducts);
+		obs_module_text("MarketplaceWindow.Purchased.NoPurchasesTitle"),
+		noProducts);
 	npTitle->setStyleSheet("QLabel {font-size: 18pt;}");
 	npTitle->setAlignment(Qt::AlignCenter);
 	npLayout->addWidget(npTitle);
 	auto npSubTitle = new QLabel(
-		obs_module_text("MarketplaceWindow.Purchased.NoPurchasesSubtitle"),
+		obs_module_text(
+			"MarketplaceWindow.Purchased.NoPurchasesSubtitle"),
 		noProducts);
 	npSubTitle->setStyleSheet("QLabel {font-size: 13pt;}");
 	npSubTitle->setAlignment(Qt::AlignCenter);
@@ -515,7 +524,8 @@ void ElgatoCloudWindow::initialize()
 	auto loadingWidget = new LoadingWidget(this); // Loading widget, id: 3
 	_stackedContent->addWidget(loadingWidget);
 
-	auto loginErrorWidget = new LoginError(this); // Login error widget, id: 4
+	auto loginErrorWidget =
+		new LoginError(this); // Login error widget, id: 4
 	_stackedContent->addWidget(loginErrorWidget);
 
 	mainLayout->addWidget(_stackedContent);
@@ -709,13 +719,15 @@ LoginNeeded::LoginNeeded(QWidget *parent) : QWidget(parent)
 	login->setAlignment(Qt::AlignCenter);
 
 	auto loginSub = new QLabel(this);
-	loginSub->setText(obs_module_text("MarketplaceWindow.LoginNeeded.Subtitle"));
+	loginSub->setText(
+		obs_module_text("MarketplaceWindow.LoginNeeded.Subtitle"));
 	loginSub->setWordWrap(true);
 	loginSub->setAlignment(Qt::AlignCenter);
 
 	auto hLayout = new QHBoxLayout();
 	auto loginButton = new QPushButton(this);
-	loginButton->setText(obs_module_text("MarketplaceWindow.LoginButton.LogIn"));
+	loginButton->setText(
+		obs_module_text("MarketplaceWindow.LoginButton.LogIn"));
 	loginButton->setHidden(elgatoCloud->loggedIn);
 	loginButton->setStyleSheet(
 		"QPushButton {font-size: 12pt; border-radius: 8px; padding: 8px; background-color: #232323; border: none; } "
@@ -732,7 +744,7 @@ LoginNeeded::LoginNeeded(QWidget *parent) : QWidget(parent)
 	layout->addStretch();
 }
 
-LoginError::LoginError(QWidget* parent) : QWidget(parent)
+LoginError::LoginError(QWidget *parent) : QWidget(parent)
 {
 	auto layout = new QVBoxLayout(this);
 
@@ -742,7 +754,8 @@ LoginError::LoginError(QWidget* parent) : QWidget(parent)
 	login->setAlignment(Qt::AlignCenter);
 
 	auto loginSub = new QLabel(this);
-	loginSub->setText(obs_module_text("MarketplaceWindow.LoginError.Subtitle"));
+	loginSub->setText(
+		obs_module_text("MarketplaceWindow.LoginError.Subtitle"));
 	loginSub->setWordWrap(true);
 	loginSub->setAlignment(Qt::AlignCenter);
 
@@ -878,10 +891,12 @@ extern void CheckForUpdates(bool forceCheck)
 	elgatoCloud->CheckUpdates(forceCheck);
 }
 
-extern void CheckForUpdatesOnLaunch(enum obs_frontend_event event, void* private_data)
+extern void CheckForUpdatesOnLaunch(enum obs_frontend_event event,
+				    void *private_data)
 {
 	if (event == OBS_FRONTEND_EVENT_FINISHED_LOADING) {
-		obs_frontend_remove_event_callback(CheckForUpdatesOnLaunch, nullptr);
+		obs_frontend_remove_event_callback(CheckForUpdatesOnLaunch,
+						   nullptr);
 		CheckForUpdates(false);
 	}
 }

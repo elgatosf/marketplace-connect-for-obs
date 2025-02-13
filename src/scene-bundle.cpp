@@ -69,8 +69,6 @@ bool SceneBundle::FromCollection(std::string collection_name)
 	std::string scene_collections_path = get_scene_collections_path();
 	std::string file_name = get_current_scene_collection_filename();
 	std::string collection_file_path = scene_collections_path + file_name;
-	blog(LOG_INFO, "COLLECTION FILE PATH: %s",
-	     collection_file_path.c_str());
 
 	// Load the current collection file into a json object
 	char *collection_str =
@@ -84,11 +82,9 @@ bool SceneBundle::FromCollection(std::string collection_name)
 	}
 
 	bfree(collection_str);
-	blog(LOG_INFO, "scripts...");
 	for (auto &script : _collection["modules"]["scripts-tool"]) {
 		_ProcessJsonObj(script);
 	}
-	blog(LOG_INFO, "sources...");
 	for (auto &source : _collection["sources"]) {
 		_ProcessJsonObj(source);
 	}
@@ -160,7 +156,7 @@ void SceneBundle::ToCollection(std::string collection_name,
 	curCollectionFileName =
 		get_scene_collections_path() + curCollectionFileName;
 
-	char* ccpath = os_get_abs_path_ptr(curCollectionFileName.c_str());
+	char *ccpath = os_get_abs_path_ptr(curCollectionFileName.c_str());
 	std::string curCollectionPath = std::string(ccpath);
 
 	size_t pos = 0;
@@ -303,7 +299,6 @@ SceneBundleStatus SceneBundle::ToElgatoCloudFile(
 
 	ecFile.writestr("collection.json", collection_json);
 	ecFile.writestr("bundle_info.json", bundleInfo_json);
-	blog(LOG_INFO, "Adding files to zip...");
 	// Write all assets to zip archive.
 	for (const auto &file : _fileMap) {
 		std::string oFilename = file.first;
@@ -539,8 +534,6 @@ bool SceneBundle::_AddFileToZip(std::string filePath, std::string zipPath,
 	if (_interrupt) {
 		return false;
 	}
-	blog(LOG_INFO, "Adding File %s as %s", filePath.c_str(),
-	     zipPath.c_str());
 	ecFile.write(filePath, zipPath);
 	return true;
 }
