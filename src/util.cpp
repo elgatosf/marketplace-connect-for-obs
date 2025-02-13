@@ -121,9 +121,9 @@ std::string get_current_scene_collection_filename()
 
 	// TODO: Convert this to use GetUserConfig() from obs-utils.cpp
 	if (v < 31) { // Get the filename from global.ini
-		// also in pre-31, the filename in the config file did not
-		// have a filetype suffix.
-		// so we need to add .json
+		      // also in pre-31, the filename in the config file did not
+		      // have a filetype suffix.
+		      // so we need to add .json
 #pragma warning(disable : 4996)
 		filename = config_get_string(obs_frontend_get_global_config(),
 					     "Basic", "SceneCollectionFile");
@@ -144,7 +144,6 @@ std::string get_current_scene_collection_filename()
 	if (!filename_json(filename)) {
 		filename += ".json";
 	}
-	blog(LOG_INFO, "COLLECTION FILENAME: %s", filename.c_str());
 	return filename;
 }
 
@@ -159,8 +158,10 @@ std::string fetch_string_from_get(std::string url, std::string token)
 			 static_cast<void *>(&result));
 	curl_easy_setopt(curl_instance, CURLOPT_USERAGENT, "elgato-cloud 0.0");
 	if (token != "") {
-		curl_easy_setopt(curl_instance, CURLOPT_XOAUTH2_BEARER, token.c_str());
-		curl_easy_setopt(curl_instance, CURLOPT_HTTPAUTH, CURLAUTH_BEARER);
+		curl_easy_setopt(curl_instance, CURLOPT_XOAUTH2_BEARER,
+				 token.c_str());
+		curl_easy_setopt(curl_instance, CURLOPT_HTTPAUTH,
+				 CURLAUTH_BEARER);
 	}
 	curl_easy_setopt(curl_instance, CURLOPT_CONNECTTIMEOUT, 3);
 	curl_easy_setopt(curl_instance, CURLOPT_TIMEOUT, 5);
@@ -469,7 +470,8 @@ bool generate_safe_path(std::string unsafe, std::string &safe)
 	return true;
 }
 
-std::string versionNoBuild() {
+std::string versionNoBuild()
+{
 	std::string fullVersion = PLUGIN_VERSION;
 	size_t lastPos = fullVersion.find_last_of('.');
 	if (lastPos == std::string::npos) {
@@ -491,7 +493,7 @@ std::string buildNumber()
 std::string releaseType()
 {
 	std::string rt = PLUGIN_RELEASE_TYPE;
-	for (auto& c : rt) // convert to lowercase
+	for (auto &c : rt) // convert to lowercase
 	{
 		c = tolower(c);
 	}

@@ -132,9 +132,7 @@ void ElgatoCloud::_TokenRefresh(bool loadData, bool loadUserDetails)
 		if (mainWindowOpen && window) {
 			QMetaObject::invokeMethod(
 				QCoreApplication::instance()->thread(),
-				[this]() {
-					window->setLoggedIn();
-				});
+				[this]() { window->setLoggedIn(); });
 		}
 	}
 }
@@ -198,14 +196,17 @@ void ElgatoCloud::_Listen()
 				auto response = fetch_string_from_post(
 					url, encodeddata);
 
-				auto responseJson = nlohmann::json::parse(response);
+				auto responseJson =
+					nlohmann::json::parse(response);
 
 				if (responseJson.contains("error")) {
 					if (mainWindowOpen && window) {
 						QMetaObject::invokeMethod(
-							QCoreApplication::instance()->thread(),
+							QCoreApplication::instance()
+								->thread(),
 							[this]() {
-								loginError = true;
+								loginError =
+									true;
 								window->setLoggedIn();
 							});
 					}
@@ -289,31 +290,32 @@ void ElgatoCloud::LogOut()
 void ElgatoCloud::CheckUpdates(bool forceCheck)
 {
 	try {
-		std::string updateUrl = "https://gc-updates.elgato.com/windows/marketplace-plugin-for-obs/final/app-version-check.json.php";
+		std::string updateUrl =
+			"https://gc-updates.elgato.com/windows/marketplace-plugin-for-obs/final/app-version-check.json.php";
 		auto response = fetch_string_from_get(updateUrl, "");
-		blog(LOG_INFO, response.c_str());
 		auto responseJson = nlohmann::json::parse(response);
 		if (responseJson.contains("Automatic")) {
 			auto details = responseJson["Automatic"];
 			std::string version = details["Version"];
 			std::string downloadUrl = details["downloadURL"];
-			auto updateVersion = QVersionNumber::fromString(version);
-			auto currentVersion = QVersionNumber::fromString(PLUGIN_VERSION);
-			std::string skip = _skipUpdate == "" ? "0.0.0" : _skipUpdate;
-			blog(LOG_INFO, "update: %s, current: %s, skip: %s", version.c_str(), PLUGIN_VERSION, skip.c_str());
+			auto updateVersion =
+				QVersionNumber::fromString(version);
+			auto currentVersion =
+				QVersionNumber::fromString(PLUGIN_VERSION);
+			std::string skip = _skipUpdate == "" ? "0.0.0"
+							     : _skipUpdate;
 			auto skipVersion = QVersionNumber::fromString(skip);
-			if ((forceCheck || skipVersion != updateVersion) && updateVersion > currentVersion) {
+			if ((forceCheck || skipVersion != updateVersion) &&
+			    updateVersion > currentVersion) {
 				// Reset the "skip this update" flag because we now have a
 				// new update.
-				_skipUpdate = !forceCheck ? "" : _skipUpdate;  
-				blog(LOG_INFO, "UPDATE FOUND.");
+				_skipUpdate = !forceCheck ? "" : _skipUpdate;
 				openUpdateModal(version, downloadUrl);
 			}
 		} else {
 			throw("Error");
 		}
-	}
-	catch (...) {
+	} catch (...) {
 		blog(LOG_INFO, "Unable to contact update server.");
 	}
 }
@@ -391,9 +393,6 @@ nlohmann::json ElgatoCloud::GetPurchaseDownloadLink(std::string variantId)
 	auto response = fetch_string_from_get(api_url, _accessToken);
 	// Todo- Error checking
 	try {
-		blog(LOG_INFO,
-		     "============= DOWNLOAD REQUEST API RESPONSE =============\nURL: %s\nResponse: %s",
-		     api_url.c_str(), response.c_str());
 		auto responseJson = nlohmann::json::parse(response);
 		return responseJson;
 	} catch (...) {
@@ -453,7 +452,6 @@ void ElgatoCloud::_LoadUserData(bool loadData)
 			fetch_string_from_get(api_url, _accessToken);
 		auto userData = nlohmann::json::parse(userResponse);
 		api->setUserDetails(userData);
-		blog(LOG_INFO, "User Response:\n%s", userResponse.c_str());
 		if (mainWindowOpen && window) {
 			QMetaObject::invokeMethod(
 				QCoreApplication::instance()->thread(),
@@ -494,6 +492,7 @@ void ElgatoCloud::_GetSavedState()
 	_refreshTokenExpiration =
 		obs_data_get_int(_config, "RefreshTokenExpiration");
 	_skipUpdate = obs_data_get_string(_config, "SkipUpdate");
+	_skipUpdate = "";
 }
 
 } // namespace elgatocloud

@@ -21,6 +21,7 @@ ElgatoUpdateModal* updateModal = nullptr;
 ElgatoUpdateModal::ElgatoUpdateModal(QWidget* parent, std::string version, std::string downloadUrl)
 	: QDialog(parent)
 {
+	setWindowTitle(QString("Elgato Marketplace Connect Update Available"));
 	setFixedSize(QSize(680, 300));
 	setAttribute(Qt::WA_DeleteOnClose);
 
