@@ -52,7 +52,9 @@ public:
 	void StartLogin();
 	void LogOut();
 	void LoadPurchasedProducts();
+	void CheckUpdates(bool forceCheck);
 	obs_data_t *GetConfig();
+	void SetSkipVersion(std::string version);
 	void SaveConfig();
 	nlohmann::json GetPurchaseDownloadLink(std::string variantId);
 
@@ -87,6 +89,7 @@ private:
 	std::string _refreshToken;
 	int64_t _accessTokenExpiration;
 	int64_t _refreshTokenExpiration;
+	std::string _skipUpdate;
 	obs_data_t *_config;
 	bool _makerToolsOnStart;
 };

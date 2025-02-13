@@ -158,8 +158,10 @@ std::string fetch_string_from_get(std::string url, std::string token)
 	curl_easy_setopt(curl_instance, CURLOPT_WRITEDATA,
 			 static_cast<void *>(&result));
 	curl_easy_setopt(curl_instance, CURLOPT_USERAGENT, "elgato-cloud 0.0");
-	curl_easy_setopt(curl_instance, CURLOPT_XOAUTH2_BEARER, token.c_str());
-	curl_easy_setopt(curl_instance, CURLOPT_HTTPAUTH, CURLAUTH_BEARER);
+	if (token != "") {
+		curl_easy_setopt(curl_instance, CURLOPT_XOAUTH2_BEARER, token.c_str());
+		curl_easy_setopt(curl_instance, CURLOPT_HTTPAUTH, CURLAUTH_BEARER);
+	}
 	curl_easy_setopt(curl_instance, CURLOPT_CONNECTTIMEOUT, 3);
 	curl_easy_setopt(curl_instance, CURLOPT_TIMEOUT, 5);
 	CURLcode res = curl_easy_perform(curl_instance);

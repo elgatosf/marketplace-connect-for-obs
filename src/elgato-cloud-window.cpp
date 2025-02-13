@@ -226,7 +226,7 @@ WindowToolBar::WindowToolBar(QWidget *parent) : QWidget(parent)
 	imageBaseDir += "/images/";
 
 	auto api = MarketplaceApi::getInstance();
-	std::string storeUrl = api->storeUrl() + "/graphics/scene-collections";
+	std::string storeUrl = api->storeUrl() + "/obs/scene-collections?utm_source=mp_connect";
 
 	QPalette pal = QPalette();
 	pal.setColor(QPalette::Window, "#151515");
@@ -305,6 +305,11 @@ WindowToolBar::WindowToolBar(QWidget *parent) : QWidget(parent)
 }
 
 WindowToolBar::~WindowToolBar() {}
+
+void WindowToolBar::disableLogout(bool disabled)
+{
+	_logOutButton->setDisabled(disabled);
+}
 
 void WindowToolBar::updateState()
 {
@@ -523,6 +528,7 @@ void ElgatoCloudWindow::initialize()
 
 void ElgatoCloudWindow::setLoading()
 {
+	_toolbar->disableLogout(true);
 	_stackedContent->setCurrentIndex(3);
 }
 
@@ -538,6 +544,7 @@ void ElgatoCloudWindow::on_logOutButton_clicked()
 
 void ElgatoCloudWindow::setLoggedIn()
 {
+	_toolbar->disableLogout(false);
 	if (elgatoCloud->connectionError) {
 		_stackedContent->setCurrentIndex(2);
 	} else if (elgatoCloud->loginError) {
@@ -545,6 +552,7 @@ void ElgatoCloudWindow::setLoggedIn()
 	} else if (!elgatoCloud->loggedIn) {
 		_stackedContent->setCurrentIndex(1);
 	} else if (elgatoCloud->loading) {
+		_toolbar->disableLogout(true);
 		_stackedContent->setCurrentIndex(3);
 	} else {
 		_stackedContent->setCurrentIndex(0);
@@ -844,8 +852,9 @@ extern void InitElgatoCloud(obs_module_t *module)
 {
 	elgatoCloud = new ElgatoCloud(module);
 	QAction *action = (QAction *)obs_frontend_add_tools_menu_qaction(
-		"Elgato Marketplace");
+		"Elgato Marketplace Connect");
 	action->connect(action, &QAction::triggered, OpenElgatoCloudWindow);
+	obs_frontend_add_event_callback(CheckForUpdatesOnLaunch, nullptr);
 }
 
 extern void ShutDown()
@@ -859,6 +868,22 @@ extern obs_data_t *GetElgatoCloudConfig()
 		return elgatoCloud->GetConfig();
 	}
 	return nullptr;
+}
+
+extern void CheckForUpdates(bool forceCheck)
+{
+	if (!elgatoCloud) {
+		return;
+	}
+	elgatoCloud->CheckUpdates(forceCheck);
+}
+
+extern void CheckForUpdatesOnLaunch(enum obs_frontend_event event, void* private_data)
+{
+	if (event == OBS_FRONTEND_EVENT_FINISHED_LOADING) {
+		obs_frontend_remove_event_callback(CheckForUpdatesOnLaunch, nullptr);
+		CheckForUpdates(false);
+	}
 }
 
 } // namespace elgatocloud

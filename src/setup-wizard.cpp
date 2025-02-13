@@ -232,7 +232,7 @@ StartInstall::StartInstall(QWidget* parent, std::string name,
 	// Setup New and Existing buttons.
 	QHBoxLayout* buttons = new QHBoxLayout(this);
 	QPushButton* continueButton = new QPushButton(this);
-	continueButton->setText(obs_module_text("SetupWizard.NextButton"));
+	continueButton->setText(obs_module_text("SetupWizard.GetStartedButton"));
 	continueButton->setStyleSheet(EPushButtonDarkStyle);
 
 	connect(continueButton, &QPushButton::released, this,
