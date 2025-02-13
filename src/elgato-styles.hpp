@@ -147,16 +147,12 @@ inline const QString ECheckBoxStyle =
 	"QCheckBox::indicator {"
 	"width: 20px;"
 	"height: 20px;"
-	"background-image: none;"
-	"border: none;"
 	"}"
 	"QCheckBox::indicator:checked {"
-	"border: none;"
-	"background-image: url('${checked-img}')"
+	"image: url('${checked-img}')"
 	"}"
 	"QCheckBox::indicator:unchecked {"
-	"border: none;"
-	"background-image: url('${unchecked-img}')"
+	"image: url('${unchecked-img}')"
 	"}";
 
 inline const QString EComboBoxStyle = "QComboBox {"
