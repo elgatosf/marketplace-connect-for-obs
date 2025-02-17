@@ -49,7 +49,7 @@ public:
 				     uint64_t fileSize, uint64_t chunkSize,
 				     uint64_t downloaded);
 	static void Install(std::string filename_utf8, void *data,
-			    bool fromDownload);
+			    bool fromDownload = true);
 	static void ThumbnailProgress(void *ptr, bool finished,
 				      bool downloading, uint64_t fileSize,
 				      uint64_t chunkSize, uint64_t downloaded);

@@ -85,6 +85,77 @@ void Avatar::paintEvent(QPaintEvent *e)
 	paint.end();
 }
 
+AvatarImage::AvatarImage(QWidget* parent) : QWidget(parent)
+{
+	auto api = MarketplaceApi::getInstance();
+	setFixedWidth(40);
+	setFixedHeight(40);
+
+	std::string imageBaseDir = GetDataPath();
+	imageBaseDir += "/images/";
+
+	std::string imagePath = api->avatarReady()
+		? api->avatarPath()
+		: imageBaseDir + "image-loading.svg";
+
+	QPixmap avatarPixmap = _setupImage(imagePath);
+
+	auto layout = new QVBoxLayout(this);
+	layout->setContentsMargins(1, 1, 1, 1);
+	layout->setSpacing(0);
+	_avatarImg = new QLabel(this);
+	_avatarImg->setPixmap(avatarPixmap);
+	_avatarImg->setSizePolicy(QSizePolicy::Preferred,
+		QSizePolicy::Preferred);
+	layout->addWidget(_avatarImg);
+	connect(api, &MarketplaceApi::AvatarDownloaded, this, [this]() {
+		update();
+	});
+}
+
+void AvatarImage::update()
+{
+	auto api = MarketplaceApi::getInstance();
+	std::string imageBaseDir = GetDataPath();
+	imageBaseDir += "/images/";
+
+	std::string imagePath = api->avatarReady()
+		? api->avatarPath()
+		: imageBaseDir + "image-loading.svg";
+	QPixmap avatarPixmap = _setupImage(imagePath);
+
+	_avatarImg->setPixmap(avatarPixmap);
+}
+
+QPixmap AvatarImage::_setupImage(std::string imagePath)
+{
+	int targetHeight = 38;
+	int cornerRadius = 19;
+	QPixmap img;
+
+	if (imagePath != "")
+		img.load(imagePath.c_str());
+
+	int width = img.width();
+	int height = img.height();
+	int targetWidth =
+		int((double)targetHeight * (double)width / (double)height);
+	QPixmap target(targetWidth, targetHeight);
+	target.fill(Qt::transparent);
+	QPainter painter(&target);
+
+	painter.setRenderHint(QPainter::Antialiasing, true);
+	painter.setRenderHint(QPainter::SmoothPixmapTransform, true);
+
+	QPainterPath path = QPainterPath();
+	path.addRoundedRect(0, 0, targetWidth, targetHeight, cornerRadius,
+		cornerRadius);
+	painter.setClipPath(path);
+	painter.drawPixmap(0, 0, img.scaledToHeight(targetHeight));
+
+	return target;
+}
+
 DownloadButton::DownloadButton(QWidget *parent) : QWidget(parent)
 {
 	std::string imageBaseDir = GetDataPath();
@@ -307,7 +378,13 @@ WindowToolBar::WindowToolBar(QWidget *parent) : QWidget(parent)
 
 	_layout->addWidget(_logOutButton);
 	_avatar = new Avatar(this);
+	_avatarImage = new AvatarImage(this);
 	_layout->addWidget(_avatar);
+	_layout->addWidget(_avatarImage);
+
+	connect(api, &MarketplaceApi::AvatarDownloaded, this, [this]() {
+		updateState();
+	});
 }
 
 WindowToolBar::~WindowToolBar() {}
@@ -319,11 +396,14 @@ void WindowToolBar::disableLogout(bool disabled)
 
 void WindowToolBar::updateState()
 {
+	auto api = MarketplaceApi::getInstance();
 	_logInButton->setHidden(elgatoCloud->loggedIn);
 	_logOutButton->setHidden(!elgatoCloud->loggedIn);
-	_avatar->setHidden(!elgatoCloud->loggedIn);
+	_avatar->setHidden(!elgatoCloud->loggedIn || api->avatarReady());
+	_avatarImage->setHidden(!elgatoCloud->loggedIn || !api->avatarReady());
 	if (elgatoCloud->loggedIn) {
 		_avatar->update();
+		_avatarImage->update();
 	}
 }
 
