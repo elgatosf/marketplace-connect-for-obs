@@ -58,7 +58,7 @@ obs_data_t *get_module_config()
 	obs_data_set_default_int(config, "RefreshTokenExpiration", 0);
 
 	std::string path = QDir::homePath().toStdString();
-	path += "/AppData/Local/Elgato/DeepLinking/SceneCollections";
+	path += "/AppData/Local/Elgato/MarketplaceConnect/SceneCollections";
 	os_mkdirs(path.c_str());
 	obs_data_set_default_string(config, "InstallLocation", path.c_str());
 	obs_data_set_default_bool(config, "MakerTools", false);

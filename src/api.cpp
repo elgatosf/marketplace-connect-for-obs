@@ -99,7 +99,7 @@ void MarketplaceApi::setUserDetails(nlohmann::json &data)
 					_avatarUrl = it["asset_cdn"];
 					_hasAvatar = true;
 					std::string avatarPath = QDir::homePath().toStdString();
-					avatarPath += "/AppData/Local/Elgato/DeepLinking/Thumbnails";
+					avatarPath += "/AppData/Local/Elgato/MarketplaceConnect/Thumbnails";
 					os_mkdirs(avatarPath.c_str());
 
 					auto found = _avatarUrl.find_last_of("/");
@@ -134,7 +134,7 @@ void MarketplaceApi::_downloadAvatar()
 	_avatarDownloading = true;
 	_avatarReady = false;
 	std::string savePath = QDir::homePath().toStdString();
-	savePath += "/AppData/Local/Elgato/DeepLinking/Thumbnails/";
+	savePath += "/AppData/Local/Elgato/MarketplaceConnect/Thumbnails/";
 	std::shared_ptr<Downloader> dl = Downloader::getInstance("");
 	dl->Enqueue(_avatarUrl, savePath, MarketplaceApi::AvatarProgress, MarketplaceApi::AvatarDownloadComplete,
 		this);
