@@ -569,6 +569,7 @@ ElgatoCloudWindow::ElgatoCloudWindow(QWidget *parent) : QDialog(parent)
 ElgatoCloudWindow::~ElgatoCloudWindow()
 {
 	if (elgatoCloud) {
+		elgatoCloud->loggingIn = false;
 		elgatoCloud->mainWindowOpen = false;
 		elgatoCloud->window = nullptr;
 	}
@@ -621,6 +622,9 @@ void ElgatoCloudWindow::initialize()
 		new LoginError(this); // Login error widget, id: 4
 	_stackedContent->addWidget(loginErrorWidget);
 
+	auto loggingInWidget = new LoggingIn(this); // logging in widget, id: 5
+	_stackedContent->addWidget(loggingInWidget);
+
 	mainLayout->addWidget(_stackedContent);
 	_mainWidget->setLayout(mainLayout);
 
@@ -650,6 +654,8 @@ void ElgatoCloudWindow::setLoggedIn()
 	_toolbar->disableLogout(false);
 	if (elgatoCloud->connectionError) {
 		_stackedContent->setCurrentIndex(2);
+	} else if (elgatoCloud->loggingIn) {
+		_stackedContent->setCurrentIndex(5);
 	} else if (elgatoCloud->loginError) {
 		_stackedContent->setCurrentIndex(4);
 	} else if (!elgatoCloud->loggedIn) {
@@ -821,6 +827,40 @@ LoginNeeded::LoginNeeded(QWidget *parent) : QWidget(parent)
 	auto loginButton = new QPushButton(this);
 	loginButton->setText(
 		obs_module_text("MarketplaceWindow.LoginButton.LogIn"));
+	loginButton->setStyleSheet(
+		"QPushButton {font-size: 12pt; border-radius: 8px; padding: 8px; background-color: #232323; border: none; } "
+		"QPushButton:hover {background-color: #444444; }");
+	connect(loginButton, &QPushButton::clicked, this,
+		[this]() { elgatoCloud->StartLogin(); });
+	hLayout->addStretch();
+	hLayout->addWidget(loginButton);
+	hLayout->addStretch();
+	layout->addStretch();
+	layout->addWidget(login);
+	layout->addWidget(loginSub);
+	layout->addLayout(hLayout);
+	layout->addStretch();
+}
+
+LoggingIn::LoggingIn(QWidget* parent) : QWidget(parent)
+{
+	auto layout = new QVBoxLayout(this);
+
+	auto login = new QLabel(this);
+	login->setText(obs_module_text("MarketplaceWindow.LoggingIn.Title"));
+	login->setStyleSheet("QLabel {font-size: 18pt;}");
+	login->setAlignment(Qt::AlignCenter);
+
+	auto loginSub = new QLabel(this);
+	loginSub->setText(
+		obs_module_text("MarketplaceWindow.LoggingIn.Subtitle"));
+	loginSub->setWordWrap(true);
+	loginSub->setAlignment(Qt::AlignCenter);
+
+	auto hLayout = new QHBoxLayout();
+	auto loginButton = new QPushButton(this);
+	loginButton->setText(
+		obs_module_text("MarketplaceWindow.LoggingIn.TryAgain"));
 	loginButton->setStyleSheet(
 		"QPushButton {font-size: 12pt; border-radius: 8px; padding: 8px; background-color: #232323; border: none; } "
 		"QPushButton:hover {background-color: #444444; }");

@@ -151,7 +151,6 @@ void ElgatoCloud::_Listen()
 {
 	_listenThread = std::thread([this]() {
 		listen_on_pipe("elgato_cloud", [this](std::string d) {
-			obs_log(LOG_INFO, "Got Deeplink %s", d.c_str());
 			if (d.find("elgatolink://auth") == 0) {
 				if (mainWindowOpen && window) {
 					QMetaObject::invokeMethod(
@@ -165,7 +164,6 @@ void ElgatoCloud::_Listen()
 						});
 				}
 
-				obs_log(LOG_INFO, "auth detected");
 				std::unique_lock lock(m);
 				if (!authorizing) {
 					return;
@@ -217,11 +215,13 @@ void ElgatoCloud::_Listen()
 							[this]() {
 								loginError =
 									true;
+								loggingIn = false;
 								window->setLoggedIn();
 							});
 					}
 				} else {
 					loginError = false;
+					loggingIn = false;
 					_ProcessLogin(responseJson);
 				}
 				authorizing = false;
@@ -255,6 +255,10 @@ void ElgatoCloud::_Initialize()
 
 void ElgatoCloud::StartLogin()
 {
+	loggingIn = true;
+	if (mainWindowOpen && window) {
+		window->setLoggedIn();
+	}
 	std::unique_lock lock(m);
 	union {
 		uint32_t uint[8];
@@ -435,9 +439,6 @@ void ElgatoCloud::_ProcessLogin(nlohmann::json &loginData, bool loadData)
 			refreshExpiresIn + seconds.count() - 10;
 
 		_SaveState();
-
-		obs_log(LOG_INFO, "Access and refresh token stored.");
-		obs_log(LOG_INFO, "%s", _accessToken.c_str());
 
 		loggedIn = true;
 		loading = true;

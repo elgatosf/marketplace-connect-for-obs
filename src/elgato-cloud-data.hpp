@@ -65,6 +65,7 @@ public:
 	bool authorizing = false;
 	bool connectionError = false;
 	bool loginError = false;
+	bool loggingIn = false;
 
 	void Thread();
 	bool mainWindowOpen = false;
