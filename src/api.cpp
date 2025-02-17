@@ -60,6 +60,17 @@ MarketplaceApi::MarketplaceApi()
 	}
 }
 
+void MarketplaceApi::logOut()
+{
+	_loggedIn = false;
+	_hasAvatar = false;
+	_avatarReady = false;
+	_avatarDownloading = false;
+	_avatarPath = "";
+	_firstName = "";
+	_lastName = "";
+}
+
 MarketplaceApi *MarketplaceApi::getInstance()
 {
 	if (_api == nullptr) {

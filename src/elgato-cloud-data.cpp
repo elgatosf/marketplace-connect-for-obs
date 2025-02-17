@@ -282,6 +282,9 @@ void ElgatoCloud::LogOut()
 	_refreshTokenExpiration = 0;
 	_SaveState();
 	loggedIn = false;
+	auto api = MarketplaceApi::getInstance();
+	api->logOut();
+
 	if (mainWindowOpen && window) {
 		window->setLoggedIn();
 	}

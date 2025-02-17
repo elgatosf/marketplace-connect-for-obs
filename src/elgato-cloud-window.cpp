@@ -101,7 +101,7 @@ AvatarImage::AvatarImage(QWidget* parent) : QWidget(parent)
 	QPixmap avatarPixmap = _setupImage(imagePath);
 
 	auto layout = new QVBoxLayout(this);
-	layout->setContentsMargins(1, 1, 1, 1);
+	layout->setContentsMargins(0, 0, 0, 0);
 	layout->setSpacing(0);
 	_avatarImg = new QLabel(this);
 	_avatarImg->setPixmap(avatarPixmap);
@@ -129,8 +129,8 @@ void AvatarImage::update()
 
 QPixmap AvatarImage::_setupImage(std::string imagePath)
 {
-	int targetHeight = 38;
-	int cornerRadius = 19;
+	int targetHeight = 40;
+	int cornerRadius = 20;
 	QPixmap img;
 
 	if (imagePath != "")
