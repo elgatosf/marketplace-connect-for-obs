@@ -53,6 +53,7 @@ public:
 		uint64_t chunkSize, uint64_t downloaded);
 	static void AvatarDownloadComplete(std::string filename, void* data);
 	void setUserDetails(nlohmann::json &data);
+	void logOut();
 
 signals:
 	void AvatarDownloaded();
