@@ -137,6 +137,7 @@ size_t Downloader::DownloadEntry::handle_progress(void *ptr, curl_off_t dltotal,
 Downloader::DownloadEntry::DownloadEntry(Downloader *parent, std::string url,
 					 std::string targetPath,
 					 ProgressCallbackFn pc,
+					 CompleteCallbackFn cc,
 					 void *callbackDat)
 	: url(url),
 	  file(nullptr),
@@ -146,6 +147,7 @@ Downloader::DownloadEntry::DownloadEntry(Downloader *parent, std::string url,
 	  references(0),
 	  removed(false),
 	  progressCallback(pc),
+	  completeCallback(cc),
 	  callbackData(callbackDat),
 	  parent(parent)
 {
@@ -235,7 +237,7 @@ void Downloader::DownloadEntry::Finish()
 		//bfree(absPath);
 
 		parent->moveRequests.push_back(
-			{tmpTargetName, target.c_str(), callbackData});
+			{tmpTargetName, target.c_str(), callbackData, completeCallback});
 	}
 	if (progressCallback) {
 		progressCallback(callbackData, true, false, fileSize, 0,
@@ -296,12 +298,12 @@ std::shared_ptr<Downloader> Downloader::getInstance(std::string configLocation)
 }
 
 Downloader::Entry Downloader::Enqueue(std::string url, std::string targetPath,
-				      ProgressCallbackFn pc, void *callbackDat)
+				      ProgressCallbackFn pc, CompleteCallbackFn cc, void *callbackDat)
 {
 	std::unique_lock l(lock);
 
 	auto dlentry = std::make_shared<DownloadEntry>(this, url, targetPath,
-						       pc, callbackDat);
+						       pc, cc, callbackDat);
 	auto result = queue.emplace(idCounter++, dlentry);
 	if (result.first == queue.end() || result.second == false) {
 		throw "TODO";
@@ -397,8 +399,9 @@ void Downloader::workerJob()
 					});
 			} else {
 				// We are downloading a thumbnail.
-				elgatocloud::ElgatoProduct::SetThumbnail(
-					file, mr.data);
+				if (mr.callback) {
+					mr.callback(file, mr.data);
+				}
 			}
 		}
 	} while (working);

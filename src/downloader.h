@@ -42,10 +42,13 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 typedef void (*ProgressCallbackFn)(void *, bool, bool, uint64_t, uint64_t,
 				   uint64_t);
 
+typedef void (*CompleteCallbackFn)(std::string, void* data);
+
 struct MoveRequestData {
 	std::string first;
 	std::string second;
 	void *data;
+	CompleteCallbackFn callback;
 };
 
 class Downloader {
@@ -79,11 +82,13 @@ private:
 		CURL *handle;
 		Downloader *parent;
 		ProgressCallbackFn progressCallback;
+		CompleteCallbackFn completeCallback;
 		void *callbackData;
 
 		DownloadEntry(Downloader *parent, std::string url,
 			      std::string targetPath,
 			      ProgressCallbackFn pc = nullptr,
+				  CompleteCallbackFn cc = nullptr,
 			      void *callbackDat = nullptr);
 		~DownloadEntry();
 		void Finish();
@@ -152,6 +157,7 @@ public:
 	// If targetPath ends with a / or \ character, the name will be automatically set
 	Entry Enqueue(std::string url, std::string targetPath = "",
 		      ProgressCallbackFn pc = nullptr,
+		      CompleteCallbackFn cc = nullptr,
 		      void *callbackDat = nullptr);
 	Entry Lookup(size_t id);
 	std::vector<Entry> Enumerate(size_t limit = -1);

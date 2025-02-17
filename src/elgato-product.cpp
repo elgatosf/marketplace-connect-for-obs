@@ -123,7 +123,7 @@ bool ElgatoProduct::DownloadProduct()
 	os_mkdirs(savePath.c_str());
 
 	std::shared_ptr<Downloader> dl = Downloader::getInstance("");
-	dl->Enqueue(url, savePath, ElgatoProduct::DownloadProgress, this);
+	dl->Enqueue(url, savePath, ElgatoProduct::DownloadProgress, nullptr, this);
 	return true;
 }
 
@@ -132,7 +132,7 @@ void ElgatoProduct::_downloadThumbnail()
 	std::string savePath = QDir::homePath().toStdString();
 	savePath += "/AppData/Local/Elgato/DeepLinking/Thumbnails/";
 	std::shared_ptr<Downloader> dl = Downloader::getInstance("");
-	dl->Enqueue(thumbnailUrl, savePath, ElgatoProduct::ThumbnailProgress,
+	dl->Enqueue(thumbnailUrl, savePath, ElgatoProduct::ThumbnailProgress, ElgatoProduct::SetThumbnail,
 		    this);
 }
 

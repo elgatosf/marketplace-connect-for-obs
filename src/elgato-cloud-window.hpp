@@ -50,6 +50,17 @@ private:
 	std::string _bgColor;
 };
 
+class AvatarImage : public QWidget {
+	Q_OBJECT
+public:
+	AvatarImage(QWidget* parent);
+	void update();
+private:
+	QPixmap _setupImage(std::string imagePath);
+
+	QLabel* _avatarImg;
+};
+
 class DownloadProgress : public QWidget {
 	Q_OBJECT
 
@@ -127,6 +138,7 @@ private:
 	QPushButton *_logInButton;
 	QPushButton *_logOutButton;
 	Avatar *_avatar;
+	AvatarImage* _avatarImage;
 
 signals:
 	void settingsClicked();

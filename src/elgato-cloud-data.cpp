@@ -450,6 +450,7 @@ void ElgatoCloud::_LoadUserData(bool loadData)
 		api_url += "/user";
 		auto userResponse =
 			fetch_string_from_get(api_url, _accessToken);
+		obs_log(LOG_INFO, "User Response: %s", userResponse.c_str());
 		auto userData = nlohmann::json::parse(userResponse);
 		api->setUserDetails(userData);
 		if (mainWindowOpen && window) {
