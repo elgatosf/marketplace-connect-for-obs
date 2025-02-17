@@ -18,6 +18,8 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 
 #include "api.hpp"
 #include "downloader.h"
+#include "util.h"
+#include "elgato-cloud-data.hpp"
 #include <plugin-support.h>
 
 #include <fstream>
@@ -140,7 +142,6 @@ void MarketplaceApi::_downloadAvatar()
 
 void MarketplaceApi::AvatarDownloadComplete(std::string filename, void* data)
 {
-	obs_log(LOG_INFO, "Avatar Downloaded! %s", filename.c_str());
 	auto api = static_cast<MarketplaceApi*>(data);
 	api->_avatarReady = true;
 	api->_avatarPath = filename;
@@ -161,6 +162,24 @@ void MarketplaceApi::AvatarProgress(void* ptr, bool finished,
 	if (finished) {
 		obs_log(LOG_INFO, "Download of avatar finished.");
 	}
+}
+
+void MarketplaceApi::OpenStoreInBrowser() const
+{
+	auto ec = GetElgatoCloud();
+	auto accessToken = ec->GetAccessToken();
+	std::string storeUrl =
+		_storeUrl +
+		"/obs/scene-collections?utm_source=mp_connect&utm_medium=direct_software&utm_campaign=v_1.0";
+	std::string url;
+	if (accessToken != "") {
+		std::string storeUrlEnc = url_encode(storeUrl);
+		url = _storeUrl + "/api/auth/login?token=" + accessToken + "&redirect=" + storeUrlEnc;
+	}
+	else {
+		url = storeUrl;
+	}
+	ShellExecuteA(NULL, NULL, url.c_str(), NULL, NULL, SW_SHOW);
 }
 
 } // namespace elgatocloud

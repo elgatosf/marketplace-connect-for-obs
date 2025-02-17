@@ -92,14 +92,25 @@ void ElgatoCloud::Thread()
 	// Here is our Elgato Cloud loop
 }
 
+std::string ElgatoCloud::GetAccessToken()
+{
+	if (!loggedIn) {
+		return "";
+	}
+	_TokenRefresh(false, false);
+	if (loggedIn) {
+		return _accessToken;
+	} else { // Our refresh token has expired, we're not really logged in.
+		return "";
+	}
+}
+
 void ElgatoCloud::_TokenRefresh(bool loadData, bool loadUserDetails)
 {
 	const auto now = std::chrono::system_clock::now();
 	const auto epoch = now.time_since_epoch();
 	const auto seconds =
 		std::chrono::duration_cast<std::chrono::seconds>(epoch);
-	obs_log(LOG_INFO, "Token Refresh? %i < %i", seconds.count(),
-		_accessTokenExpiration);
 	if (seconds.count() < _accessTokenExpiration) {
 		loggedIn = true;
 		loading = loadData;
@@ -119,7 +130,6 @@ void ElgatoCloud::_TokenRefresh(bool loadData, bool loadUserDetails)
 	std::string url = api->authUrl();
 	url += "/auth/realms/mp/protocol/openid-connect/token?";
 	url += encodeddata;
-	obs_log(LOG_INFO, "Token Refresh Called");
 	auto response = fetch_string_from_post(url, encodeddata);
 	try {
 		auto responseJson = nlohmann::json::parse(response);
@@ -349,8 +359,6 @@ void ElgatoCloud::LoadPurchasedProducts()
 	api_url +=
 		"/my-products?extension=scene-collections&offset=0&limit=100";
 	auto productsResponse = fetch_string_from_get(api_url, _accessToken);
-	obs_log(LOG_INFO, "url: %s", api_url.c_str());
-	obs_log(LOG_INFO, "Products: %s", productsResponse.c_str());
 	products.clear();
 	try {
 		auto productsJson = nlohmann::json::parse(productsResponse);
@@ -453,7 +461,6 @@ void ElgatoCloud::_LoadUserData(bool loadData)
 		api_url += "/user";
 		auto userResponse =
 			fetch_string_from_get(api_url, _accessToken);
-		obs_log(LOG_INFO, "User Response: %s", userResponse.c_str());
 		auto userData = nlohmann::json::parse(userResponse);
 		api->setUserDetails(userData);
 		if (mainWindowOpen && window) {
