@@ -196,6 +196,12 @@ public:
 	LoginError(QWidget* parent);
 };
 
+class LoggingIn : public QWidget {
+	Q_OBJECT
+public:
+	LoggingIn(QWidget* parent);
+};
+
 class ConnectionError : public QWidget {
 	Q_OBJECT
 public:

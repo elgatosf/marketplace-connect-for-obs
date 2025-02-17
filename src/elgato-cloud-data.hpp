@@ -56,6 +56,7 @@ public:
 	obs_data_t *GetConfig();
 	void SetSkipVersion(std::string version);
 	void SaveConfig();
+	std::string GetAccessToken();
 	nlohmann::json GetPurchaseDownloadLink(std::string variantId);
 
 	obs_module_t *GetModule();
@@ -64,6 +65,7 @@ public:
 	bool authorizing = false;
 	bool connectionError = false;
 	bool loginError = false;
+	bool loggingIn = false;
 
 	void Thread();
 	bool mainWindowOpen = false;

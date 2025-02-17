@@ -54,6 +54,7 @@ public:
 	static void AvatarDownloadComplete(std::string filename, void* data);
 	void setUserDetails(nlohmann::json &data);
 	void logOut();
+	void OpenStoreInBrowser() const;
 
 signals:
 	void AvatarDownloaded();

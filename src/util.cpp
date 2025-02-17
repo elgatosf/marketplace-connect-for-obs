@@ -21,7 +21,6 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <util/config-file.h>
 #include <util/platform.h>
 #include "obs-frontend-api.h"
-#include <util/platform.h>
 #include <vector>
 #include <string>
 #include <nlohmann/json.hpp>
@@ -59,7 +58,7 @@ obs_data_t *get_module_config()
 	obs_data_set_default_int(config, "RefreshTokenExpiration", 0);
 
 	std::string path = QDir::homePath().toStdString();
-	path += "/AppData/Local/Elgato/DeepLinking/SceneCollections";
+	path += "/AppData/Local/Elgato/MarketplaceConnect/SceneCollections";
 	os_mkdirs(path.c_str());
 	obs_data_set_default_string(config, "InstallLocation", path.c_str());
 	obs_data_set_default_bool(config, "MakerTools", false);
@@ -194,6 +193,14 @@ std::string fetch_string_from_post(std::string url, std::string postdata)
 		return result;
 	}
 	return "";
+}
+
+std::string url_encode(const std::string& decoded)
+{
+	const auto encoded_value = curl_easy_escape(nullptr, decoded.c_str(), static_cast<int>(decoded.length()));
+	std::string result(encoded_value);
+	curl_free(encoded_value);
+	return result;
 }
 
 std::vector<char> fetch_bytes_from_url(std::string url)

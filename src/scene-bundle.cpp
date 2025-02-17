@@ -170,7 +170,7 @@ void SceneBundle::ToCollection(std::string collection_name,
 	bfree(ccpath);
 
 	std::string savePath = QDir::homePath().toStdString();
-	savePath += "/AppData/Local/Elgato/DeepLinking/SCBackups/";
+	savePath += "/AppData/Local/Elgato/MarketplaceConnect/SCBackups/";
 	os_mkdirs(savePath.c_str());
 
 	std::string backupFilename = get_current_scene_collection_filename();
