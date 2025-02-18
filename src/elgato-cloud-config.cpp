@@ -548,6 +548,7 @@ ElgatoCloudConfig::ElgatoCloudConfig(QWidget *parent) : QDialog(parent)
 	checkBoxStyle.replace("${checked-img}", checkedImage.c_str());
 	checkBoxStyle.replace("${unchecked-img}", uncheckedImage.c_str());
 	_makerCheckbox->setStyleSheet(checkBoxStyle);
+	_makerCheckbox->setToolTip(obs_module_text("MarketplaceWindow.Settings.EnableMakerTools.Tooltip"));
 	layout->addWidget(_makerCheckbox);
 
 	connect(_makerCheckbox, &QCheckBox::stateChanged, [this](int state) {
