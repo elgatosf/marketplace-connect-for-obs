@@ -57,6 +57,7 @@ public:
 	void SetSkipVersion(std::string version);
 	void SaveConfig();
 	std::string GetAccessToken();
+	std::string GetRefreshToken();
 	nlohmann::json GetPurchaseDownloadLink(std::string variantId);
 
 	obs_module_t *GetModule();

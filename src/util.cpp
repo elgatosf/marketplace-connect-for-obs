@@ -155,7 +155,9 @@ std::string fetch_string_from_get(std::string url, std::string token)
 			 write_data<std::string>);
 	curl_easy_setopt(curl_instance, CURLOPT_WRITEDATA,
 			 static_cast<void *>(&result));
-	curl_easy_setopt(curl_instance, CURLOPT_USERAGENT, "elgato-cloud 0.0");
+	std::string useragent = "elgatolink ";
+	useragent += PLUGIN_VERSION;
+	curl_easy_setopt(curl_instance, CURLOPT_USERAGENT, useragent.c_str());
 	if (token != "") {
 		curl_easy_setopt(curl_instance, CURLOPT_XOAUTH2_BEARER,
 				 token.c_str());
@@ -175,7 +177,7 @@ std::string fetch_string_from_get(std::string url, std::string token)
 	return "{\"error\": \"Unspecified Error\"}";
 }
 
-std::string fetch_string_from_post(std::string url, std::string postdata)
+std::string fetch_string_from_post(std::string url, std::string postdata, std::string token)
 {
 	std::string result;
 	CURL *curl_instance = curl_easy_init();
@@ -184,15 +186,23 @@ std::string fetch_string_from_post(std::string url, std::string postdata)
 			 write_data<std::string>);
 	curl_easy_setopt(curl_instance, CURLOPT_WRITEDATA,
 			 static_cast<void *>(&result));
+	if (token != "") {
+		curl_easy_setopt(curl_instance, CURLOPT_XOAUTH2_BEARER,
+			token.c_str());
+		curl_easy_setopt(curl_instance, CURLOPT_HTTPAUTH,
+			CURLAUTH_BEARER);
+	}
 	curl_easy_setopt(curl_instance, CURLOPT_POSTFIELDS, postdata.c_str());
-	curl_easy_setopt(curl_instance, CURLOPT_USERAGENT, "elgato-cloud 0.0");
+	std::string useragent = "elgatolink ";
+	useragent += PLUGIN_VERSION;
+	curl_easy_setopt(curl_instance, CURLOPT_USERAGENT, useragent.c_str());
 	CURLcode res = curl_easy_perform(curl_instance);
 
 	curl_easy_cleanup(curl_instance);
 	if (res == CURLE_OK) {
 		return result;
 	}
-	return "";
+	return "{\"error\": \"Unspecified Error\"}";
 }
 
 std::string url_encode(const std::string& decoded)
@@ -212,7 +222,9 @@ std::vector<char> fetch_bytes_from_url(std::string url)
 			 write_data<std::vector<char>>);
 	curl_easy_setopt(curl_instance, CURLOPT_WRITEDATA,
 			 static_cast<void *>(&result));
-	curl_easy_setopt(curl_instance, CURLOPT_USERAGENT, "elgato-cloud 0.0");
+	std::string useragent = "elgatolink ";
+	useragent += PLUGIN_VERSION;
+	curl_easy_setopt(curl_instance, CURLOPT_USERAGENT, useragent.c_str());
 	CURLcode res = curl_easy_perform(curl_instance);
 
 	curl_easy_cleanup(curl_instance);
@@ -260,7 +272,6 @@ void monitor_for_files(std::string directory,
 
 	QEventLoop loop;
 
-	obs_log(LOG_INFO, "Watching %s", directory.c_str());
 	QWidget *window = (QWidget *)obs_frontend_get_main_window();
 	QFileSystemWatcher watcher(window);
 	watcher.addPath(directory.c_str());

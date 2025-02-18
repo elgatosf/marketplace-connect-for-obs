@@ -64,6 +64,15 @@ MarketplaceApi::MarketplaceApi()
 
 void MarketplaceApi::logOut()
 {
+	std::string url = _authUrl + "/auth/realms/mp/protocol/openid-connect/logout";
+	auto ec = GetElgatoCloud();
+	auto refreshToken = ec->GetRefreshToken();
+	auto accessToken = ec->GetAccessToken();
+	if (refreshToken != "") {
+		std::string postBody = "{\"client_id\": \"elgatolink\", \"refresh_token\": \"" + refreshToken + "\" }";
+		auto resp = fetch_string_from_post(url, postBody, accessToken);
+		obs_log(LOG_INFO, "Logout Response: %s", resp.c_str());
+	}
 	_loggedIn = false;
 	_hasAvatar = false;
 	_avatarReady = false;

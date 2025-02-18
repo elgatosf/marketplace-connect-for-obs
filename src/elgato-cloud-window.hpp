@@ -134,7 +134,6 @@ private:
 	QLabel *_logo;
 	QPushButton *_settingsButton;
 	QPushButton *_storeButton;
-	//QLineEdit *_searchBar;
 	QPushButton *_logInButton;
 	QPushButton *_logOutButton;
 	Avatar *_avatar;
@@ -221,7 +220,6 @@ class ElgatoCloudWindow : public QDialog {
 	Q_OBJECT
 
 public:
-	//std::unique_ptr<Ui_ElgatoCloudWindow> ui;
 	bool loading = true;
 
 	explicit ElgatoCloudWindow(QWidget *parent = nullptr);
