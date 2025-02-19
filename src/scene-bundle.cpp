@@ -138,13 +138,10 @@ void SceneBundle::SceneCollectionChanged(enum obs_frontend_event event,
 	}
 }
 
-void SceneBundle::ToCollection(std::string collection_name,
+bool SceneBundle::ToCollection(std::string collection_name,
 			       std::map<std::string, std::string> videoSettings,
-			       std::string audioSettings, QDialog *dialog)
+			       std::string audioSettings)
 {
-	dialog->close();
-	elgatocloud::CloseElgatoCloudWindow();
-
 	const auto userConf = GetUserConfig();
 
 	std::string curCollectionName =
@@ -247,25 +244,35 @@ void SceneBundle::ToCollection(std::string collection_name,
 	while (_waiting)
 		; // do nothing
 
-	// 11. Remove the callback
-	obs_frontend_remove_event_callback(SceneBundle::SceneCollectionChanged,
-					   this);
-
-	// 12. Replace newCollectionFileName with imported json data
+	// 11. Replace newCollectionFileName with imported json data
 	obs_data_t *data =
 		obs_data_create_from_json(_collection.dump().c_str());
 	bool success = obs_data_save_json_safe(
 		data, newCollectionFileName.c_str(), "tmp", "bak");
 	obs_data_release(data);
 
-	// 13. Load in the new scene collection with the new data.
-	obs_frontend_set_current_scene_collection(newCollectionName.c_str());
+	bfree(current_collection);
 
 	if (!success) {
 		obs_log(LOG_ERROR, "Unable to create scene collection.");
+		obs_frontend_remove_event_callback(SceneBundle::SceneCollectionChanged,
+			this);
+		return false;
 	}
 
-	bfree(current_collection);
+	_waiting = true;
+
+	// 12. Load in the new scene collection with the new data.
+	obs_frontend_set_current_scene_collection(newCollectionName.c_str());
+
+	while (_waiting)
+		;
+
+	// 13. Remove the callback
+	obs_frontend_remove_event_callback(SceneBundle::SceneCollectionChanged,
+		this);
+
+	return true;
 }
 
 SceneBundleStatus SceneBundle::ToElgatoCloudFile(

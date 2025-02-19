@@ -45,6 +45,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include "scene-bundle.hpp"
 #include "obs-utils.hpp"
 #include "util.h"
+#include "platform.h"
 
 namespace elgatocloud {
 
@@ -670,19 +671,31 @@ StreamPackageSetupWizard::StreamPackageSetupWizard(QWidget *parent,
 	  _thumbnailPath(product->thumbnailPath),
 	  _productName(product->name),
 	  _filename(filename),
-	  _deleteOnClose(deleteOnClose)
+	  _deleteOnClose(deleteOnClose),
+	  _installStarted(false)
 {
+	_curCollectionFileName =
+		get_current_scene_collection_filename();
+	_curCollectionFileName =
+		get_scene_collections_path() + _curCollectionFileName;
+
 	setModal(true);
 	_buildBaseUI();
 }
 
 StreamPackageSetupWizard::~StreamPackageSetupWizard()
 {
-	if (_deleteOnClose) {
-		// Delete the scene collection file
-		os_unlink(_filename.c_str());
+	if (!_installStarted) { // We've not yet handed control over
+		                    // too install routine.
+		if (_deleteOnClose) {
+			// Delete the scene collection file
+			os_unlink(_filename.c_str());
+		}
+		obs_enum_sources(
+			&StreamPackageSetupWizard::
+			EnableVideoCaptureSourcesActive,
+			this);
 	}
-	EnableVideoCaptureSources();
 	setupWizard = nullptr;
 }
 
@@ -776,28 +789,35 @@ bool StreamPackageSetupWizard::DisableVideoCaptureSources(void *data,
 				obs_source_get_proc_handler(source);
 			proc_handler_call(ph, "activate", &cd);
 			calldata_free(&cd);
-			auto wkSource = obs_source_get_weak_source(source);
-			wizard->_toEnable.push_back(wkSource);
+			std::string id = obs_source_get_uuid(source);
+			wizard->_toEnable.push_back(id);
 		}
 	}
 	return true;
 }
 
-void StreamPackageSetupWizard::EnableVideoCaptureSources()
+bool StreamPackageSetupWizard::EnableVideoCaptureSourcesActive(void* data,
+							   obs_source_t* source)
 {
-	for (auto weakSource : _toEnable) {
-		auto source = obs_weak_source_get_source(weakSource);
-		if (source) {
-			calldata_t cd = {};
-			calldata_set_bool(&cd, "active", true);
-			proc_handler_t *ph =
-				obs_source_get_proc_handler(source);
-			proc_handler_call(ph, "activate", &cd);
-			calldata_free(&cd);
-			obs_source_release(source);
+	auto wizard = static_cast<StreamPackageSetupWizard*>(data);
+	std::string sourceType = obs_source_get_id(source);
+	if (sourceType == "dshow_input") {
+		std::string id = obs_source_get_uuid(source);
+		if (std::find(wizard->_toEnable.begin(), wizard->_toEnable.end(), id) != wizard->_toEnable.end()) {
+			auto settings = obs_source_get_settings(source);
+			bool active = obs_data_get_bool(settings, "active");
+			obs_data_release(settings);
+			if (!active) {
+				calldata_t cd = {};
+				calldata_set_bool(&cd, "active", true);
+				proc_handler_t* ph =
+					obs_source_get_proc_handler(source);
+				proc_handler_call(ph, "activate", &cd);
+				calldata_free(&cd);
+			}
 		}
-		obs_weak_source_release(weakSource);
 	}
+	return true;
 }
 
 void StreamPackageSetupWizard::_buildMissingPluginsUI(
@@ -906,7 +926,8 @@ void StreamPackageSetupWizard::_buildSetupUI(
 		[this](std::string settings) {
 			_setup.audioSettings = settings;
 			// Nuke the video preview window
-			install();
+			_installStarted = true;
+			installStreamPackage(_setup, _filename, _deleteOnClose, _toEnable);
 		});
 	connect(aSetup, &AudioSetup::backPressed, this,
 		[this, videoSourceLabels]() {
@@ -922,13 +943,16 @@ void StreamPackageSetupWizard::_buildSetupUI(
 	_steps->setCurrentIndex(1);
 }
 
-void StreamPackageSetupWizard::install()
+void installStreamPackage(Setup setup, std::string filename, bool deleteOnClose, std::vector<std::string> toEnable)
 {
 	// TODO: Clean up this mess of setting up the pack install path.
 	obs_data_t *config = elgatoCloud->GetConfig();
+	auto curFileName = get_current_scene_collection_filename();
+	curFileName = get_scene_collections_path() + curFileName;
+
 	std::string path = obs_data_get_string(config, "InstallLocation");
 	os_mkdirs(path.c_str());
-	std::string unsafeDirName(_setup.collectionName);
+	std::string unsafeDirName(setup.collectionName);
 	std::string safeDirName;
 	generate_safe_path(unsafeDirName, safeDirName);
 	std::string bundlePath = path + "/" + safeDirName;
@@ -937,14 +961,86 @@ void StreamPackageSetupWizard::install()
 	//       scene collection loading code into new threads to stop
 	//       from blocking.
 	SceneBundle bundle;
-	if (!bundle.FromElgatoCloudFile(_filename, bundlePath)) {
+	if (!bundle.FromElgatoCloudFile(filename, bundlePath)) {
 		obs_log(LOG_WARNING, "Elgato Install: Could not install %s",
-			_filename.c_str());
+			filename.c_str());
 		return;
 	}
-	bundle.ToCollection(_setup.collectionName, _setup.videoSettings,
-			    _setup.audioSettings, this);
 	obs_data_release(config);
+
+	bool collectionChanged = bundle.ToCollection(
+			    setup.collectionName,
+				setup.videoSettings,
+			    setup.audioSettings);
+
+	if (deleteOnClose) {
+		// Delete the scene collection file
+		os_unlink(filename.c_str());
+	}
+
+	// Handle resetting sources.
+	if (!collectionChanged) {
+		obs_enum_sources(
+			&EnableVideoCaptureSourcesActive,
+			&toEnable);
+	} else {
+		EnableVideoCaptureSourcesJson(toEnable, curFileName);
+	}
+}
+
+bool EnableVideoCaptureSourcesActive(void* data, obs_source_t* source)
+{
+	const std::vector<std::string> &toEnable = *static_cast<std::vector<std::string>*>(data);
+	std::string sourceType = obs_source_get_id(source);
+	if (sourceType == "dshow_input") {
+		std::string id = obs_source_get_uuid(source);
+		if (std::find(toEnable.begin(), toEnable.end(), id) != toEnable.end()) {
+			auto settings = obs_source_get_settings(source);
+			bool active = obs_data_get_bool(settings, "active");
+			obs_data_release(settings);
+			if (!active) {
+				calldata_t cd = {};
+				calldata_set_bool(&cd, "active", true);
+				proc_handler_t* ph =
+					obs_source_get_proc_handler(source);
+				proc_handler_call(ph, "activate", &cd);
+				calldata_free(&cd);
+			}
+		}
+	}
+	return true;
+}
+
+void EnableVideoCaptureSourcesJson(std::vector<std::string> sourceIds, std::string curFileName)
+{
+	char* absPath = os_get_abs_path_ptr(curFileName.c_str());
+	std::string path = absPath;
+	bfree(absPath);
+
+	char* collectionStr =
+		os_quick_read_utf8_file(path.c_str());
+	std::string collectionData = collectionStr;
+	bfree(collectionStr);
+
+	try {
+		nlohmann::json collectionJson = nlohmann::json::parse(collectionData);
+		if (collectionJson.contains("sources")) {
+			auto &sources = collectionJson["sources"];
+			for (auto &it : sources) {
+				if (it.contains("uuid") && std::find(sourceIds.begin(), sourceIds.end(), it["uuid"]) != sourceIds.end()) {
+					it["settings"]["active"] = true;
+				}
+			}
+		}
+		std::string activatedCollection = collectionJson.dump();
+		obs_data_t* data =
+			obs_data_create_from_json(activatedCollection.c_str());
+		bool success = obs_data_save_json_safe(
+			data, path.c_str(), "tmp", "bak");
+		obs_data_release(data);
+	} catch (...) {
+		obs_log(LOG_ERROR, "Could not re-activate video sources in previous scene collection.");
+	}
 }
 
 } // namespace elgatocloud
