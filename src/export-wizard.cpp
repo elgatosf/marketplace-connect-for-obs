@@ -144,6 +144,7 @@ VideoSourceLabels::VideoSourceLabels(QWidget *parent,
 			auto field = new QLineEdit(this);
 			field->setPlaceholderText(
 				obs_module_text("ExportWizard.VideoSourceLabels.InputPlaceholder"));
+			field->setMaxLength(32);
 			field->setStyleSheet(ELineEditStyle);
 			formLayout->addWidget(label);
 			formLayout->addWidget(field);

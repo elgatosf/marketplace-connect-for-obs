@@ -262,6 +262,7 @@ NewCollectionName::NewCollectionName(QWidget *parent, std::string name,
 	_nameField = new QLineEdit(this);
 	_nameField->setPlaceholderText(obs_module_text("SetupWizard.CreateCollection.NewNamePlaceholder"));
 	_nameField->setStyleSheet(ELineEditStyle);
+	_nameField->setMaxLength(64);
 	layout->addWidget(_nameField);
 	connect(_nameField, &QLineEdit::textChanged,
 		[this](const QString text) {
