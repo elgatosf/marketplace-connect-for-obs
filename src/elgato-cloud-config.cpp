@@ -345,7 +345,6 @@ void DefaultAVWidget::OBSVolumeLevel(void *data,
 {
 	UNUSED_PARAMETER(peak);
 	UNUSED_PARAMETER(inputPeak);
-	//obs_log(LOG_INFO, "OBS Volume Level");
 	auto config = static_cast<DefaultAVWidget *>(data);
 	float mag = magnitude[0];
 	float pk = peak[0];
@@ -548,6 +547,7 @@ ElgatoCloudConfig::ElgatoCloudConfig(QWidget *parent) : QDialog(parent)
 	checkBoxStyle.replace("${checked-img}", checkedImage.c_str());
 	checkBoxStyle.replace("${unchecked-img}", uncheckedImage.c_str());
 	_makerCheckbox->setStyleSheet(checkBoxStyle);
+	_makerCheckbox->setToolTip(obs_module_text("MarketplaceWindow.Settings.EnableMakerTools.Tooltip"));
 	layout->addWidget(_makerCheckbox);
 
 	connect(_makerCheckbox, &QCheckBox::stateChanged, [this](int state) {
@@ -630,7 +630,6 @@ void ElgatoCloudConfig::OpenConfigAudioSource()
 	for (size_t i = 0; i < obs_property_list_item_count(devices); i++) {
 		std::string name = obs_property_list_item_name(devices, i);
 		std::string id = obs_property_list_item_string(devices, i);
-		obs_log(LOG_INFO, "--- MIC: %s [%s]", name.c_str(), id.c_str());
 	}
 	obs_properties_destroy(props);
 }

@@ -54,12 +54,10 @@ const std::vector<std::string> incompatibleFilters{"vst_filter"};
 
 SceneBundle::SceneBundle() : _interrupt(false)
 {
-	obs_log(LOG_INFO, "SceneBundle Constructor Called");
 }
 
 SceneBundle::~SceneBundle()
 {
-	obs_log(LOG_INFO, "SceneBundle Destructor Called");
 }
 
 bool SceneBundle::FromCollection(std::string collection_name)
@@ -140,13 +138,10 @@ void SceneBundle::SceneCollectionChanged(enum obs_frontend_event event,
 	}
 }
 
-void SceneBundle::ToCollection(std::string collection_name,
+bool SceneBundle::ToCollection(std::string collection_name,
 			       std::map<std::string, std::string> videoSettings,
-			       std::string audioSettings, QDialog *dialog)
+			       std::string audioSettings)
 {
-	dialog->close();
-	elgatocloud::CloseElgatoCloudWindow();
-
 	const auto userConf = GetUserConfig();
 
 	std::string curCollectionName =
@@ -249,27 +244,35 @@ void SceneBundle::ToCollection(std::string collection_name,
 	while (_waiting)
 		; // do nothing
 
-	// 11. Remove the callback
-	obs_frontend_remove_event_callback(SceneBundle::SceneCollectionChanged,
-					   this);
-
-	// 12. Replace newCollectionFileName with imported json data
+	// 11. Replace newCollectionFileName with imported json data
 	obs_data_t *data =
 		obs_data_create_from_json(_collection.dump().c_str());
 	bool success = obs_data_save_json_safe(
 		data, newCollectionFileName.c_str(), "tmp", "bak");
-	obs_log(LOG_INFO, "Saved new full collection at: %s",
-		newCollectionFileName.c_str());
 	obs_data_release(data);
 
-	// 13. Load in the new scene collection with the new data.
-	obs_frontend_set_current_scene_collection(newCollectionName.c_str());
+	bfree(current_collection);
 
 	if (!success) {
 		obs_log(LOG_ERROR, "Unable to create scene collection.");
+		obs_frontend_remove_event_callback(SceneBundle::SceneCollectionChanged,
+			this);
+		return false;
 	}
 
-	bfree(current_collection);
+	_waiting = true;
+
+	// 12. Load in the new scene collection with the new data.
+	obs_frontend_set_current_scene_collection(newCollectionName.c_str());
+
+	while (_waiting)
+		;
+
+	// 13. Remove the callback
+	obs_frontend_remove_event_callback(SceneBundle::SceneCollectionChanged,
+		this);
+
+	return true;
 }
 
 SceneBundleStatus SceneBundle::ToElgatoCloudFile(
@@ -305,8 +308,6 @@ SceneBundleStatus SceneBundle::ToElgatoCloudFile(
 		struct stat st;
 		os_stat(oFilename.c_str(), &st);
 		if ((st.st_mode & S_IFMT) == S_IFDIR) {
-			obs_log(LOG_INFO, "Found a directory: %s",
-				oFilename.c_str());
 			if (!_AddDirContentsToZip(file.first, file.second,
 						  ecFile)) {
 				bool wasInterrupted = _interrupt;
@@ -402,8 +403,6 @@ void SceneBundle::_ProcessJsonObj(nlohmann::json &obj)
 				_CreateFileMap(item);
 				std::string item_value =
 					item.template get<std::string>();
-				obs_log(LOG_INFO, "New Filename: %s",
-					item_value.c_str());
 			}
 		} else if (item.is_object()) {
 			_ProcessJsonObj(item);
@@ -483,10 +482,6 @@ void SceneBundle::_CreateFileMap(nlohmann::json &item)
 		pos += to.length();
 	}
 
-	struct stat st;
-	if (os_stat(value.c_str(), &st) == 0 && st.st_mode & S_IEXEC) {
-		obs_log(LOG_INFO, "_CreativeFileMap: IS EXEC");
-	}
 	if (_fileMap.find(value) == _fileMap.end()) {
 		// file is new
 		std::string filename = value.substr(value.rfind("/") + 1);

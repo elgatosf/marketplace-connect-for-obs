@@ -189,11 +189,11 @@ public:
 	StreamPackageSetupWizard(QWidget *parent, ElgatoProduct *product,
 				 std::string filename, bool deleteOnClose);
 	~StreamPackageSetupWizard();
-	void install();
 	void OpenArchive();
 	static bool DisableVideoCaptureSources(void *data,
 					       obs_source_t *source);
-	void EnableVideoCaptureSources();
+	static bool EnableVideoCaptureSourcesActive(void* data,
+						   obs_source_t* source);
 
 private:
 	void _buildBaseUI();
@@ -203,14 +203,21 @@ private:
 	std::string _productName;
 	std::string _thumbnailPath;
 	std::string _filename;
+	std::string _curCollectionFileName;
 	bool _deleteOnClose;
+	bool _installStarted;
 	QStackedWidget *_steps;
 	Setup _setup;
-	std::vector<obs_weak_source_t *> _toEnable;
+	std::vector<std::string> _toEnable;
 	VideoSetup *_vSetup;
 
 	QFuture<void> _future;
 };
+
+void installStreamPackage(Setup setup, std::string filename, bool deleteOnClose, std::vector<std::string> toEnable);
+
+bool EnableVideoCaptureSourcesActive(void* data, obs_source_t* source);
+void EnableVideoCaptureSourcesJson(std::vector<std::string> sourceIds, std::string curFileName);
 
 StreamPackageSetupWizard *GetSetupWizard();
 std::string GetBundleInfo(std::string filename);

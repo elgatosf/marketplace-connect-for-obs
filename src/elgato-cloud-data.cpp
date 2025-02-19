@@ -105,6 +105,20 @@ std::string ElgatoCloud::GetAccessToken()
 	}
 }
 
+std::string ElgatoCloud::GetRefreshToken()
+{
+	if (!loggedIn) {
+		return "";
+	}
+	_TokenRefresh(false, false);
+	if (loggedIn) {
+		return _refreshToken;
+	}
+	else { // Our refresh token has expired, we're not really logged in.
+		return "";
+	}
+}
+
 void ElgatoCloud::_TokenRefresh(bool loadData, bool loadUserDetails)
 {
 	const auto now = std::chrono::system_clock::now();
@@ -283,21 +297,20 @@ void ElgatoCloud::StartLogin()
 		stringhash + "&code_challenge_method=S256";
 
 	authorizing = true;
-	obs_log(LOG_INFO, "Starting login process...");
-	obs_log(LOG_INFO, "Opening in browser:\n%s", url.c_str());
 	ShellExecuteA(NULL, NULL, url.c_str(), NULL, NULL, SW_SHOW);
 }
 
 void ElgatoCloud::LogOut()
 {
+	auto api = MarketplaceApi::getInstance();
+	api->logOut();
+
 	_accessToken = "";
 	_refreshToken = "";
 	_accessTokenExpiration = 0;
 	_refreshTokenExpiration = 0;
 	_SaveState();
 	loggedIn = false;
-	auto api = MarketplaceApi::getInstance();
-	api->logOut();
 
 	if (mainWindowOpen && window) {
 		window->setLoggedIn();
@@ -479,7 +492,7 @@ void ElgatoCloud::_LoadUserData(bool loadData)
 		}
 	} catch (...) {
 		obs_log(LOG_INFO, "Invalid response from server");
-		connectionError = true;
+		loginError = true;
 	}
 }
 

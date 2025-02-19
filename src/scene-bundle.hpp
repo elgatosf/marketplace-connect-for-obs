@@ -62,9 +62,9 @@ public:
 	bool FromCollection(std::string collection_name);
 	bool FromElgatoCloudFile(std::string file_path,
 				 std::string destination);
-	void ToCollection(std::string collection_name,
+	bool ToCollection(std::string collection_name,
 			  std::map<std::string, std::string> videoSettings,
-			  std::string audioSettings, QDialog *dialog);
+			  std::string audioSettings);
 	SceneBundleStatus ToElgatoCloudFile(
 		std::string file_path, std::vector<std::string> plugins,
 		std::map<std::string, std::string> videoDeviceDescriptions);

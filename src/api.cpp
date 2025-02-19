@@ -64,6 +64,14 @@ MarketplaceApi::MarketplaceApi()
 
 void MarketplaceApi::logOut()
 {
+	std::string url = _authUrl + "/auth/realms/mp/protocol/openid-connect/logout";
+	auto ec = GetElgatoCloud();
+	auto refreshToken = ec->GetRefreshToken();
+	auto accessToken = ec->GetAccessToken();
+	if (refreshToken != "") {
+		std::string postBody = "{\"client_id\": \"elgatolink\", \"refresh_token\": \"" + refreshToken + "\" }";
+		auto resp = fetch_string_from_post(url, postBody, accessToken);
+	}
 	_loggedIn = false;
 	_hasAvatar = false;
 	_avatarReady = false;
@@ -111,11 +119,9 @@ void MarketplaceApi::setUserDetails(nlohmann::json &data)
 					std::lock_guard<std::mutex> lock(_mtx);
 					if (!_avatarDownloading) {
 						if (!os_file_exists(avatarPath.c_str())) {
-							obs_log(LOG_INFO, "Downloading avatar %s", filename.c_str());
 							_downloadAvatar();
 						}
 						else {
-							obs_log(LOG_INFO, "Avatar Exists %s", filename.c_str());
 							_avatarPath = avatarPath;
 							_avatarReady = true;
 						}

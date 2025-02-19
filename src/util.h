@@ -43,7 +43,7 @@ bool filename_json(std::string &filename);
 std::string get_current_scene_collection_filename();
 
 std::string fetch_string_from_get(std::string url, std::string token);
-std::string fetch_string_from_post(std::string url, std::string postdata);
+std::string fetch_string_from_post(std::string url, std::string postdata, std::string token="");
 std::vector<char> fetch_bytes_from_url(std::string url);
 std::string url_encode(const std::string& decoded);
 
