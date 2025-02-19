@@ -653,12 +653,14 @@ void ElgatoCloudWindow::on_logOutButton_clicked()
 void ElgatoCloudWindow::setLoggedIn()
 {
 	_toolbar->disableLogout(false);
-	if (elgatoCloud->connectionError) {
-		_stackedContent->setCurrentIndex(2);
+	if (elgatoCloud->loginError) {
+		_stackedContent->setCurrentIndex(4);
+	} else if (elgatoCloud->connectionError) {
+		// Connection error shows sign in issue
+		// for now.
+		_stackedContent->setCurrentIndex(4);
 	} else if (elgatoCloud->loggingIn) {
 		_stackedContent->setCurrentIndex(5);
-	} else if (elgatoCloud->loginError) {
-		_stackedContent->setCurrentIndex(4);
 	} else if (!elgatoCloud->loggedIn) {
 		_stackedContent->setCurrentIndex(1);
 	} else if (elgatoCloud->loading) {
@@ -913,9 +915,23 @@ LoginError::LoginError(QWidget *parent) : QWidget(parent)
 	subHLayout->addWidget(loginSub);
 	subHLayout->addStretch();
 
+	auto hLayout = new QHBoxLayout();
+	auto loginButton = new QPushButton(this);
+	loginButton->setText(
+		obs_module_text("MarketplaceWindow.LoginButton.LogIn"));
+	loginButton->setStyleSheet(
+		"QPushButton {font-size: 12pt; border-radius: 8px; padding: 16px; background-color: #232323; border: none; } "
+		"QPushButton:hover {background-color: #444444; }");
+	connect(loginButton, &QPushButton::clicked, this,
+		[this]() { elgatoCloud->StartLogin(); });
+	hLayout->addStretch();
+	hLayout->addWidget(loginButton);
+	hLayout->addStretch();
+
 	layout->addStretch();
 	layout->addWidget(login);
 	layout->addLayout(subHLayout);
+	layout->addLayout(hLayout);
 	layout->addStretch();
 	layout->setSpacing(16);
 }

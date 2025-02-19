@@ -492,7 +492,7 @@ void ElgatoCloud::_LoadUserData(bool loadData)
 		}
 	} catch (...) {
 		obs_log(LOG_INFO, "Invalid response from server");
-		connectionError = true;
+		loginError = true;
 	}
 }
 
