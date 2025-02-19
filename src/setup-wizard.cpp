@@ -80,6 +80,7 @@ StreamPackageHeader::StreamPackageHeader(QWidget *parent, std::string name,
 	nameLabel->setSizePolicy(QSizePolicy::Expanding,
 				 QSizePolicy::Preferred);
 	nameLabel->setStyleSheet("QLabel {font-size: 18pt;}");
+	nameLabel->setWordWrap(true);
 	layout->addWidget(nameLabel);
 	if (thumbnailPath != "") {
 		auto thumbnail = _thumbnail(thumbnailPath);
@@ -223,10 +224,11 @@ StartInstall::StartInstall(QWidget* parent, std::string name,
 	StreamPackageHeader* header =
 		new StreamPackageHeader(parent, name, thumbnailPath);
 	layout->addWidget(header);
+	layout->addStretch();
 	QLabel* startInstall = new QLabel(this);
 	startInstall->setText(obs_module_text("SetupWizard.StartInstall.Title"));
 	startInstall->setAlignment(Qt::AlignCenter);
-	startInstall->setStyleSheet("QLabel {font-size: 14pt;}");
+	startInstall->setStyleSheet("QLabel {font-size: 13pt;}");
 	layout->addWidget(startInstall);
 
 	// Setup New and Existing buttons.
@@ -238,6 +240,7 @@ StartInstall::StartInstall(QWidget* parent, std::string name,
 	connect(continueButton, &QPushButton::released, this,
 		[this]() { emit continuePressed(); });
 	buttons->addWidget(continueButton);
+	layout->addStretch();
 	layout->addLayout(buttons);
 }
 
@@ -580,7 +583,6 @@ void AudioSetup::OpenConfigAudioSource()
 	for (size_t i = 0; i < obs_property_list_item_count(devices); i++) {
 		std::string name = obs_property_list_item_name(devices, i);
 		std::string id = obs_property_list_item_string(devices, i);
-		obs_log(LOG_INFO, "--- MIC: %s [%s]", name.c_str(), id.c_str());
 	}
 	obs_properties_destroy(props);
 }
@@ -592,7 +594,6 @@ void AudioSetup::OBSVolumeLevel(void *data,
 {
 	UNUSED_PARAMETER(peak);
 	UNUSED_PARAMETER(inputPeak);
-	//obs_log(LOG_INFO, "OBS Volume Level");
 	auto config = static_cast<AudioSetup *>(data);
 	float mag = magnitude[0];
 	float pk = peak[0];
@@ -648,7 +649,7 @@ Loading::Loading(QWidget *parent) : QWidget(parent)
 	subTitle->setText(
 		obs_module_text("SetupWizard.Loading.Text"));
 	subTitle->setStyleSheet(
-		"QLabel{ font-size: 11pt; font-style: italic; }");
+		"QLabel{ font-size: 13pt; }");
 	subTitle->setAlignment(Qt::AlignCenter);
 	subTitle->setWordWrap(true);
 	layout->addWidget(subTitle);
@@ -657,6 +658,7 @@ Loading::Loading(QWidget *parent) : QWidget(parent)
 	spacerBottom->setSizePolicy(QSizePolicy::Preferred,
 				    QSizePolicy::Expanding);
 	layout->addWidget(spacerBottom);
+	layout->setSpacing(16);
 }
 
 StreamPackageSetupWizard::StreamPackageSetupWizard(QWidget *parent,
@@ -811,7 +813,7 @@ void StreamPackageSetupWizard::_buildMissingPluginsUI(
 
 void StreamPackageSetupWizard::_buildBaseUI()
 {
-	setFixedSize(320, 350);
+	setFixedSize(320, 400);
 	QVBoxLayout *layout = new QVBoxLayout(this);
 	_steps = new QStackedWidget(this);
 

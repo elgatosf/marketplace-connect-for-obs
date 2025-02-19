@@ -71,7 +71,6 @@ void MarketplaceApi::logOut()
 	if (refreshToken != "") {
 		std::string postBody = "{\"client_id\": \"elgatolink\", \"refresh_token\": \"" + refreshToken + "\" }";
 		auto resp = fetch_string_from_post(url, postBody, accessToken);
-		obs_log(LOG_INFO, "Logout Response: %s", resp.c_str());
 	}
 	_loggedIn = false;
 	_hasAvatar = false;
@@ -120,11 +119,9 @@ void MarketplaceApi::setUserDetails(nlohmann::json &data)
 					std::lock_guard<std::mutex> lock(_mtx);
 					if (!_avatarDownloading) {
 						if (!os_file_exists(avatarPath.c_str())) {
-							obs_log(LOG_INFO, "Downloading avatar %s", filename.c_str());
 							_downloadAvatar();
 						}
 						else {
-							obs_log(LOG_INFO, "Avatar Exists %s", filename.c_str());
 							_avatarPath = avatarPath;
 							_avatarReady = true;
 						}

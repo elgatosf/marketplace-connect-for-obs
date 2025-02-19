@@ -130,7 +130,6 @@ size_t Downloader::DownloadEntry::handle_progress(void *ptr, curl_off_t dltotal,
 	UNUSED_PARAMETER(ultotal);
 	UNUSED_PARAMETER(ulnow);
 	//double pct = (int)((double)dlnow / (double)dltotal * 100.0);
-	obs_log(LOG_INFO, "%s: %i of %i", self.url.c_str(), dlnow, dltotal);
 	return CURL_PROGRESSFUNC_CONTINUE;
 }
 
@@ -192,8 +191,6 @@ Downloader::DownloadEntry::DownloadEntry(Downloader *parent, std::string url,
 				count = count - start;
 			}
 			detectedFileName = url.substr(start, count);
-			obs_log(LOG_INFO, "Detected filename: %s",
-				detectedFileName.c_str());
 		}
 	}
 
@@ -222,8 +219,6 @@ void Downloader::DownloadEntry::Finish()
 	}
 
 	if (targetDirectory != "") {
-		obs_log(LOG_INFO, "Saving file to: %s",
-			(targetDirectory + fileName).c_str());
 		if (fileName == "") {
 			fileName = random_name();
 		}

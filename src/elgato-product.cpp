@@ -67,10 +67,8 @@ ElgatoProduct::ElgatoProduct(nlohmann::json &productData) : _fileSize(0)
 	thumbnailPath = thumbnailPath + "/" + filename;
 
 	if (!os_file_exists(thumbnailPath.c_str())) {
-		obs_log(LOG_INFO, "Downloading thumbnail %s", filename.c_str());
 		_downloadThumbnail();
 	} else {
-		obs_log(LOG_INFO, "Thumbnail Exists %s", filename.c_str());
 		_thumbnailReady = true;
 	}
 }
@@ -102,7 +100,6 @@ bool ElgatoProduct::DownloadProduct()
 	}
 	std::string url = dlData["direct_link"];
 	_fileSize = dlData["file_size"];
-	obs_log(LOG_INFO, "Download Link: %s", url.c_str());
 
 	if (url.find(".elgatoscene") == std::string::npos) {
 		obs_log(LOG_INFO, "Invalid File");

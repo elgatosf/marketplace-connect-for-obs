@@ -345,7 +345,6 @@ void DefaultAVWidget::OBSVolumeLevel(void *data,
 {
 	UNUSED_PARAMETER(peak);
 	UNUSED_PARAMETER(inputPeak);
-	//obs_log(LOG_INFO, "OBS Volume Level");
 	auto config = static_cast<DefaultAVWidget *>(data);
 	float mag = magnitude[0];
 	float pk = peak[0];
@@ -631,7 +630,6 @@ void ElgatoCloudConfig::OpenConfigAudioSource()
 	for (size_t i = 0; i < obs_property_list_item_count(devices); i++) {
 		std::string name = obs_property_list_item_name(devices, i);
 		std::string id = obs_property_list_item_string(devices, i);
-		obs_log(LOG_INFO, "--- MIC: %s [%s]", name.c_str(), id.c_str());
 	}
 	obs_properties_destroy(props);
 }

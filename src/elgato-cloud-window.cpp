@@ -518,13 +518,14 @@ OwnedProducts::OwnedProducts(QWidget *parent) : QWidget(parent)
 	npSubTitle->setStyleSheet("QLabel {font-size: 13pt;}");
 	npSubTitle->setAlignment(Qt::AlignCenter);
 	npLayout->addWidget(npSubTitle);
+	npLayout->setSpacing(16);
 
 	auto hLayout = new QHBoxLayout();
 	auto mpButton = new QPushButton(this);
 	mpButton->setText(
 		obs_module_text("MarketplaceWindow.Purchased.OpenMarketplaceButton"));
 	mpButton->setStyleSheet(
-		"QPushButton {font-size: 12pt; border-radius: 8px; padding: 8px; background-color: #232323; border: none; } "
+		"QPushButton {font-size: 12pt; border-radius: 8px; padding: 16px; background-color: #232323; border: none; } "
 		"QPushButton:hover {background-color: #444444; }");
 	connect(mpButton, &QPushButton::clicked, this, [this, api]() {
 		api->OpenStoreInBrowser();
@@ -814,32 +815,40 @@ LoginNeeded::LoginNeeded(QWidget *parent) : QWidget(parent)
 
 	auto login = new QLabel(this);
 	login->setText(obs_module_text("MarketplaceWindow.LoginNeeded.Title"));
-	login->setStyleSheet("QLabel {font-size: 18pt;}");
+	login->setStyleSheet("QLabel {font-size: 18pt; }");
 	login->setAlignment(Qt::AlignCenter);
 
+	auto subHLayout = new QHBoxLayout();
 	auto loginSub = new QLabel(this);
 	loginSub->setText(
 		obs_module_text("MarketplaceWindow.LoginNeeded.Subtitle"));
+	loginSub->setStyleSheet("QLabel {font-size: 13pt; }");
+	loginSub->setFixedWidth(480);
 	loginSub->setWordWrap(true);
 	loginSub->setAlignment(Qt::AlignCenter);
+	subHLayout->addStretch();
+	subHLayout->addWidget(loginSub);
+	subHLayout->addStretch();
 
 	auto hLayout = new QHBoxLayout();
 	auto loginButton = new QPushButton(this);
 	loginButton->setText(
 		obs_module_text("MarketplaceWindow.LoginButton.LogIn"));
 	loginButton->setStyleSheet(
-		"QPushButton {font-size: 12pt; border-radius: 8px; padding: 8px; background-color: #232323; border: none; } "
+		"QPushButton {font-size: 12pt; border-radius: 8px; padding: 16px; background-color: #232323; border: none; } "
 		"QPushButton:hover {background-color: #444444; }");
 	connect(loginButton, &QPushButton::clicked, this,
 		[this]() { elgatoCloud->StartLogin(); });
 	hLayout->addStretch();
 	hLayout->addWidget(loginButton);
 	hLayout->addStretch();
+
 	layout->addStretch();
 	layout->addWidget(login);
-	layout->addWidget(loginSub);
+	layout->addLayout(subHLayout);
 	layout->addLayout(hLayout);
 	layout->addStretch();
+	layout->setSpacing(16);
 }
 
 LoggingIn::LoggingIn(QWidget* parent) : QWidget(parent)
@@ -848,21 +857,27 @@ LoggingIn::LoggingIn(QWidget* parent) : QWidget(parent)
 
 	auto login = new QLabel(this);
 	login->setText(obs_module_text("MarketplaceWindow.LoggingIn.Title"));
-	login->setStyleSheet("QLabel {font-size: 18pt;}");
+	login->setStyleSheet("QLabel {font-size: 18pt; }");
 	login->setAlignment(Qt::AlignCenter);
 
+	auto subHLayout = new QHBoxLayout();
 	auto loginSub = new QLabel(this);
 	loginSub->setText(
 		obs_module_text("MarketplaceWindow.LoggingIn.Subtitle"));
+	loginSub->setStyleSheet("QLabel {font-size: 13pt; }");
+	loginSub->setFixedWidth(480);
 	loginSub->setWordWrap(true);
 	loginSub->setAlignment(Qt::AlignCenter);
+	subHLayout->addStretch();
+	subHLayout->addWidget(loginSub);
+	subHLayout->addStretch();
 
 	auto hLayout = new QHBoxLayout();
 	auto loginButton = new QPushButton(this);
 	loginButton->setText(
 		obs_module_text("MarketplaceWindow.LoggingIn.TryAgain"));
 	loginButton->setStyleSheet(
-		"QPushButton {font-size: 12pt; border-radius: 8px; padding: 8px; background-color: #232323; border: none; } "
+		"QPushButton {font-size: 12pt; border-radius: 8px; padding: 16px; background-color: #232323; border: none; } "
 		"QPushButton:hover {background-color: #444444; }");
 	connect(loginButton, &QPushButton::clicked, this,
 		[this]() { elgatoCloud->StartLogin(); });
@@ -871,9 +886,10 @@ LoggingIn::LoggingIn(QWidget* parent) : QWidget(parent)
 	hLayout->addStretch();
 	layout->addStretch();
 	layout->addWidget(login);
-	layout->addWidget(loginSub);
+	layout->addLayout(subHLayout);
 	layout->addLayout(hLayout);
 	layout->addStretch();
+	layout->setSpacing(16);
 }
 
 LoginError::LoginError(QWidget *parent) : QWidget(parent)
@@ -885,16 +901,23 @@ LoginError::LoginError(QWidget *parent) : QWidget(parent)
 	login->setStyleSheet("QLabel {font-size: 18pt;}");
 	login->setAlignment(Qt::AlignCenter);
 
+	auto subHLayout = new QHBoxLayout();
 	auto loginSub = new QLabel(this);
 	loginSub->setText(
 		obs_module_text("MarketplaceWindow.LoginError.Subtitle"));
 	loginSub->setWordWrap(true);
 	loginSub->setAlignment(Qt::AlignCenter);
+	loginSub->setStyleSheet("QLabel {font-size: 13pt; }");
+	loginSub->setFixedWidth(480);
+	subHLayout->addStretch();
+	subHLayout->addWidget(loginSub);
+	subHLayout->addStretch();
 
 	layout->addStretch();
 	layout->addWidget(login);
-	layout->addWidget(loginSub);
+	layout->addLayout(subHLayout);
 	layout->addStretch();
+	layout->setSpacing(16);
 }
 
 ConnectionError::ConnectionError(QWidget *parent) : QWidget(parent)
@@ -907,16 +930,24 @@ ConnectionError::ConnectionError(QWidget *parent) : QWidget(parent)
 	connectionError->setStyleSheet("QLabel {font-size: 18pt;}");
 	connectionError->setAlignment(Qt::AlignCenter);
 
+	auto subHLayout = new QHBoxLayout();
 	auto connectionErrorSub = new QLabel(this);
 	connectionErrorSub->setText(
 		obs_module_text("MarketplaceWindow.ConnectionError.Subtitle"));
 	connectionErrorSub->setWordWrap(true);
 	connectionErrorSub->setAlignment(Qt::AlignCenter);
+	connectionErrorSub->setStyleSheet("QLabel {font-size: 13pt; }");
+	connectionErrorSub->setFixedWidth(480);
+	subHLayout->addStretch();
+	subHLayout->addWidget(connectionErrorSub);
+	subHLayout->addStretch();
+
 
 	layout->addStretch();
 	layout->addWidget(connectionError);
-	layout->addWidget(connectionErrorSub);
+	layout->addLayout(subHLayout);
 	layout->addStretch();
+	layout->setSpacing(16);
 }
 
 LoadingWidget::LoadingWidget(QWidget *parent) : QWidget(parent)
@@ -935,6 +966,7 @@ LoadingWidget::LoadingWidget(QWidget *parent) : QWidget(parent)
 	layout->addWidget(spinner);
 	layout->addWidget(loading);
 	layout->addStretch();
+	layout->setSpacing(16);
 }
 
 void OpenElgatoCloudWindow()

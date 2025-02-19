@@ -31,19 +31,24 @@ ElgatoUpdateModal::ElgatoUpdateModal(QWidget* parent, std::string version, std::
 	title->setText(
 		obs_module_text("UpdateModal.Title"));
 	title->setAlignment(Qt::AlignCenter);
-	title->setStyleSheet("QLabel { font-size: 16pt; }");
+	title->setStyleSheet("QLabel { font-size: 18pt; }");
 	title->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
 
-	layout->addWidget(title);
 	layout->addStretch();
+	layout->addWidget(title);
+	
+	auto hLayout = new QHBoxLayout();
 	auto description = new QLabel(this);
 	description->setText(obs_module_text("UpdateModal.Description"));
 	description->setAlignment(Qt::AlignCenter);
 	description->setWordWrap(true);
 	description->setStyleSheet("QLabel { font-size: 13pt; }");
-	description->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+	description->setFixedWidth(480);
+	hLayout->addStretch();
+	hLayout->addWidget(description);
+	hLayout->addStretch();
 	
-	layout->addWidget(description);
+	layout->addLayout(hLayout);
 
 	auto buttons = new QHBoxLayout();
 
@@ -61,7 +66,6 @@ ElgatoUpdateModal::ElgatoUpdateModal(QWidget* parent, std::string version, std::
 	downloadButton->setText(
 		obs_module_text("UpdateModal.DownloadUpdateButton"));
 	downloadButton->setStyleSheet(EPushButtonStyle);
-
 	
 	buttons->addWidget(skipButton);
 	buttons->addStretch();
@@ -84,7 +88,7 @@ ElgatoUpdateModal::ElgatoUpdateModal(QWidget* parent, std::string version, std::
 	layout->addStretch();
 	layout->addLayout(buttons);
 	setStyleSheet("background-color: #232323");
-
+	layout->setSpacing(16);
 	setLayout(layout);
 
 	updateModal = this;
