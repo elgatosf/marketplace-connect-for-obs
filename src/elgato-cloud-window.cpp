@@ -131,10 +131,12 @@ QPixmap AvatarImage::_setupImage(std::string imagePath)
 {
 	int targetHeight = 40;
 	int cornerRadius = 20;
+	//QImage image(imagePath.c_str());
 	QPixmap img;
 
 	if (imagePath != "")
 		img.load(imagePath.c_str());
+	//img = img.fromImage(image.scaled(40, 40, Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
 
 	int width = img.width();
 	int height = img.height();
