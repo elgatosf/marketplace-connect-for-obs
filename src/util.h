@@ -85,3 +85,6 @@ bool generate_safe_path(std::string unsafe, std::string &safe);
 std::string versionNoBuild();
 std::string buildNumber();
 std::string releaseType();
+
+std::string encryptString(std::string input);
+std::string decryptString(std::string input);
