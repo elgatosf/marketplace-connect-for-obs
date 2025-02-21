@@ -123,6 +123,11 @@ public:
 				   const float peak[MAX_AUDIO_CHANNELS],
 				   const float inputPeak[MAX_AUDIO_CHANNELS]);
 
+	static bool DisableVideoCaptureSources(void* data,
+				   obs_source_t* source);
+	static bool EnableVideoCaptureSources(void* data,
+				   obs_source_t* source);
+
 private:
 	void _save();
 	DefaultAVWidget *_avWidget;
@@ -134,6 +139,7 @@ private:
 	OBSQTDisplay *_videoPreview = nullptr;
 	QCheckBox *_makerCheckbox = nullptr;
 	QLabel* _makerRestartMsg = nullptr;
+	std::vector<std::string> _toEnable;
 	std::string _installDirectory;
 
 signals:

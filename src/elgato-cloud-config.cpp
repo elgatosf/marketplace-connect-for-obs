@@ -459,6 +459,16 @@ void SimpleVolumeMeter::paintEvent(QPaintEvent *event)
 
 ElgatoCloudConfig::ElgatoCloudConfig(QWidget *parent) : QDialog(parent)
 {
+
+	// Disable all video capture sources so that single-thread
+	// capture sources, such as the Elgato Facecam, can be properly
+	// selected in the wizard.  Will re-enable any disabled sources
+	// in the wizard destructor.
+	obs_enum_sources(
+		&ElgatoCloudConfig::
+		DisableVideoCaptureSources,
+		this);
+
 	configWindow = this;
 	std::string imageBaseDir = GetDataPath();
 	imageBaseDir += "/images/";
@@ -603,6 +613,50 @@ ElgatoCloudConfig::ElgatoCloudConfig(QWidget *parent) : QDialog(parent)
 	obs_data_release(config);
 }
 
+bool ElgatoCloudConfig::DisableVideoCaptureSources(void* data,
+	obs_source_t* source)
+{
+	auto config = static_cast<ElgatoCloudConfig*>(data);
+	std::string sourceType = obs_source_get_id(source);
+	if (sourceType == "dshow_input") {
+		auto settings = obs_source_get_settings(source);
+		bool active = obs_data_get_bool(settings, "active");
+		obs_data_release(settings);
+		if (active) {
+			calldata_t cd = {};
+			calldata_set_bool(&cd, "active", false);
+			proc_handler_t* ph =
+				obs_source_get_proc_handler(source);
+			proc_handler_call(ph, "activate", &cd);
+			calldata_free(&cd);
+			std::string id = obs_source_get_uuid(source);
+			config->_toEnable.push_back(id);
+		}
+	}
+	return true;
+}
+
+bool ElgatoCloudConfig::EnableVideoCaptureSources(void* data,
+	obs_source_t* source)
+{
+	auto config = static_cast<ElgatoCloudConfig*>(data);
+	std::string sourceType = obs_source_get_id(source);
+	if (sourceType == "dshow_input") {
+		auto settings = obs_source_get_settings(source);
+		std::string id = obs_source_get_uuid(source);
+		obs_data_release(settings);
+		if (std::find(config->_toEnable.begin(), config->_toEnable.end(), id) != config->_toEnable.end()) {
+			calldata_t cd = {};
+			calldata_set_bool(&cd, "active", true);
+			proc_handler_t* ph =
+				obs_source_get_proc_handler(source);
+			proc_handler_call(ph, "activate", &cd);
+			calldata_free(&cd);
+		}
+	}
+	return true;
+}
+
 void ElgatoCloudConfig::OpenConfigVideoSource()
 {
 	if (!_videoCaptureSource) {
@@ -700,6 +754,19 @@ void ElgatoCloudConfig::_save()
 
 ElgatoCloudConfig::~ElgatoCloudConfig()
 {
+	if (!_videoCaptureSource) {
+		calldata_t cd = {};
+		calldata_set_bool(&cd, "active", false);
+		proc_handler_t* ph =
+			obs_source_get_proc_handler(_videoCaptureSource);
+		proc_handler_call(ph, "activate", &cd);
+		calldata_free(&cd);
+	}
+
+	obs_enum_sources(
+		&ElgatoCloudConfig::
+		EnableVideoCaptureSources,
+		this);
 	configWindow = nullptr;
 }
 

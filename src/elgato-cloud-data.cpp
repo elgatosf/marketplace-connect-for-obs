@@ -498,8 +498,17 @@ void ElgatoCloud::_LoadUserData(bool loadData)
 
 void ElgatoCloud::_SaveState()
 {
-	obs_data_set_string(_config, "AccessToken", _accessToken.c_str());
-	obs_data_set_string(_config, "RefreshToken", _refreshToken.c_str());
+	std::string accessTokenEncrypted = "";
+	std::string refreshTokenEncrypted = "";
+	if (_accessToken != "") {
+		accessTokenEncrypted = encryptString(_accessToken);
+	}
+	if (_refreshToken != "") {
+		refreshTokenEncrypted = encryptString(_refreshToken);
+	}
+
+	obs_data_set_string(_config, "AccessToken", accessTokenEncrypted.c_str());
+	obs_data_set_string(_config, "RefreshToken", refreshTokenEncrypted.c_str());
 	obs_data_set_int(_config, "AccessTokenExpiration",
 			 _accessTokenExpiration);
 	obs_data_set_int(_config, "RefreshTokenExpiration",
@@ -510,14 +519,25 @@ void ElgatoCloud::_SaveState()
 
 void ElgatoCloud::_GetSavedState()
 {
-	_accessToken = obs_data_get_string(_config, "AccessToken");
-	_refreshToken = obs_data_get_string(_config, "RefreshToken");
+	std::string accessTokenEncrypted = obs_data_get_string(_config, "AccessToken");
+	std::string refreshTokenEncrypted = obs_data_get_string(_config, "RefreshToken");
+	if (accessTokenEncrypted.size() > 25) {
+		_accessToken = decryptString(accessTokenEncrypted);
+	} else {
+		_accessToken = "";
+	}
+
+	if (refreshTokenEncrypted.size() > 25) {
+		_refreshToken = decryptString(refreshTokenEncrypted);
+	} else {
+		_refreshToken = "";
+	}
+
 	_accessTokenExpiration =
 		obs_data_get_int(_config, "AccessTokenExpiration");
 	_refreshTokenExpiration =
 		obs_data_get_int(_config, "RefreshTokenExpiration");
 	_skipUpdate = obs_data_get_string(_config, "SkipUpdate");
-	_skipUpdate = "";
 }
 
 } // namespace elgatocloud

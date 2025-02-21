@@ -176,7 +176,7 @@ DownloadButton::DownloadButton(QWidget *parent) : QWidget(parent)
 	std::string downloadIconPath = imageBaseDir + "download.svg";
 	std::string downloadIconHoverPath = imageBaseDir + "download_hover.svg";
 	std::string downloadIconDisabledPath =
-		imageBaseDir + "download_hover.svg";
+		imageBaseDir + "download_disabled.svg";
 	QString buttonStyle = EIconHoverDisabledButtonStyle;
 	buttonStyle.replace("${img}", downloadIconPath.c_str());
 	buttonStyle.replace("${hover-img}", downloadIconHoverPath.c_str());

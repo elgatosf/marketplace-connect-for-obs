@@ -39,6 +39,11 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include "platform.h"
 #include "util.h"
 
+#pragma comment(lib, "crypt32.lib")
+#include <Windows.h>
+#include <Wincrypt.h>
+#define MY_ENCODING_TYPE  (PKCS_7_ASN_ENCODING | X509_ASN_ENCODING)
+
 obs_data_t *get_module_config()
 {
 	const auto confPath = obs_module_config_path("config.json");
@@ -517,3 +522,115 @@ std::string releaseType()
 	}
 	return rt == "release" ? "" : " " + rt;
 }
+
+std::string binaryToString(const BYTE* binaryData, DWORD dataLen, DWORD flags = CRYPT_STRING_BASE64) {
+	DWORD stringLen = 0;
+	// Get the required string length, not including the null terminator.
+	if (!CryptBinaryToStringA(binaryData, dataLen, flags, nullptr, &stringLen)) {
+		obs_log(LOG_ERROR, "Could not convert binary data to string.");
+		return "";
+	}
+
+	// Allocate memory for the string, including the null terminator.
+	std::string encodedString;
+	encodedString.resize(stringLen);
+
+	// Perform the actual conversion.
+	if (!CryptBinaryToStringA(binaryData, dataLen, flags, encodedString.data(), &stringLen)) {
+		obs_log(LOG_ERROR, "Could not convert binary data to string.");
+		return "";
+	}
+	return encodedString;
+}
+
+DATA_BLOB stringToBinary(const std::string& input, DWORD flags = CRYPT_STRING_BASE64) {
+	DWORD binarySize = 0;
+	DATA_BLOB output;
+	output.pbData = nullptr;
+	output.cbData = 0;
+	// Get the required size for the binary data
+	if (!CryptStringToBinaryA(input.c_str(), (DWORD)input.length(), flags, nullptr, &binarySize, nullptr, nullptr)) {
+		obs_log(LOG_INFO, "Could not string to binary. Could not determine needed binary data size.");
+		return output;
+	}
+
+	// Allocate memory for the binary data
+	output.pbData = (BYTE*)LocalAlloc(LMEM_FIXED, binarySize);
+	if (output.pbData == nullptr) {
+		obs_log(LOG_INFO, "Could not convert string to binary. Memory allocation error.");
+		return output;
+	}
+	output.cbData = binarySize;
+	// Perform the actual conversion
+	if (!CryptStringToBinaryA(input.c_str(), (DWORD)input.length(), flags, output.pbData, &binarySize, nullptr, nullptr)) {
+		obs_log(LOG_INFO, "Could not string to binary. Invalid conversion.");
+		return output;
+	}
+	return output;
+}
+
+// Encrypts a string, and returns string of encrypted binary data
+// as a formatted BASE 64 encoded string.
+std::string encryptString(std::string input)
+{
+	DATA_BLOB DataIn;
+	DATA_BLOB DataOut;
+	BYTE* pbDataInput = (BYTE*)input.c_str();
+	DWORD cbDataInput = DWORD(strlen((char*)pbDataInput) + 1);
+	DataIn.pbData = pbDataInput;
+	DataIn.cbData = cbDataInput;
+	std::string encrypted = "";
+	if (CryptProtectData(
+		&DataIn,
+		L"",
+		NULL,
+		NULL,
+		NULL,
+		0,
+		&DataOut))
+	{
+		//convert binary to formatted base 64 encoded string.
+		encrypted = binaryToString(DataOut.pbData, DataOut.cbData);
+		LocalFree(DataOut.pbData);
+	} else {
+		obs_log(LOG_ERROR, "Could not encrypt string.");
+	}
+	return encrypted;
+}
+
+// Decrypts a formatted base64 encoded string.  First
+// converts string to binary blob, then uses windows
+// cryto API to decrypt the binary blob into a usable
+// string
+std::string decryptString(std::string input)
+{
+	DATA_BLOB ToDecrypt = stringToBinary(input);
+	if (ToDecrypt.pbData == nullptr) {
+		return "";
+	}
+	DATA_BLOB DataVerify;
+	LPWSTR pDescrOut = NULL;
+
+	std::string decrypted = "";
+
+	if (CryptUnprotectData(
+		&ToDecrypt,
+		&pDescrOut,
+		NULL,
+		NULL,
+		NULL,
+		0,
+		&DataVerify))
+	{
+		decrypted = std::string(reinterpret_cast<char*>(DataVerify.pbData), DataVerify.cbData);
+		LocalFree(DataVerify.pbData);
+		LocalFree(pDescrOut);
+		if (ToDecrypt.pbData != nullptr) {
+			LocalFree(ToDecrypt.pbData);
+		}
+	} else {
+		obs_log(LOG_ERROR, "Could not decrypt string.");
+	}
+	return decrypted;
+}
+
