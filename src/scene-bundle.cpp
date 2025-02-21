@@ -86,6 +86,11 @@ bool SceneBundle::FromCollection(std::string collection_name)
 	for (auto &source : _collection["sources"]) {
 		_ProcessJsonObj(source);
 	}
+	if (_collection.contains("groups")) {
+		for (auto& group : _collection["groups"]) {
+			_ProcessJsonObj(group);
+		}
+	}
 	for (auto &transition : _collection["transitions"]) {
 		_ProcessJsonObj(transition);
 	}
