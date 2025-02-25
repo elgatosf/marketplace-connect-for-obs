@@ -182,13 +182,25 @@ bool listen_on_pipe(const std::string &pipe_name,
 		obs_log(LOG_INFO, "Creating pipe...");
 		HANDLE pipe = INVALID_HANDLE_VALUE;
 
+		SECURITY_ATTRIBUTES sa;
+		SECURITY_DESCRIPTOR sd;
+		InitializeSecurityDescriptor(&sd, SECURITY_DESCRIPTOR_REVISION);
+		SetSecurityDescriptorDacl(&sd, TRUE, NULL, FALSE);
+		sa.nLength = sizeof(sa);
+		sa.lpSecurityDescriptor = &sd;
+		sa.bInheritHandle = FALSE;
+
 		while (pipe_number < 10) {
 			attempt_name = base_name + std::to_string(pipe_number);
 			pipe = CreateNamedPipeA(
-				attempt_name.c_str(), PIPE_ACCESS_INBOUND,
-				PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE |
-					PIPE_WAIT | PIPE_REJECT_REMOTE_CLIENTS,
-				1, 1024, 1024, 0, NULL);
+				attempt_name.c_str(),
+				PIPE_ACCESS_DUPLEX,
+				PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE | PIPE_WAIT,
+				PIPE_UNLIMITED_INSTANCES,
+				512, 512,
+				0,
+				&sa
+			);
 			if (pipe != INVALID_HANDLE_VALUE) {
 				break;
 			}
