@@ -136,6 +136,7 @@ void ElgatoCloud::_TokenRefresh(bool loadData, bool loadUserDetails)
 		}
 		return;
 	}
+	obs_log(LOG_INFO, "Access Token has expired. Fetching a new token.");
 	auto api = MarketplaceApi::getInstance();
 	std::string encodeddata;
 	encodeddata += "grant_type=refresh_token";
@@ -149,6 +150,7 @@ void ElgatoCloud::_TokenRefresh(bool loadData, bool loadUserDetails)
 		auto responseJson = nlohmann::json::parse(response);
 		_ProcessLogin(responseJson, loadData);
 	} catch (...) {
+		obs_log(LOG_INFO, "There was a problem with the refresh token.  Try logging in again.");
 		loggedIn = false;
 		loading = false;
 		authorizing = false;
@@ -523,12 +525,14 @@ void ElgatoCloud::_GetSavedState()
 	std::string refreshTokenEncrypted = obs_data_get_string(_config, "RefreshToken");
 	if (accessTokenEncrypted.size() > 25) {
 		_accessToken = decryptString(accessTokenEncrypted);
+		_accessToken = _accessToken.substr(0, _accessToken.length() - 1);
 	} else {
 		_accessToken = "";
 	}
 
 	if (refreshTokenEncrypted.size() > 25) {
 		_refreshToken = decryptString(refreshTokenEncrypted);
+		_refreshToken = _refreshToken.substr(0, _refreshToken.length() - 1);
 	} else {
 		_refreshToken = "";
 	}
