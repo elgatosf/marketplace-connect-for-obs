@@ -91,6 +91,14 @@ int send_auth_to_obs(std::string payload) {
 	std::string base_name = "\\\\.\\pipe\\" + pipe_name;
 	std::string attempt_name;
 	HANDLE pipe = INVALID_HANDLE_VALUE;
+	SECURITY_ATTRIBUTES sa;
+	SECURITY_DESCRIPTOR sd;
+	InitializeSecurityDescriptor(&sd, SECURITY_DESCRIPTOR_REVISION);
+	SetSecurityDescriptorDacl(&sd, TRUE, NULL, FALSE);
+	sa.nLength = sizeof(sa);
+	sa.lpSecurityDescriptor = &sd;
+	sa.bInheritHandle = FALSE;
+
 	int connect_attempts_remaining = 6;
 
 	while (connect_attempts_remaining-- > 0 &&
@@ -100,7 +108,7 @@ int send_auth_to_obs(std::string payload) {
 			attempt_name = base_name + std::to_string(pipe_number);
 			printf("Attempting %s\n", attempt_name.c_str());
 			pipe = CreateFileA(attempt_name.c_str(), GENERIC_WRITE,
-				0, NULL, OPEN_EXISTING, 0, NULL);
+				0, &sa, OPEN_EXISTING, 0, NULL);
 			if (pipe != INVALID_HANDLE_VALUE) {
 				printf("Success\n");
 				break;
