@@ -21,7 +21,7 @@ To build the plugin locally, you will need the following installed.
 
 Please note, Marketplace Connect for OBS is currently only available on Windows.
 
-> [!TIP]
+> [!NOTE]
 > The plugin uses the OBS plugin template. For more information, please refer to the [OBS Project's wiki](https://github.com/obsproject/obs-plugintemplate/wiki).
 
 ## Building
@@ -38,7 +38,7 @@ Alternatively, `cmake` can build the project directly with the command `cmake --
 -   Learn more about the template this project is build on in the [OBS Plugin Template Wiki](https://github.com/obsproject/obs-plugintemplate/wiki).
 -   Read about [debugging the project within OBS](https://github.com/obsproject/obs-plugintemplate/wiki/How-To-Debug-Your-Plugin#variant-2-add-plugin-to-obs-studio-project).
 
-> [!NOTE]  
+> [!TIP]  
 > When debugging with [Variant 2: Add Plugin To OBS Studio Project](https://github.com/obsproject/obs-plugintemplate/wiki/How-To-Debug-Your-Plugin#variant-2-add-plugin-to-obs-studio-project), you will need to add the `plugin`, `plugin-support`, and `elgato-marketplace-connect-loader` projects to the solution.
 
 ## Licence
