@@ -65,7 +65,6 @@ MarketplaceApi::MarketplaceApi()
 
 void MarketplaceApi::logOut()
 {
-	//std::string url = _authUrl + "/auth/realms/mp/protocol/openid-connect/logout";
 	std::string url = getAuthUrl(logoutEndpointSegments, {});
 	
 	auto ec = GetElgatoCloud();
@@ -76,7 +75,6 @@ void MarketplaceApi::logOut()
 			{ID_KEY, ID},
 			{REFRESH_KEY,  refreshToken}
 		};
-		//std::string postBody = "{\"" ID_KEY "\": \"" ID "\", \"" REFRESH_KEY "\": \"" + refreshToken + "\" }";
 		std::string postData = postBody(params);
 		auto resp = fetch_string_from_post(url, postData, accessToken);
 	}
