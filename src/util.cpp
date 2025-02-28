@@ -16,6 +16,8 @@ You should have received a copy of the GNU General Public License along
 with this program. If not, see <https://www.gnu.org/licenses/>
 */
 
+#include <sstream>
+
 #include <QDir>
 #include <obs-module.h>
 #include <util/config-file.h>
@@ -38,6 +40,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 
 #include "platform.h"
 #include "util.h"
+#include "api.hpp"
 
 #pragma comment(lib, "crypt32.lib")
 #include <Windows.h>
@@ -160,7 +163,7 @@ std::string fetch_string_from_get(std::string url, std::string token)
 			 write_data<std::string>);
 	curl_easy_setopt(curl_instance, CURLOPT_WRITEDATA,
 			 static_cast<void *>(&result));
-	std::string useragent = "elgatolink ";
+	std::string useragent = USERAGENT " ";
 	useragent += PLUGIN_VERSION;
 	curl_easy_setopt(curl_instance, CURLOPT_USERAGENT, useragent.c_str());
 	if (token != "") {
@@ -182,6 +185,30 @@ std::string fetch_string_from_get(std::string url, std::string token)
 	return "{\"error\": \"Unspecified Error\"}";
 }
 
+
+std::string queryString(std::map<std::string, std::string> params)
+{
+	std::stringstream queryStrStream;
+	for (const auto& pair : params) {
+		queryStrStream << url_encode(pair.first) << "=" << url_encode(pair.second) << "&";
+	}
+
+	std::string queryString = queryStrStream.str();
+
+	if (!queryString.empty()) {
+		queryString.pop_back();
+	}
+
+	return queryString;
+}
+
+std::string postBody(std::map<std::string, std::string> params)
+{
+	nlohmann::json jsonBody = nlohmann::json(params);
+	std::string jsonString = jsonBody.dump();
+	return jsonString;
+}
+
 std::string fetch_string_from_post(std::string url, std::string postdata, std::string token)
 {
 	std::string result;
@@ -198,7 +225,7 @@ std::string fetch_string_from_post(std::string url, std::string postdata, std::s
 			CURLAUTH_BEARER);
 	}
 	curl_easy_setopt(curl_instance, CURLOPT_POSTFIELDS, postdata.c_str());
-	std::string useragent = "elgatolink ";
+	std::string useragent = USERAGENT " ";
 	useragent += PLUGIN_VERSION;
 	curl_easy_setopt(curl_instance, CURLOPT_USERAGENT, useragent.c_str());
 	CURLcode res = curl_easy_perform(curl_instance);
@@ -227,7 +254,7 @@ std::vector<char> fetch_bytes_from_url(std::string url)
 			 write_data<std::vector<char>>);
 	curl_easy_setopt(curl_instance, CURLOPT_WRITEDATA,
 			 static_cast<void *>(&result));
-	std::string useragent = "elgatolink ";
+	std::string useragent = USERAGENT " ";
 	useragent += PLUGIN_VERSION;
 	curl_easy_setopt(curl_instance, CURLOPT_USERAGENT, useragent.c_str());
 	CURLcode res = curl_easy_perform(curl_instance);

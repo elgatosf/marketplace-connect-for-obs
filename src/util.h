@@ -42,6 +42,8 @@ int get_major_version();
 bool filename_json(std::string &filename);
 std::string get_current_scene_collection_filename();
 
+std::string queryString(std::map<std::string, std::string> params);
+std::string postBody(std::map<std::string, std::string> params);
 std::string fetch_string_from_get(std::string url, std::string token);
 std::string fetch_string_from_post(std::string url, std::string postdata, std::string token="");
 std::vector<char> fetch_bytes_from_url(std::string url);

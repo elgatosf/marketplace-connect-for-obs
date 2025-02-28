@@ -28,6 +28,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <util/platform.h>
 #include <nlohmann/json.hpp>
 #include <QDir>
+#include <sstream>
 
 using json = nlohmann::json;
 
@@ -64,13 +65,18 @@ MarketplaceApi::MarketplaceApi()
 
 void MarketplaceApi::logOut()
 {
-	std::string url = _authUrl + "/auth/realms/mp/protocol/openid-connect/logout";
+	std::string url = getAuthUrl(logoutEndpointSegments, {});
+	
 	auto ec = GetElgatoCloud();
 	auto refreshToken = ec->GetRefreshToken();
 	auto accessToken = ec->GetAccessToken();
 	if (refreshToken != "") {
-		std::string postBody = "{\"client_id\": \"elgatolink\", \"refresh_token\": \"" + refreshToken + "\" }";
-		auto resp = fetch_string_from_post(url, postBody, accessToken);
+		std::map<std::string, std::string> params = {
+			{ID_KEY, ID},
+			{REFRESH_KEY,  refreshToken}
+		};
+		std::string postData = postBody(params);
+		auto resp = fetch_string_from_post(url, postData, accessToken);
 	}
 	_loggedIn = false;
 	_hasAvatar = false;
@@ -91,6 +97,43 @@ MarketplaceApi *MarketplaceApi::getInstance()
 	}
 	return _api;
 }
+
+std::string MarketplaceApi::getAuthUrl(
+	std::vector<std::string> const& segments,
+	std::map<std::string, std::string> const& queryParams
+)
+{
+	std::string endpoint = segments.size() > 0 ? std::accumulate(std::next(segments.begin()), segments.end(), segments[0],
+		[&](std::string a, std::string b) { return a + "/" + b; }) : "";
+
+	auto qString = queryString(queryParams);
+
+	if (!qString.empty()) {
+		qString = "?" + qString;
+	}
+
+	std::string url = _authUrl + "/" + endpoint + qString;
+	return url;
+}
+
+std::string MarketplaceApi::getGatewayUrl(
+	std::vector<std::string> const& segments,
+	std::map<std::string, std::string> const& queryParams
+)
+{
+	std::string endpoint = segments.size() > 0 ? std::accumulate(std::next(segments.begin()), segments.end(), segments[0],
+		[&](std::string a, std::string b) { return a + "/" + b; }) : "";
+
+	auto qString = queryString(queryParams);
+
+	if (!qString.empty()) {
+		qString = "?" + qString;
+	}
+
+	std::string url = _gatewayUrl + "/" + endpoint + qString;
+	return url;
+}
+
 
 void MarketplaceApi::setUserDetails(nlohmann::json &data)
 {

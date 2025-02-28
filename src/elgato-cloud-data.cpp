@@ -138,13 +138,15 @@ void ElgatoCloud::_TokenRefresh(bool loadData, bool loadUserDetails)
 	}
 	obs_log(LOG_INFO, "Access Token has expired. Fetching a new token.");
 	auto api = MarketplaceApi::getInstance();
-	std::string encodeddata;
-	encodeddata += "grant_type=refresh_token";
-	encodeddata += "&refresh_token=" + _refreshToken;
-	encodeddata += "&client_id=elgatolink";
-	std::string url = api->authUrl();
-	url += "/auth/realms/mp/protocol/openid-connect/token?";
-	url += encodeddata;
+
+	std::map<std::string, std::string> queryParams = {
+		{GRANT_KEY, GRANT_REFRESH},
+		{REFRESH_KEY, _refreshToken},
+		{ID_KEY, ID}
+	};
+
+	std::string url = api->getAuthUrl(tokenEndpointSegments, queryParams);
+	std::string encodeddata = queryString(queryParams);
 	auto response = fetch_string_from_post(url, encodeddata);
 	try {
 		auto responseJson = nlohmann::json::parse(response);
@@ -202,20 +204,17 @@ void ElgatoCloud::_Listen()
 					code = d.substr(offset);
 				}
 
-				std::string encodeddata;
-				encodeddata += "grant_type=authorization_code";
-				encodeddata += "&code=" + code;
-				encodeddata +=
-					"&redirect_uri=https%3A%2F%2Foauth2-redirect.elgato.com%2Felgatolink%2Fauth";
-				encodeddata +=
-					"&code_verifier=" + _last_code_verifier;
-				encodeddata += "&client_id=elgatolink";
+				std::map<std::string, std::string> queryParams = {
+					{"grant_type", "authorization_code"},
+					{"code", code},
+					{REDIRECT_KEY, REDIRECT},
+					{CODE_VERIFIER_KEY, _last_code_verifier},
+					{ID_KEY, ID}
+				};
 
+				std::string encodeddata = queryString(queryParams);
 				auto api = MarketplaceApi::getInstance();
-				std::string url = api->authUrl();
-
-				url += "/auth/realms/mp/protocol/openid-connect/token?";
-				url += encodeddata;
+				std::string url = api->getAuthUrl(tokenEndpointSegments, queryParams);
 
 				auto response = fetch_string_from_post(
 					url, encodeddata);
@@ -293,10 +292,16 @@ void ElgatoCloud::StartLogin()
 				  .toStdString();
 
 	auto api = MarketplaceApi::getInstance();
-	std::string url =
-		api->authUrl() +
-		"/auth/realms/mp/protocol/openid-connect/auth?response_type=code&client_id=elgatolink&redirect_uri=https%3A%2F%2Foauth2-redirect.elgato.com%2Felgatolink%2Fauth&code_challenge=" +
-		stringhash + "&code_challenge_method=S256";
+
+	std::map<std::string, std::string> queryParams = {
+		{RESPONSE_TYPE_KEY, RESPONSE_TYPE_CODE},
+		{ID_KEY, ID},
+		{REDIRECT_KEY, REDIRECT},
+		{CHALLENGE_KEY, stringhash},
+		{CC_KEY, CC_METHOD}
+	};
+
+	std::string url = api->getAuthUrl(authEndpointSegments, queryParams);
 
 	authorizing = true;
 	ShellExecuteA(NULL, NULL, url.c_str(), NULL, NULL, SW_SHOW);
@@ -374,16 +379,24 @@ void ElgatoCloud::LoadPurchasedProducts()
 	}
 
 	auto api = MarketplaceApi::getInstance();
-	std::string api_url = api->gatewayUrl();
-	api_url +=
-		"/my-products?extension=scene-collections&offset=0&limit=100";
+	//std::string api_url = api->gatewayUrl();
+	//api_url +=
+	//	"/my-products?extension=scene-collections&offset=0&limit=100";
+	std::vector<std::string> segments = { "my-products" };
+	std::map<std::string, std::string> queryParams = {
+		{"extension", "scene-collections"},
+		{"offset", "0"},
+		{"limit", "100"}
+	};
+
+	std::string api_url = api->getGatewayUrl(segments, queryParams);
+
 	auto productsResponse = fetch_string_from_get(api_url, _accessToken);
 	products.clear();
 	try {
 		auto productsJson = nlohmann::json::parse(productsResponse);
 		if (productsJson["results"].is_array()) {
 			for (auto &pdat : productsJson["results"]) {
-				//auto ep = new ElgatoProduct(pdat);
 				products.emplace_back(
 					std::make_unique<ElgatoProduct>(pdat));
 			}
