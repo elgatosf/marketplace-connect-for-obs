@@ -106,19 +106,13 @@ std::string MarketplaceApi::getAuthUrl(
 	std::string endpoint = segments.size() > 0 ? std::accumulate(std::next(segments.begin()), segments.end(), segments[0],
 		[&](std::string a, std::string b) { return a + "/" + b; }) : "";
 
-	std::stringstream queryStrStream;
-	for (const auto& pair : queryParams) {
-		queryStrStream << pair.first << "=" << pair.second << "&";
+	auto qString = queryString(queryParams);
+
+	if (!qString.empty()) {
+		qString = "?" + qString;
 	}
 
-	std::string queryString = queryStrStream.str();
-
-	if (!queryString.empty()) {
-		queryString.pop_back();
-		queryString = "?" + queryString;
-	}
-
-	std::string url = _authUrl + "/" + endpoint + queryString;
+	std::string url = _authUrl + "/" + endpoint + qString;
 	return url;
 }
 
@@ -130,19 +124,13 @@ std::string MarketplaceApi::getGatewayUrl(
 	std::string endpoint = segments.size() > 0 ? std::accumulate(std::next(segments.begin()), segments.end(), segments[0],
 		[&](std::string a, std::string b) { return a + "/" + b; }) : "";
 
-	std::stringstream queryStrStream;
-	for (const auto& pair : queryParams) {
-		queryStrStream << pair.first << "=" << pair.second << "&";
+	auto qString = queryString(queryParams);
+
+	if (!qString.empty()) {
+		qString = "?" + qString;
 	}
 
-	std::string queryString = queryStrStream.str();
-
-	if (!queryString.empty()) {
-		queryString.pop_back();
-		queryString = "?" + queryString;
-	}
-
-	std::string url = _gatewayUrl + "/" + endpoint + queryString;
+	std::string url = _gatewayUrl + "/" + endpoint + qString;
 	return url;
 }
 

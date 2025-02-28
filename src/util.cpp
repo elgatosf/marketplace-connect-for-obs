@@ -190,7 +190,7 @@ std::string queryString(std::map<std::string, std::string> params)
 {
 	std::stringstream queryStrStream;
 	for (const auto& pair : params) {
-		queryStrStream << pair.first << "=" << pair.second << "&";
+		queryStrStream << url_encode(pair.first) << "=" << url_encode(pair.second) << "&";
 	}
 
 	std::string queryString = queryStrStream.str();
@@ -204,18 +204,9 @@ std::string queryString(std::map<std::string, std::string> params)
 
 std::string postBody(std::map<std::string, std::string> params)
 {
-	std::stringstream queryStrStream;
-	for (const auto& pair : params) {
-		queryStrStream << "\"" << pair.first << "\": \"" << pair.second << "\",";
-	}
-
-	std::string queryString = queryStrStream.str();
-
-	if (!queryString.empty()) {
-		queryString.pop_back();
-	}
-
-	return "{" + queryString + "}";
+	nlohmann::json jsonBody = nlohmann::json(params);
+	std::string jsonString = jsonBody.dump();
+	return jsonString;
 }
 
 std::string fetch_string_from_post(std::string url, std::string postdata, std::string token)

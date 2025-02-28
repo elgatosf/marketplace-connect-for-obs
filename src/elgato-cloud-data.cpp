@@ -207,7 +207,7 @@ void ElgatoCloud::_Listen()
 				std::map<std::string, std::string> queryParams = {
 					{"grant_type", "authorization_code"},
 					{"code", code},
-					{REDIRECT_KEY, url_encode(REDIRECT)},
+					{REDIRECT_KEY, REDIRECT},
 					{CODE_VERIFIER_KEY, _last_code_verifier},
 					{ID_KEY, ID}
 				};
@@ -296,7 +296,7 @@ void ElgatoCloud::StartLogin()
 	std::map<std::string, std::string> queryParams = {
 		{RESPONSE_TYPE_KEY, RESPONSE_TYPE_CODE},
 		{ID_KEY, ID},
-		{REDIRECT_KEY, url_encode(REDIRECT)},
+		{REDIRECT_KEY, REDIRECT},
 		{CHALLENGE_KEY, stringhash},
 		{CC_KEY, CC_METHOD}
 	};
