@@ -1,21 +1,46 @@
-# OBS Plugin Template
+<div align="center">
 
-## RICHARD- HEADER STUFF HERE
+[![Marketplace Connect for OBS banner](./assets/banner.png)](https://www.elgato.com/uk/en/s/marketplace-connect-for-obs)
 
-## Build Instructions
-Currently the Elgato Marketplace Connect plugin can only be built on Windows. The plugin uses the OBS plugin template build system, and more detailed build instructions can be found on the [template project's wiki](https://github.com/obsproject/obs-plugintemplate/wiki).
+# Marketplace Connect for OBS
 
-### Build system requirements
-Two sets of development tools are required. Ensure both are installed prior to configuring and building the plugin:
+[![Elgato homepage](https://img.shields.io/badge/Elgato-3431cf?labelColor=grey&logo=data:image/svg+xml;base64,PHN2ZyByb2xlPSJpbWciIHZpZXdCb3g9IjAgMCAyNCAyNCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48dGl0bGU+RWxnYXRvPC90aXRsZT48cGF0aCBmaWxsPSIjZmZmZmZmIiBkPSJtMTMuODgxOCA4LjM5NjQuMDI2MS4wMTk2IDkuOTQ5NCA1LjcxNzJjLS40ODg0IDIuNzI5LTEuOTE5NiA1LjIyMjMtNC4wMzg0IDcuMDI1M0ExMS45MjYyIDExLjkyNjIgMCAwIDEgMTIuMDk3IDI0Yy0zLjE5MjUgMC02LjE5MzktMS4yNDc3LTguNDUyNy0zLjUxNDRDMS4zODY4IDE4LjIxODguMTQyNyAxNS4yMDQ0LjE0MjcgMTJjMC0zLjIwNDIgMS4yNDQtNi4yMTg3IDMuNTAxNS04LjQ4NTRDNS45MDE5IDEuMjQ4IDguOTAzMiAwIDEyLjA5NyAwYzIuNDM5NCAwIDQuNzg0Ny43MzMzIDYuNzgzIDIuMTE4NyAxLjk1MjYgMS4zNTQgMy40NDY2IDMuMjM1NyA0LjMyMjcgNS40NDIyLjExMTIuMjgyOS4yMTQ5LjU3MzYuMzA1MS44NjU3bC0yLjEyNTUgMS4yMzU5YTkuNDkyNCA5LjQ5MjQgMCAwIDAtLjI2MTktLjg2OTRjLTEuMzU0LTMuODMwMy00Ljk4MTMtNi40MDQ4LTkuMDIzNy02LjQwNDhDNi44MTcxIDIuMzg4MyAyLjUyMiA2LjcwMDUgMi41MjIgMTJjMCA1LjI5OTUgNC4yOTUgOS42MTE1IDkuNTc0OCA5LjYxMTUgMi4wNTIgMCA0LjAwODQtLjY0NDIgNS42NTk2LTEuODY0NyAxLjYxNzItMS4xOTU1IDIuODAzNi0yLjgzMzcgMy40MzA5LTQuNzM2NGwuMDA2NS0uMDQxOUw5LjU5MDYgOC4zMDQ4djcuMjI1Nmw0LjAwMDQtMi4zMTM4IDIuMDYgMS4xODExLTUuOTk2MiAzLjQ2ODgtMi4xMi0xLjIxMjZWNy4xOTQzbDIuMTE3NC0xLjIyNDUgNC4yMzA5IDIuNDI3OS0uMDAxMy0uMDAxMyIvPjwvc3ZnPg==)](https://elgato.com)
+[![Join the Marketplace Makers Discord](https://img.shields.io/badge/Marketplace%20Makers-5662f6?labelColor=grey&logo=discord&logoColor=white)](https://discord.gg/GehBUcu627)
 
-* Visual Studio 17 2022
-* CMake 3.30.5
+</div>
 
-### Building the project
-After making sure the required development tools are installed, building the plugin should be a straightforawrd process.
+Add and share OBS setups in just a few clicks — with the Marketplace Connect plugin, anyone can stream and produce like a pro. It powers up your OBS workflows, so you can get right to the good stuff.
 
-1. Configuration: in a terminal window, navigate to the root plugin folder, and configure the project files with: `cmake --preset windows-x64`. This will download any build dependencies and set up a Visual Studio project file in a new project directory called `build_x64`.
-2. Inside the new `build_x64` directory added to the projects root, you will find a `elgato-marketplace-connect.sln` file. Open this file in Visual Studio to edit and build the project.
-3. Alternatively, cmake can build the project directly with the command: `cmake --build --preset windows-x64`.
+## System Requirements
 
-If you wish to debug the plugin within a running OBS, the (Project Wiki)[https://github.com/obsproject/obs-plugintemplate/wiki/How-To-Debug-Your-Plugin#debugging-plugins-with-visual-studio] has some great instructions. We recommend using the second variant (Adding the plugin to an OBS Studio Project), and when doing so, you will need to add the plugin project, plugin-support project, and the elgato-marketplace-connect-loader project to the solution explorer (step 2 in the instructions there).
+To build the plugin locally, you will need the following installed.
+
+-   Windows 10, or higher
+-   Visual Studio 17 2022
+-   CMake 3.30.5
+
+Please note, Marketplace Connect for OBS is currently only available on Windows.
+
+> [!NOTE]
+> The plugin uses the OBS plugin template. For more information, please refer to the [OBS Project's wiki](https://github.com/obsproject/obs-plugintemplate/wiki).
+
+## Building
+
+Once all system requirements are installed, follow these steps to build the project and get started with developing.
+
+1. In the project's root folder, run `cmake --preset windows-x64` — this will download the build dependencies and set up a Visual Studio project file in the `build_x64` directory.
+2. Open `build_x64/elgato-marketpalce-connect.sln` within Visual Studio to edit and build the project.
+
+Alternatively, `cmake` can build the project directly with the command `cmake --build --preset windows-x64`.
+
+## Further Reading
+
+-   Learn more about the template this project is build on in the [OBS Plugin Template Wiki](https://github.com/obsproject/obs-plugintemplate/wiki).
+-   Read about [debugging the project within OBS](https://github.com/obsproject/obs-plugintemplate/wiki/How-To-Debug-Your-Plugin#variant-2-add-plugin-to-obs-studio-project).
+
+> [!TIP]  
+> When debugging with [Variant 2: Add Plugin To OBS Studio Project](https://github.com/obsproject/obs-plugintemplate/wiki/How-To-Debug-Your-Plugin#variant-2-add-plugin-to-obs-studio-project), you will need to add the `plugin`, `plugin-support`, and `elgato-marketplace-connect-loader` projects to the solution.
+
+## Licence
+
+This project is licenced under [GPL-2.0](./LICENSE), and conforms with the requirements outlined by the OBS Project.
