@@ -144,6 +144,66 @@ int send_auth_to_obs(std::string payload) {
 	return 0;
 }
 
+int open_obs_mp_window()
+{
+	int pipe_number = 0;
+	std::string pipe_name = "elgato_cloud";
+	std::string base_name = "\\\\.\\pipe\\" + pipe_name;
+	std::string attempt_name;
+	HANDLE pipe = INVALID_HANDLE_VALUE;
+	SECURITY_ATTRIBUTES sa;
+	SECURITY_DESCRIPTOR sd;
+	InitializeSecurityDescriptor(&sd, SECURITY_DESCRIPTOR_REVISION);
+	SetSecurityDescriptorDacl(&sd, TRUE, NULL, FALSE);
+	sa.nLength = sizeof(sa);
+	sa.lpSecurityDescriptor = &sd;
+	sa.bInheritHandle = FALSE;
+
+	int connect_attempts_remaining = 60;
+
+	printf("Waiting for OBS to launch...");
+
+	while (connect_attempts_remaining-- > 0 &&
+		pipe == INVALID_HANDLE_VALUE) {
+		pipe_number = 0;
+		attempt_name = base_name + std::to_string(pipe_number);
+		printf("Attempting %s\n", attempt_name.c_str());
+		pipe = CreateFileA(attempt_name.c_str(), GENERIC_WRITE,
+			0, &sa, OPEN_EXISTING, 0, NULL);
+		if (pipe != INVALID_HANDLE_VALUE) {
+			printf("Success\n");
+			break;
+		}
+		if (pipe == INVALID_HANDLE_VALUE) {
+			Sleep(1000);
+		}
+	}
+	if (pipe == INVALID_HANDLE_VALUE) {
+		printf("Could not connect to OBS!");
+		return 1;
+	}
+	DWORD mode = PIPE_READMODE_MESSAGE;
+	auto success = SetNamedPipeHandleState(pipe, &mode, NULL, NULL);
+	if (!success) {
+		CloseHandle(pipe);
+		printf("Could not configure named pipe!");
+		return 1;
+	}
+
+	DWORD written = 0;
+	std::string payload = "elgatolink://open";
+	success = WriteFile(pipe, payload.c_str(), static_cast<DWORD>(payload.size()), &written,
+		NULL);
+	if (!success || written < payload.size()) {
+		printf("Failed to write to named pipe!");
+		CloseHandle(pipe);
+		return 1;
+	}
+
+	CloseHandle(pipe);
+	return 0;
+}
+
 int launch_obs()
 {
 	DWORD buffer_size = BUFFER_SIZE;
@@ -216,8 +276,10 @@ int main(int argc, char *argv[]) {
 		// Send auth to OBS which requested it.
 		return send_auth_to_obs(payload);
 	} else {
-		return launch_obs();
+		int resp = launch_obs();
+		open_obs_mp_window();
+		//return open_obs_mp_window();
 	}
 	printf("No obs found to launch.");
-	return 1;
+	//return 1;
 }

@@ -169,6 +169,7 @@ void ElgatoCloud::_Listen()
 {
 	_listenThread = std::thread([this]() {
 		listen_on_pipe("elgato_cloud", [this](std::string d) {
+			obs_log(LOG_INFO, "Pipe received: %s", d.c_str());
 			if (d.find("elgatolink://auth") == 0) {
 				if (mainWindowOpen && window) {
 					QMetaObject::invokeMethod(
@@ -241,6 +242,29 @@ void ElgatoCloud::_Listen()
 				}
 				authorizing = false;
 				return;
+			}
+			else if (d.find("elgatolink://open") == 0)
+			{
+				obs_log(LOG_INFO, "OPEN COMMAND RECEIEVED!");
+				if (mainWindowOpen && window) {
+					QMetaObject::invokeMethod(
+						QCoreApplication::instance()
+						->thread(),
+						[this]() {
+							//window->setLoading();
+							window->show();
+							window->raise();
+							window->activateWindow();
+							LoadPurchasedProducts();
+						});
+				} else {
+					QMetaObject::invokeMethod(
+						QCoreApplication::instance()
+						->thread(),
+						[this]() {
+							OpenElgatoCloudWindow();
+						});
+				}
 			}
 		});
 	});
