@@ -59,16 +59,39 @@ std::unique_lock<std::mutex> *GetElgatoCloudLoopLock()
 
 ElgatoCloud::ElgatoCloud(obs_module_t *m)
 {
+	_openOnLaunch = false;
+	_obsReady = false;
 	_modulePtr = m;
 	//_translate = t;
 	_securerand = QRandomGenerator::securelySeeded();
+	obs_frontend_add_event_callback(ElgatoCloud::FrontEndEventHandler, this);
 	_Initialize();
 	_Listen();
 }
 
 ElgatoCloud::~ElgatoCloud()
 {
+	obs_frontend_remove_event_callback(ElgatoCloud::FrontEndEventHandler, this);
 	obs_data_release(_config);
+}
+
+void ElgatoCloud::FrontEndEventHandler(enum obs_frontend_event event, void* data)
+{
+	auto ec = static_cast<ElgatoCloud*>(data);
+	switch (event) {
+	case OBS_FRONTEND_EVENT_FINISHED_LOADING:
+		ec->_obsReady = true;
+		if (ec->_openOnLaunch) {
+			ec->_openOnLaunch = false;
+			QMetaObject::invokeMethod(
+				QCoreApplication::instance()
+				->thread(),
+				[ec]() {
+					OpenElgatoCloudWindow();
+				});
+		}
+		break;
+	}
 }
 
 obs_data_t *ElgatoCloud::GetConfig()
@@ -246,6 +269,10 @@ void ElgatoCloud::_Listen()
 			else if (d.find("elgatolink://open") == 0)
 			{
 				obs_log(LOG_INFO, "OPEN COMMAND RECEIEVED!");
+				if (!_obsReady) {
+					_openOnLaunch = true;
+					return;
+				}
 				if (mainWindowOpen && window) {
 					QMetaObject::invokeMethod(
 						QCoreApplication::instance()
