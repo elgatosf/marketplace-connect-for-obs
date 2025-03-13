@@ -265,19 +265,24 @@ bool obs_is_running(std::wstring name) {
 int main(int argc, char *argv[]) {
 	if (argc < 2) {
 		std::cerr << "[ERROR] No argument provided." << std::endl;
+		system("pause");
 		return 1;
 	}
+	int resp;
 
 	std::string payload = argv[1];
 
 	if (payload.find("elgatolink://auth") == 0) {
 		// Send auth to OBS which requested it.
-		return send_auth_to_obs(payload);
+		resp = send_auth_to_obs(payload);
 	} else {
-		int resp = launch_obs();
-		if (resp == 1) {
-			return 1;
-		}
-		return open_obs_mp_window();
+		resp = launch_obs();
+		if(resp == 0) resp = open_obs_mp_window();
 	}
+	
+	if (resp == 1) {
+		system("pause");
+	}
+
+	return resp;
 }
