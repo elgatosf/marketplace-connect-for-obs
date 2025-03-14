@@ -60,6 +60,9 @@ function(set_target_properties_plugin target)
 
   configure_file(cmake/windows/resources/resource.rc.in "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_PROJECT_NAME}.rc")
   target_sources(${CMAKE_PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_PROJECT_NAME}.rc")
+
+  configure_file(cmake/windows/resources/elgato-marketplace-connect-loader.rc.in "${CMAKE_CURRENT_BINARY_DIR}/elgato-marketplace-connect-loader.rc")
+  target_sources(${CMAKE_PROJECT_NAME}-loader PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/elgato-marketplace-connect-loader.rc")
 endfunction()
 
 # Helper function to add resources into bundle
