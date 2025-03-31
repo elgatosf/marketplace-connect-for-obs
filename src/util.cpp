@@ -24,6 +24,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <util/platform.h>
 #include "obs-frontend-api.h"
 #include <vector>
+#include <deque>
 #include <string>
 #include <nlohmann/json.hpp>
 #include <stdio.h>
@@ -661,3 +662,43 @@ std::string decryptString(std::string input)
 	return decrypted;
 }
 
+std::string simplifyPath(std::string path)
+{
+	std::deque<std::string> stack;
+	std::istringstream iss(path);
+	std::string token;
+
+	while (getline(iss, token, '/')) {
+		if (token == "..") {
+			// Popping if ".." is found
+			if (!stack.empty()) {
+				stack.pop_back();
+			}
+		} else if (!token.empty() && token != ".") {
+			// Pushing valid directory names onto the stack
+			stack.push_back(token);
+		}
+	}
+
+	std::string finalPath;
+	if (stack.empty()) {
+		// Adding '/' to the final string if the stack is empty
+		finalPath += "/";
+	} else {
+		// Building the final simplified path from the stack
+		int i = 0;
+		for (const std::string &dir : stack) {
+#ifdef _WIN32
+			if (i > 0)
+				finalPath += "/";
+#else
+			finalPath += "/";
+#endif
+			
+			finalPath += dir;
+			i++;
+		}
+	}
+
+	return finalPath;
+}

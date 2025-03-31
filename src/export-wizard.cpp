@@ -56,8 +56,8 @@ const std::vector<std::string> ExcludedModules{
 	// This plugin
 	"elgato-marketplace.dll"};
 
-FileCollectionCheck::FileCollectionCheck(QWidget *parent,
-					 std::vector<std::string> files)
+FileCollectionCheck::FileCollectionCheck(QWidget *parent, std::vector<std::string> files,
+	std::map<std::string, std::vector<std::string>> subFiles)
 	: QWidget(parent),
 	  _files(files)
 {
@@ -82,6 +82,11 @@ FileCollectionCheck::FileCollectionCheck(QWidget *parent,
 	auto fileList = new QListWidget(this);
 	for (auto fileName : _files) {
 		fileList->addItem(fileName.c_str());
+		if (subFiles.find(fileName) != subFiles.end()) {
+			for (auto subFileName : subFiles[fileName]) {
+				fileList->addItem(subFileName.c_str());
+			}
+		}
 	}
 
 	fileList->setStyleSheet(EListStyle);
@@ -430,6 +435,8 @@ void StreamPackageExportWizard::SetupUI()
 		return;
 	}
 	std::vector<std::string> fileList = bundle->FileList();
+	std::map<std::string, std::vector<std::string>> subFiles =
+		bundle->SubFileList();
 	std::map<std::string, std::string> vidDevs =
 		bundle->VideoCaptureDevices();
 
@@ -437,7 +444,7 @@ void StreamPackageExportWizard::SetupUI()
 	_steps = new QStackedWidget(this);
 
 	// Step 1- check the media files to be bundled (step index: 0)
-	auto fileCheck = new FileCollectionCheck(this, fileList);
+	auto fileCheck = new FileCollectionCheck(this, fileList, subFiles);
 	connect(fileCheck, &FileCollectionCheck::continuePressed, this,
 		[this]() { _steps->setCurrentIndex(1); });
 	connect(fileCheck, &FileCollectionCheck::cancelPressed, this,

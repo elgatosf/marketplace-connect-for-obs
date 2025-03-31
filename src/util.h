@@ -90,3 +90,5 @@ std::string releaseType();
 
 std::string encryptString(std::string input);
 std::string decryptString(std::string input);
+
+std::string simplifyPath(std::string path);

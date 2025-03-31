@@ -43,7 +43,7 @@ class FileCollectionCheck : public QWidget {
 	Q_OBJECT
 
 public:
-	FileCollectionCheck(QWidget *parent, std::vector<std::string> files);
+	FileCollectionCheck(QWidget *parent, std::vector<std::string> files, std::map<std::string, std::vector<std::string>> subFiles);
 
 signals:
 	void continuePressed();

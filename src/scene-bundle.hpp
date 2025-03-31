@@ -45,6 +45,11 @@ class SceneBundle {
 private:
 	// Key: original file path, Value: new file name
 	std::map<std::string, std::string> _fileMap;
+	// Key: browser source Value: {Key: original file path, [Replacement keys]}
+	std::map<std::string, std::map<std::string, std::vector<std::string>>> _browserSrcFileRep;
+	// Key: Browser Source Value: {key: original file path, Value: new file path}
+	std::map<std::string, std::map<std::string, std::string>> _browserSrcFileMap;
+
 	// [0]: Source, [1]: Filter
 	std::vector<std::pair<std::string, std::string>> _skippedFilters;
 	std::map<std::string, std::string> _videoCaptureDevices;
@@ -80,6 +85,7 @@ public:
 	std::string ExtractBundleInfo(std::string filePath);
 
 	std::vector<std::string> FileList();
+	std::map<std::string, std::vector<std::string>> SubFileList();
 	std::map<std::string, std::string> VideoCaptureDevices();
 	static void SceneCollectionCreated(enum obs_frontend_event event,
 					   void *obj);
@@ -91,8 +97,12 @@ private:
 	void _CreateFileMap(nlohmann::json &item);
 	bool _AddFileToZip(std::string filePath, std::string zipPath,
 			   miniz_cpp::zip_file &ecFile);
+	bool _AddStringToZip(std::string strToAdd, std::string zipPath,
+			     miniz_cpp::zip_file &ecFile);
 	bool _AddDirContentsToZip(std::string dirPath, std::string zipDir,
 				  miniz_cpp::zip_file &ecFile);
+	void _CreateBrowserSourceFileMap(std::string fileName,
+					 std::string newFileName);
 	void _reset();
 };
 

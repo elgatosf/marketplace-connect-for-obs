@@ -30,6 +30,8 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <string>
 #include <stdio.h>
 #include <algorithm>
+#include <regex>
+#include <filesystem>
 #include <zip_file.hpp>
 
 #include <plugin-support.h>
@@ -41,12 +43,18 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 const std::map<std::string, std::string> extensionMap{
 	{".jpg", "/images/"},     {".jpeg", "/images/"},
 	{".gif", "/images/"},     {".png", "/images/"},
-	{".bmp", "/images/"},     {".webm", "/video/"},
+	{".svg", "/images/"},     {".bmp", "/images/"},
+	{".css", "/css/"},        {".js", "/javascript/"},
+	{".webm", "/video/"},
 	{".mov", "/video/"},      {".mp4", "/video/"},
 	{".mkv", "/video/"},      {".mp3", "/audio/"},
 	{".wav", "/aduio/"},      {".effect", "/shaders/"},
 	{".shader", "/shaders/"}, {".hlsl", "/shaders/"},
-	{".lua", "/scripts/"},    {".py", "/scripts/"}};
+	{".lua", "/scripts/"},    {".py", "/scripts/"},
+	{".html", "/browser-sources/"},
+	{".htm", "/browswer-sources/"}
+
+};
 
 // Filter IDs of incompatible filter types, e.g. filters
 // that require external libraries or executables.
@@ -322,13 +330,77 @@ SceneBundleStatus SceneBundle::ToElgatoCloudFile(
 				}
 				return SceneBundleStatus::Error;
 			}
-		} else if (!_AddFileToZip(file.first, file.second, ecFile)) {
+			continue;
+		} 
+		
+		auto fileName = file.first;
+		auto zipFileName = file.second;
+
+		std::filesystem::path pathObj(fileName);
+		auto extension = pathObj.has_extension()
+					 ? pathObj.extension().string()
+					 : "";
+
+		bool isBrowserSource = (extension == ".html" || extension == ".htm");
+
+		if (isBrowserSource) {
+			std::ifstream file(fileName);
+			std::stringstream buffer;
+			buffer << file.rdbuf();
+			std::string html = buffer.str();
+			auto repList = _browserSrcFileRep[fileName];
+			for (auto const &[repValue, needles] : repList) {
+				// For html files, all assets' local path is
+				// <parent_directory>/filename.ext.  So cut
+				// repval string off at 2nd to last slash
+				std::string relativePath;
+				if (auto pos = repValue.rfind('/'))
+					if ((pos = repValue.rfind('/', pos-1)))
+						relativePath = repValue.substr(pos+1);
+
+				for (auto const &needle : needles) {
+					size_t pos = 0;
+					while ((pos = html.find(needle, pos)) !=
+					       std::string::npos) {
+						html.replace(pos,
+							  needle.length(),
+							  relativePath);
+						pos += relativePath.length();
+					}
+				}
+			}
+			if (!_AddStringToZip(html, zipFileName, ecFile)) {
+				bool wasInterrupted = _interrupt;
+				_interrupt = false;
+				if (wasInterrupted) {
+					return _interruptReason;
+				}
+				return SceneBundleStatus::Error;
+			}
+			continue;
+		}
+
+		if (!isBrowserSource && !_AddFileToZip(fileName, zipFileName, ecFile)) {
 			bool wasInterrupted = _interrupt;
 			_interrupt = false;
 			if (wasInterrupted) {
 				return _interruptReason;
 			}
 			return SceneBundleStatus::Error;
+		}
+	}
+
+	for (auto const& [browserSource, subFiles] : _browserSrcFileMap)
+	{
+		for (auto const &[filePath, zipPath] : subFiles) {
+			if (!_AddFileToZip(filePath, zipPath, ecFile)) {
+				bool wasInterrupted = _interrupt;
+				_interrupt = false;
+				if (wasInterrupted) {
+					return _interruptReason;
+				}
+				return SceneBundleStatus::Error;
+			}
 		}
 	}
 
@@ -342,6 +414,19 @@ std::vector<std::string> SceneBundle::FileList()
 	std::vector<std::string> files;
 	for (auto const &[key, val] : _fileMap) {
 		files.push_back(key);
+	}
+	return files;
+}
+
+std::map<std::string, std::vector<std::string>> SceneBundle::SubFileList()
+{
+	std::map<std::string, std::vector<std::string>> files;
+	for (auto const &[orig, fileList] : _browserSrcFileMap) {
+		std::vector<std::string> subFiles;
+		for (auto const &[origFile, _] : fileList) {
+			subFiles.push_back(origFile);
+		}
+		files[orig] = subFiles;
 	}
 	return files;
 }
@@ -502,10 +587,13 @@ void SceneBundle::_CreateFileMap(nlohmann::json &item)
 		if (extension != "" &&
 		    extensionMap.find(extension) != extensionMap.end()) {
 			directory = extensionMap.at(extension);
-		} else {
-			directory = "/misc/";
 		}
-		std::string newFileName = "Assets" + directory + filename;
+		bool isBrowserSource = extension == ".html" ||
+				       extension == ".htm";
+		std::string newFileName =
+			!isBrowserSource
+				? "Assets" + directory + filename
+				: "Assets" + directory + base + "/" + filename;
 		auto result =
 			std::find_if(std::begin(_fileMap), std::end(_fileMap),
 				     [newFileName](const auto &fmv) {
@@ -523,18 +611,99 @@ void SceneBundle::_CreateFileMap(nlohmann::json &item)
 					      });
 			i++;
 		}
+
 		_fileMap[value] = newFileName;
+		if (isBrowserSource) {
+			_CreateBrowserSourceFileMap(value, newFileName);
+		}
 	}
-	item = "{FILE}:" + _fileMap.at(value);
+	return;
 }
 
-bool SceneBundle::_AddFileToZip(std::string filePath, std::string zipPath,
+void SceneBundle::_CreateBrowserSourceFileMap(std::string filePath, std::string newFileName)
+{
+	obs_log(LOG_INFO, "%s", filePath.c_str());
+	std::map<std::string, std::vector<std::string>> fileRep;
+	std::map<std::string, std::string> fileMap;
+
+	std::string fileName = filePath.substr(filePath.rfind("/") + 1);
+	std::string parentDirectory =
+		filePath.substr(0, filePath.rfind("/") + 1);
+	std::string newParentDirectory =
+		newFileName.substr(0, newFileName.rfind("/"));
+	obs_log(LOG_INFO, "%s, %s", fileName.c_str(), parentDirectory.c_str());
+
+	std::ifstream htmlFile(filePath);
+	if (!htmlFile.is_open()) {
+		obs_log(LOG_ERROR, "Could not open the file %s",
+			filePath.c_str());
+	}
+
+	std::string html((std::istreambuf_iterator<char>(htmlFile)),
+				std::istreambuf_iterator<char>());
+
+	std::regex src_pattern(R"((\bsrc\b|\bhref\b)\s*=\s*["']([^"']*)["'])",
+			       std::regex_constants::icase);
+	std::smatch matches;
+	std::string::const_iterator searchStart(html.cbegin());
+	while (std::regex_search(searchStart, html.cend(), matches,
+				 src_pattern)) {
+		searchStart = matches.suffix().first;
+		std::string srcFile = matches[2];
+		std::string srcStr = matches[2];
+		std::filesystem::path srcPath = srcFile;
+		if (srcPath.is_relative()) {
+			srcFile = parentDirectory + srcFile;
+		}
+		
+		bool fileExists = os_file_exists(srcFile.c_str());
+		if (!fileExists)
+			continue;
+
+		srcFile = simplifyPath(srcFile);
+		std::string srcFileName = srcFile.substr(srcFile.rfind("/") + 1);
+		bool hasExtension = srcFile.rfind(".") != std::string::npos;
+		std::string extension =
+			hasExtension ? os_get_path_extension(srcFile.c_str())
+				     : "";
+
+		std::string directory = "/misc/";
+		if (extension != "" &&
+		    extensionMap.find(extension) != extensionMap.end()) {
+			directory = extensionMap.at(extension);
+		}
+
+		std::string newPath = newParentDirectory + directory + srcFileName;
+		if (fileRep.find(newPath) != fileRep.end()) {
+			fileRep[newPath].push_back(srcStr);
+		} else {
+			fileRep[newPath] = {srcStr};
+			fileMap[srcFile] = newPath;
+		}
+	}
+
+	_browserSrcFileRep[filePath] = fileRep;
+	_browserSrcFileMap[filePath] = fileMap;
+}
+
+bool SceneBundle::_AddFileToZip(std::string filePath,
+					std::string zipPath,
 				miniz_cpp::zip_file &ecFile)
 {
 	if (_interrupt) {
 		return false;
 	}
 	ecFile.write(filePath, zipPath);
+	return true;
+}
+
+bool SceneBundle::_AddStringToZip(std::string strToAdd, std::string zipPath,
+				miniz_cpp::zip_file &ecFile)
+{
+	if (_interrupt) {
+		return false;
+	}
+	ecFile.writestr(zipPath, strToAdd);
 	return true;
 }
 
