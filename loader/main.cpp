@@ -47,7 +47,7 @@ DWORD GetProcessIdFromExe(const std::wstring& exeName) {
 	// Create a snapshot of all running processes
 	HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
 	if (hSnapshot == INVALID_HANDLE_VALUE) {
-		printf("Error taking snapshot of processes.");
+		std::cerr << "[ERROR]: Error taking snapshot of processes." << std::endl;
 		return 0;
 	}
 
@@ -100,17 +100,17 @@ int send_auth_to_obs(std::string payload) {
 	sa.bInheritHandle = FALSE;
 
 	int connect_attempts_remaining = 6;
-
+	std::cout << "Attempting to connect to Marketplace Connect Plugin" << std::flush;
 	while (connect_attempts_remaining-- > 0 &&
 		pipe == INVALID_HANDLE_VALUE) {
 		pipe_number = 0;
 		while (pipe_number < 10) {
 			attempt_name = base_name + std::to_string(pipe_number);
-			printf("Attempting %s\n", attempt_name.c_str());
+			std::cout << "." << std::flush;
 			pipe = CreateFileA(attempt_name.c_str(), GENERIC_WRITE,
 				0, &sa, OPEN_EXISTING, 0, NULL);
 			if (pipe != INVALID_HANDLE_VALUE) {
-				printf("Success\n");
+				std::cout << "\nSuccess" << std::endl;
 				break;
 			}
 			pipe_number++;
@@ -120,14 +120,14 @@ int send_auth_to_obs(std::string payload) {
 		}
 	}
 	if (pipe == INVALID_HANDLE_VALUE) {
-		printf("Could not open named pipe!");
+		std::cerr << "[ERROR] Could not find connection Marketplace Connect Plugin." << std::endl;
 		return 1;
 	}
 	DWORD mode = PIPE_READMODE_MESSAGE;
 	auto success = SetNamedPipeHandleState(pipe, &mode, NULL, NULL);
 	if (!success) {
 		CloseHandle(pipe);
-		printf("Could not configure named pipe!");
+		std::cerr << "[ERROR] Could not negotiate connection with Marketplace Connect Plugin." << std::endl;
 		return 1;
 	}
 
@@ -135,7 +135,67 @@ int send_auth_to_obs(std::string payload) {
 	success = WriteFile(pipe, payload.c_str(), static_cast<DWORD>(payload.size()), &written,
 		NULL);
 	if (!success || written < payload.size()) {
-		printf("Failed to write to named pipe!");
+		std::cerr << "[ERROR] Could not send data to Marketplace Connect Plugin." << std::endl;
+		CloseHandle(pipe);
+		return 1;
+	}
+
+	CloseHandle(pipe);
+	return 0;
+}
+
+int open_obs_mp_window()
+{
+	int pipe_number = 0;
+	std::string pipe_name = "elgato_cloud";
+	std::string base_name = "\\\\.\\pipe\\" + pipe_name;
+	std::string attempt_name;
+	HANDLE pipe = INVALID_HANDLE_VALUE;
+	SECURITY_ATTRIBUTES sa;
+	SECURITY_DESCRIPTOR sd;
+	InitializeSecurityDescriptor(&sd, SECURITY_DESCRIPTOR_REVISION);
+	SetSecurityDescriptorDacl(&sd, TRUE, NULL, FALSE);
+	sa.nLength = sizeof(sa);
+	sa.lpSecurityDescriptor = &sd;
+	sa.bInheritHandle = FALSE;
+
+	int connect_attempts_remaining = 60;
+
+	std::cout << "Waiting for OBS to launch" << std::flush;
+
+	while (connect_attempts_remaining-- > 0 &&
+		pipe == INVALID_HANDLE_VALUE) {
+		pipe_number = 0;
+		attempt_name = base_name + std::to_string(pipe_number);
+		std::cout << "." << std::flush;
+		pipe = CreateFileA(attempt_name.c_str(), GENERIC_WRITE,
+			0, &sa, OPEN_EXISTING, 0, NULL);
+		if (pipe != INVALID_HANDLE_VALUE) {
+			std::cout << "\nConnected To OBS" << std::endl;
+			break;
+		}
+		if (pipe == INVALID_HANDLE_VALUE) {
+			Sleep(1000);
+		}
+	}
+	if (pipe == INVALID_HANDLE_VALUE) {
+		std::cerr << "[ERROR] Could not find connection Marketplace Connect Plugin." << std::endl;
+		return 1;
+	}
+	DWORD mode = PIPE_READMODE_MESSAGE;
+	auto success = SetNamedPipeHandleState(pipe, &mode, NULL, NULL);
+	if (!success) {
+		CloseHandle(pipe);
+		std::cerr << "[ERROR] Could not negotiate connection with Marketplace Connect Plugin." << std::endl;
+		return 1;
+	}
+
+	DWORD written = 0;
+	std::string payload = "elgatolink://open";
+	success = WriteFile(pipe, payload.c_str(), static_cast<DWORD>(payload.size()), &written,
+		NULL);
+	if (!success || written < payload.size()) {
+		std::cerr << "[ERROR] Could not send data to Marketplace Connect Plugin." << std::endl;
 		CloseHandle(pipe);
 		return 1;
 	}
@@ -169,12 +229,12 @@ int launch_obs()
 		STARTUPINFOW si = { sizeof(STARTUPINFO) };
 		PROCESS_INFORMATION pi;
 
-		printf("Try create %ls with %ls\n", launch_path.c_str(),
-			wd.c_str());
+		//printf("Try create %ls with %ls\n", launch_path.c_str(),
+		//	wd.c_str());
 
 		//WCHAR lpCommandLine[] = L"";
 		if (CreateProcess(launch_path.c_str(), NULL, NULL, NULL, FALSE, 0, NULL, wd.c_str(), &si, &pi) == 0) {
-			printf("Failed to launch OBS.");
+			std::cerr << "[ERROR] Failed to launch OBS." << std::endl;
 			return 1;
 		}
 
@@ -185,7 +245,7 @@ int launch_obs()
 	} else if (running) {
 		DWORD processId = GetProcessIdFromExe(L"obs64.exe");
 		if (processId == 0) {
-			printf("Process not found!");
+			std::cerr << "[ERROR] OBS appears to have quit." << std::endl;
 			return 1;
 		}
 		EnumWindows(WindowToForeground, processId);
@@ -198,26 +258,31 @@ bool obs_is_running(std::wstring name) {
 		if (!iswalnum(name[i]))
 			name[i] = L'_';
 	}
-
-	printf("CHECKING %ls\n", name.c_str());
 	HANDLE h = OpenMutexW(SYNCHRONIZE, false, name.c_str());
 	return !!h;
 }
 
 int main(int argc, char *argv[]) {
 	if (argc < 2) {
-		printf("Please provide an argument");
+		std::cerr << "[ERROR] No argument provided." << std::endl;
+		system("pause");
 		return 1;
 	}
+	int resp;
 
 	std::string payload = argv[1];
 
 	if (payload.find("elgatolink://auth") == 0) {
 		// Send auth to OBS which requested it.
-		return send_auth_to_obs(payload);
+		resp = send_auth_to_obs(payload);
 	} else {
-		return launch_obs();
+		resp = launch_obs();
+		if(resp == 0) resp = open_obs_mp_window();
 	}
-	printf("No obs found to launch.");
-	return 1;
+	
+	if (resp == 1) {
+		system("pause");
+	}
+
+	return resp;
 }

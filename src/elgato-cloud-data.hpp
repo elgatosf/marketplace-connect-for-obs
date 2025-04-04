@@ -19,6 +19,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #pragma once
 
 #include <obs-module.h>
+#include <obs-frontend-api.h>
 
 #include <mutex>
 #include <thread>
@@ -72,6 +73,7 @@ public:
 	bool mainWindowOpen = false;
 	ElgatoCloudWindow *window = nullptr;
 	inline bool MakerToolsOnStart() const { return _makerToolsOnStart; }
+	static void FrontEndEventHandler(enum obs_frontend_event event, void* data);
 
 private:
 	void _Initialize();
@@ -95,6 +97,8 @@ private:
 	std::string _skipUpdate;
 	obs_data_t *_config;
 	bool _makerToolsOnStart;
+	bool _openOnLaunch;
+	bool _obsReady;
 };
 
 class ElgatoCloudThread : public QThread {
