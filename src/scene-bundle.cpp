@@ -28,6 +28,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <QMetaObject>
 #include <vector>
 #include <string>
+#include <filesystem>
 #include <stdio.h>
 #include <algorithm>
 #include <zip_file.hpp>
@@ -46,7 +47,10 @@ const std::map<std::string, std::string> extensionMap{
 	{".mkv", "/video/"},      {".mp3", "/audio/"},
 	{".wav", "/aduio/"},      {".effect", "/shaders/"},
 	{".shader", "/shaders/"}, {".hlsl", "/shaders/"},
-	{".lua", "/scripts/"},    {".py", "/scripts/"}};
+	{".lua", "/scripts/"},    {".py", "/scripts/"},
+	{".html", "/browser-sources/"},
+	{".htm", "/browser-sources/"}
+};
 
 // Filter IDs of incompatible filter types, e.g. filters
 // that require external libraries or executables.
@@ -305,11 +309,26 @@ SceneBundleStatus SceneBundle::ToElgatoCloudFile(
 	std::string collection_json = _collection.dump(2);
 	std::string bundleInfo_json = bundleInfo.dump(2);
 
+	std::vector<std::string> browserSourceDirs;
+
 	ecFile.writestr("collection.json", collection_json);
 	ecFile.writestr("bundle_info.json", bundleInfo_json);
 	// Write all assets to zip archive.
 	for (const auto &file : _fileMap) {
 		std::string oFilename = file.first;
+
+		std::string filename = oFilename.substr(oFilename.rfind("/") + 1);
+		std::string parentDir = oFilename.substr(0, oFilename.rfind("/"));
+		std::string zipParent = file.second.substr(0, file.second.rfind("/"));
+		bool hasExtension = filename.rfind(".") != std::string::npos;
+		std::string extension =
+			hasExtension ? os_get_path_extension(oFilename.c_str())
+			: "";
+		bool isBrowserSource = extension == ".html" || extension == ".htm";
+		bool addBrowser = isBrowserSource && std::find(browserSourceDirs.begin(), browserSourceDirs.end(), parentDir) == browserSourceDirs.end();
+		if (addBrowser) {
+			browserSourceDirs.push_back(parentDir);
+		}
 		struct stat st;
 		os_stat(oFilename.c_str(), &st);
 		if ((st.st_mode & S_IFMT) == S_IFDIR) {
@@ -322,13 +341,24 @@ SceneBundleStatus SceneBundle::ToElgatoCloudFile(
 				}
 				return SceneBundleStatus::Error;
 			}
-		} else if (!_AddFileToZip(file.first, file.second, ecFile)) {
-			bool wasInterrupted = _interrupt;
-			_interrupt = false;
-			if (wasInterrupted) {
-				return _interruptReason;
+		} else if (addBrowser) {
+			if (!_AddBrowserSourceContentsToZip(parentDir, zipParent, ecFile)) {
+				bool wasInterrupted = _interrupt;
+				_interrupt = false;
+				if (wasInterrupted) {
+					return _interruptReason;
+				}
+				return SceneBundleStatus::Error;
 			}
-			return SceneBundleStatus::Error;
+		} else if(!isBrowserSource) {
+			if (!_AddFileToZip(file.first, file.second, ecFile)) {
+				bool wasInterrupted = _interrupt;
+				_interrupt = false;
+				if (wasInterrupted) {
+					return _interruptReason;
+				}
+				return SceneBundleStatus::Error;
+			}
 		}
 	}
 
@@ -505,6 +535,13 @@ void SceneBundle::_CreateFileMap(nlohmann::json &item)
 		} else {
 			directory = "/misc/";
 		}
+		bool isBrowserSource = extension == ".htm" || extension == ".html";
+		if (isBrowserSource) {
+			std::filesystem::path pathObj(value);
+			auto parentPath = pathObj.parent_path();
+			std::string parent = parentPath.filename().string();
+			directory += parent + "/";
+		}
 		std::string newFileName = "Assets" + directory + filename;
 		auto result =
 			std::find_if(std::begin(_fileMap), std::end(_fileMap),
@@ -535,6 +572,51 @@ bool SceneBundle::_AddFileToZip(std::string filePath, std::string zipPath,
 		return false;
 	}
 	ecFile.write(filePath, zipPath);
+	return true;
+}
+
+bool SceneBundle::_AddBrowserSourceContentsToZip(std::string dirPath, std::string zipDir,
+	miniz_cpp::zip_file& ecFile)
+{
+	// Iterate the files in the directory and add them to the zip.
+	// Ignore sub-directories
+	os_dir_t* dir = os_opendir(dirPath.c_str());
+	if (dir) {
+		struct os_dirent* ent;
+		for (;;) {
+			ent = os_readdir(dir);
+			if (!ent)
+				break;
+			if (ent->directory) {
+				std::string dName = ent->d_name;
+				if (dName == "." || dName == "..") {
+					continue;
+				}
+				std::string dPath = dirPath + "/" + dName;
+				std::string zipDPath = zipDir + "/" + dName;
+				if (!_AddBrowserSourceContentsToZip(dPath, zipDPath, ecFile)) {
+					os_closedir(dir);
+					return false;
+				}
+			} else {
+				std::string filename = ent->d_name;
+				std::string filePath = dirPath + "/" + filename;
+				std::string zipFilePath = zipDir + "/" + filename;
+				if (!_AddFileToZip(filePath, zipFilePath, ecFile)) {
+					os_closedir(dir);
+					return false;
+				}
+			}
+		}
+	}
+	else {
+		obs_log(LOG_ERROR, "Fatal: Could not open directory: %s",
+			dirPath.c_str());
+		return false;
+	}
+
+	os_closedir(dir);
+
 	return true;
 }
 
