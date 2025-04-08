@@ -18,9 +18,12 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 
 #include <algorithm>
 
+#include <util/platform.h>
+
 #include "export-wizard.hpp"
 #include "elgato-styles.hpp"
 #include "plugins.hpp"
+#include "plugin-support.h"
 #include <QMainWindow>
 #include <QVBoxLayout>
 #include <QPushButton>
@@ -52,9 +55,7 @@ const std::vector<std::string> ExcludedModules{
 	"obs-outputs.dll", "obs-nvenc.dll", "obs-filters.dll", "obs-ffmpeg.dll",
 	"obs-browser.dll", "nv-filters.dll", "image-source.dll",
 	"frontend-tools.dll", "decklink-output-ui.dll", "decklink-captions.dll",
-	"coreaudio-encoder.dll",
-	// This plugin
-	"elgato-marketplace.dll"};
+	"coreaudio-encoder.dll", "elgato-marketplace.dll"};
 
 FileCollectionCheck::FileCollectionCheck(QWidget *parent,
 					 std::vector<std::string> files)
@@ -80,8 +81,30 @@ FileCollectionCheck::FileCollectionCheck(QWidget *parent,
 	layout->addWidget(subTitle);
 
 	auto fileList = new QListWidget(this);
+	std::vector<std::string> browserSourceDirs;
+
 	for (auto fileName : _files) {
-		fileList->addItem(fileName.c_str());
+		bool hasExtension = fileName.rfind(".") != std::string::npos;
+		std::string extension =
+			hasExtension ? os_get_path_extension(fileName.c_str())
+			: "";
+		if (extension == ".html" || extension == ".htm") {
+			if (fileName.rfind("/") == std::string::npos) {
+				obs_log(LOG_INFO, "Error exporting file- could not determine parent directory of file.");
+				continue;
+			}
+			std::string parentDir = fileName.substr(0, fileName.rfind("/"));
+			if (std::find(browserSourceDirs.begin(), browserSourceDirs.end(), parentDir) == browserSourceDirs.end()) {
+				browserSourceDirs.push_back(parentDir);
+				std::vector<std::string> parentDirFiles;
+				_SubFiles(parentDirFiles, parentDir);
+				for (auto parentFileName : parentDirFiles) {
+					fileList->addItem(parentFileName.c_str());
+				}
+			}
+		} else {
+			fileList->addItem(fileName.c_str());
+		}
 	}
 
 	fileList->setStyleSheet(EListStyle);
@@ -104,6 +127,40 @@ FileCollectionCheck::FileCollectionCheck(QWidget *parent,
 	buttons->addWidget(spacer);
 	buttons->addWidget(continueButton);
 	layout->addLayout(buttons);
+}
+
+bool FileCollectionCheck::_SubFiles(std::vector<std::string>& files, std::string curDir)
+{
+	os_dir_t* dir = os_opendir(curDir.c_str());
+	if (dir) {
+		struct os_dirent* ent;
+		for (;;) {
+			ent = os_readdir(dir);
+			if (!ent)
+				break;
+			if (ent->directory) {
+				std::string dName = ent->d_name;
+				if (dName == "." || dName == "..") {
+					continue;
+				}
+				std::string dPath = curDir + "/" + dName;
+				if (!_SubFiles(files, dPath)) {
+					os_closedir(dir);
+					return false;
+				}
+			} else {
+				std::string filename = ent->d_name;
+				std::string filePath = curDir + "/" + filename;
+				files.push_back(filePath);
+			}
+		}
+	} else {
+		obs_log(LOG_ERROR, "Fatal: Could not open directory: %s",
+			curDir.c_str());
+		return false;
+	}
+	os_closedir(dir);
+	return true;
 }
 
 VideoSourceLabels::VideoSourceLabels(QWidget *parent,

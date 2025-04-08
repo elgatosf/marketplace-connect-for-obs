@@ -51,6 +51,7 @@ signals:
 
 private:
 	std::vector<std::string> _files;
+	bool _SubFiles(std::vector<std::string>& files, std::string curDir);
 };
 
 class VideoSourceLabels : public QWidget {
