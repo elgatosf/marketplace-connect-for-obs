@@ -45,6 +45,7 @@ public:
 	inline ~ElgatoProduct() {};
 	inline bool ready() { return _thumbnailReady; }
 	bool DownloadProduct();
+	void StopProductDownload();
 	static void DownloadProgress(void *ptr, bool finished, bool downloading,
 				     uint64_t fileSize, uint64_t chunkSize,
 				     uint64_t downloaded);

@@ -22,6 +22,8 @@
 #include <QScreen>
 #include <QResizeEvent>
 #include <QShowEvent>
+#include <QPainterPath>
+#include <QPainter>
 
 #include <obs-config.h>
 

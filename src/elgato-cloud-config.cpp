@@ -15,6 +15,7 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along
 with this program. If not, see <https://www.gnu.org/licenses/>
 */
+#include <algorithm>
 
 #include <obs-module.h>
 #include <obs-frontend-api.h>
@@ -32,7 +33,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <QMainWindow>
 #include <QLabel>
 #include <QPushButton>
-#include <algorithm>
+#include <QPainterPath>
 #include <QApplication>
 #include <QThread>
 #include <QMetaObject>
@@ -52,34 +53,37 @@ DefaultAVWidget::DefaultAVWidget(QWidget *parent) : QWidget(parent)
 	AVWIDGET = this;
 	std::string imageBaseDir = GetDataPath();
 	imageBaseDir += "/images/";
-
 	auto layout = new QHBoxLayout();
+	layout->setSpacing(16);
+	layout->setContentsMargins(0, 0, 0, 0);
 
 	auto dropDowns = new QVBoxLayout();
+	dropDowns->setSpacing(16);
+	dropDowns->setContentsMargins(0, 0, 0, 0);
+
+	auto avWidgetTitle = new QLabel(obs_module_text("MarketplaceWindow.Settings.DefaultAV.Label"), this);
+	avWidgetTitle->setStyleSheet(EWizardStepTitle);
 
 	auto videoSourceLabel = new QLabel(
 		obs_module_text("MarketplaceWindow.Settings.DefaultVideoDevice.Label"), this);
-	videoSourceLabel->setStyleSheet("font-size: 12pt;");
+	videoSourceLabel->setStyleSheet(EWizardFieldLabel);
 
 	auto audioSourceLabel = new QLabel(
 		obs_module_text("MarketplaceWindow.Settings.DefaultAudioDevice.Label"), this);
-	audioSourceLabel->setStyleSheet("font-size: 12pt;");
+	audioSourceLabel->setStyleSheet(EWizardFieldLabel);
 
 	_videoSources = new QComboBox(this);
-	_videoSources->setStyleSheet(EComboBoxStyle);
+	_videoSources->setStyleSheet(EWizardComboBoxStyle);
 
 	_videoPreview = new OBSQTDisplay(this);
-	_videoPreview->setFixedHeight(171);
-	_videoPreview->hide();
+	auto videoPreviewWidget = new VideoPreviewWidget(_videoPreview, 8, this);
+	videoPreviewWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
 
-	_blank = new QLabel(this);
-	_blank->setText(
-		obs_module_text("MarketplaceWindow.Settings.DefaultVideoDevice.NoneSelected"));
-	_blank->setAlignment(Qt::AlignCenter);
-	_blank->setFixedHeight(171);
-	_blank->setFixedWidth(304);
+	_blank = new CameraPlaceholder(8, this);
+	std::string cameraIconPath = imageBaseDir + "camera-placeholder-icon.svg";
+	_blank->setIcon(cameraIconPath.c_str());
+	_blank->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
 
-	//auto videoSettings = new QHBoxLayout(this);
 	auto videoSettings = new QWidget(this);
 	auto vsLayout = new QHBoxLayout(this);
 	vsLayout->setContentsMargins(0, 0, 0, 0);
@@ -87,18 +91,13 @@ DefaultAVWidget::DefaultAVWidget(QWidget *parent) : QWidget(parent)
 	vsLayout->addWidget(_videoSources);
 
 	_settingsButton = new QPushButton(this);
-	std::string settingsIconPath = imageBaseDir + "settings.svg";
-	std::string settingsIconHoverPath = imageBaseDir + "settings_hover.svg";
-	std::string settingsIconDisabledPath =
-		imageBaseDir + "settings_disabled.svg";
-	QString settingsButtonStyle = EIconHoverDisabledButtonStyle;
+	std::string settingsIconPath = imageBaseDir + "button-settings-icon.svg";
+	std::string settingsIconDisabledPath = imageBaseDir + "button-settings-icon-disabled.svg";
+	QString settingsButtonStyle = EWizardIconOnlyButtonStyle;
 	settingsButtonStyle.replace("${img}", settingsIconPath.c_str());
-	settingsButtonStyle.replace("${hover-img}",
-				    settingsIconHoverPath.c_str());
-	settingsButtonStyle.replace("${disabled-img}",
-				    settingsIconDisabledPath.c_str());
-	_settingsButton->setFixedSize(24, 24);
-	_settingsButton->setMaximumHeight(24);
+	settingsButtonStyle.replace("${img-disabled}", settingsIconDisabledPath.c_str());
+	_settingsButton->setFixedSize(32, 32);
+	_settingsButton->setMaximumHeight(32);
 	_settingsButton->setStyleSheet(settingsButtonStyle);
 	_settingsButton->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
 	_settingsButton->setToolTip(
@@ -110,18 +109,30 @@ DefaultAVWidget::DefaultAVWidget(QWidget *parent) : QWidget(parent)
 	videoSettings->setLayout(vsLayout);
 	videoSettings->setSizePolicy(QSizePolicy::Preferred,
 				     QSizePolicy::Preferred);
-	dropDowns->addWidget(videoSourceLabel);
-	dropDowns->addWidget(videoSettings);
-	dropDowns->addWidget(audioSourceLabel);
 
 	_audioSources = new QComboBox(this);
-	_audioSources->setStyleSheet(EComboBoxStyle);
+	_audioSources->setStyleSheet(EWizardComboBoxStyle);
 
 	_levelsWidget = new SimpleVolumeMeter(this, _volmeter);
 	// Add Dropdown and meter
 
-	dropDowns->addWidget(_audioSources);
-	dropDowns->addWidget(_levelsWidget);
+	dropDowns->addWidget(avWidgetTitle);
+	auto videoSourceSettingLayout = new QVBoxLayout();
+	videoSourceSettingLayout->setContentsMargins(0, 0, 0, 0);
+	videoSourceSettingLayout->setSpacing(0);
+	videoSourceSettingLayout->addWidget(videoSourceLabel);
+	videoSourceSettingLayout->addWidget(videoSettings);
+	dropDowns->addLayout(videoSourceSettingLayout);
+
+	auto audioSourceSettingLayout = new QVBoxLayout();
+	audioSourceSettingLayout->setContentsMargins(0, 0, 0, 0);
+	audioSourceSettingLayout->setSpacing(0);
+	audioSourceSettingLayout->addWidget(audioSourceLabel);
+	audioSourceSettingLayout->addWidget(_audioSources);
+
+	dropDowns->addLayout(audioSourceSettingLayout);
+	dropDowns->addStretch();
+	//dropDowns->addWidget(_levelsWidget);
 
 	// Get settings
 	auto config = elgatoCloud->GetConfig();
@@ -167,12 +178,18 @@ DefaultAVWidget::DefaultAVWidget(QWidget *parent) : QWidget(parent)
 
 	//avSettings->addWidget(_videoPreview);
 	_stack = new QStackedWidget(this);
-	_stack->setFixedSize(300, 150);
+	_stack->setFixedWidth(300);
 	_stack->addWidget(_blank);
-	_stack->addWidget(_videoPreview);
-	_stack->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+	_stack->addWidget(videoPreviewWidget);
+	_stack->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Preferred);
+	auto previewsLayout = new QVBoxLayout();
+	previewsLayout->setContentsMargins(0, 0, 0, 0);
+	previewsLayout->setSpacing(8);
+	previewsLayout->addWidget(_stack);
+	previewsLayout->addWidget(_levelsWidget);
+	previewsLayout->addStretch();
 	layout->addLayout(dropDowns);
-	layout->addWidget(_stack);
+	layout->addLayout(previewsLayout);
 
 	setLayout(layout);
 
@@ -241,7 +258,6 @@ DefaultAVWidget::~DefaultAVWidget()
 	}
 	if (_videoCaptureSource) {
 		obs_source_release(_videoCaptureSource);
-		//obs_source_remove(_videoCaptureSource);
 	}
 	_levelsWidget = nullptr;
 }
@@ -404,7 +420,7 @@ SimpleVolumeMeter::SimpleVolumeMeter(QWidget *parent, obs_volmeter_t *volmeter)
 	: QWidget(parent),
 	  _volmeter(volmeter)
 {
-	setFixedHeight(16);
+	setFixedHeight(8);
 }
 
 SimpleVolumeMeter::~SimpleVolumeMeter() {}
@@ -447,12 +463,22 @@ void SimpleVolumeMeter::paintEvent(QPaintEvent *event)
 
 	QPainter painter(this);
 
-	painter.fillRect(bgRect, QColor(50, 50, 50));
+	QPainterPath path;
+	path.addRoundedRect(bgRect, 4, 4);
+	painter.setClipPath(path);
 
+	// Draw background
+	painter.fillRect(bgRect, QColor(49, 49, 49));
 	QLinearGradient gradient(0, 0, width, 0);
-	gradient.setColorAt(0.0, QColor(86, 69, 255));
-	gradient.setColorAt(1.0, QColor(129, 60, 255));
-	painter.fillRect(widgetRect, gradient);
+	gradient.setColorAt(0.0, QColor(59, 180, 85));
+	gradient.setColorAt(0.6, QColor(59, 180, 85));
+	gradient.setColorAt(0.8, QColor(251, 219, 0));
+	gradient.setColorAt(1.0, QColor(255, 60, 78));
+	path.clear();
+	path.addRoundedRect(widgetRect, 4, 4);
+	painter.setClipPath(path);
+
+	painter.fillRect(bgRect, gradient);
 
 	_lastRedraw = ts;
 }
@@ -473,42 +499,51 @@ ElgatoCloudConfig::ElgatoCloudConfig(QWidget *parent) : QDialog(parent)
 	std::string imageBaseDir = GetDataPath();
 	imageBaseDir += "/images/";
 
-	setFixedSize(QSize(680, 500));
+	setFixedSize(QSize(680, 528));
 	setAttribute(Qt::WA_DeleteOnClose);
+	setWindowTitle(obs_module_text("MarketplaceWindow.Settings.Title"));
 
 	auto layout = new QVBoxLayout();
-
-	auto title = new QLabel(this);
-	title->setText(
-		obs_module_text("MarketplaceWindow.Settings.Title"));
-	title->setAlignment(Qt::AlignCenter);
-	title->setStyleSheet("QLabel { font-size: 16pt; }");
-	title->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
-
-	layout->addWidget(title);
+	layout->setSpacing(16);
+	layout->setContentsMargins(16, 16, 16, 16);
 
 	// Default video and audio capture device settings
 	_avWidget = new DefaultAVWidget(this);
 	layout->addWidget(_avWidget);
 
+	// Create the horizontal line
+	QFrame* line = new QFrame();
+	line->setFrameShape(QFrame::HLine);
+	line->setFrameShadow(QFrame::Plain);  // No 3D effect
+	line->setLineWidth(1);
+	line->setFixedHeight(1);  // Force it to stay 1px high
+	line->setStyleSheet("color: rgba(255, 255, 255, 0.12); rgba(255, 255, 255, 0.12);");
+
+	layout->addWidget(line);
+
+	auto advancedTitle = new QLabel(obs_module_text("MarketplaceWindow.Settings.Advanced"), this);
+	advancedTitle->setStyleSheet(EWizardStepTitle);
+
+	layout->addWidget(advancedTitle);
+
 	// Theme installation location setting
 	auto filePickerLabel = new QLabel(
 		obs_module_text("MarketplaceWindow.Settings.InstallLocation"), this);
-	filePickerLabel->setStyleSheet("margin-left: 16px; font-size: 12pt;");
+	filePickerLabel->setStyleSheet(EWizardFieldLabel);
 
 	auto config = elgatoCloud->GetConfig();
 	_installDirectory = obs_data_get_string(config, "InstallLocation");
 
 	auto filePicker = new QWidget(this);
 	filePicker->setStyleSheet(
-		"QWidget {background-color: #181818; border-radius: 8px; margin: 0px 8px 0px 8px; padding: 0px 16px 0px 0px;}");
+		"QWidget {background-color: #232323; border-radius: 8px; margin: 0px 0px 0px 0px; padding: 0px 16px 0px 0px;}");
 	auto fpLayout = new QHBoxLayout();
 	fpLayout->setSpacing(0);
 	fpLayout->setContentsMargins(0, 0, 0, 0);
 	auto directory = new QLabel(_installDirectory.c_str(), filePicker);
-	directory->setFixedHeight(40);
+	directory->setFixedHeight(32);
 	directory->setStyleSheet(
-		"QLabel {color: #FFFFFF; padding: 0px 16px 0px 16px; font-size: 11pt;}");
+		"QLabel {color: #FFFFFF; padding: 0px 16px 0px 16px; font-size: 14px;}");
 	directory->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 
 	auto directoryPick = new QPushButton(filePicker);
@@ -543,8 +578,13 @@ ElgatoCloudConfig::ElgatoCloudConfig(QWidget *parent) : QDialog(parent)
 	fpLayout->addWidget(directoryPick);
 	filePicker->setLayout(fpLayout);
 
-	layout->addWidget(filePickerLabel);
-	layout->addWidget(filePicker);
+	auto filePickerLayout = new QVBoxLayout();
+	filePickerLayout->setContentsMargins(0, 0, 0, 0);
+	filePickerLayout->setSpacing(4);
+
+	filePickerLayout->addWidget(filePickerLabel);
+	filePickerLayout->addWidget(filePicker);
+	layout->addLayout(filePickerLayout);
 
 	// Maker Tools toggle.
 	bool makerTools = obs_data_get_bool(config, "MakerTools");
@@ -553,12 +593,21 @@ ElgatoCloudConfig::ElgatoCloudConfig(QWidget *parent) : QDialog(parent)
 	_makerCheckbox->setChecked(makerTools);
 	std::string checkedImage = imageBaseDir + "checkbox_checked.png";
 	std::string uncheckedImage = imageBaseDir + "checkbox_unchecked.png";
-	QString checkBoxStyle = ECheckBoxStyle;
+	QString checkBoxStyle = EWizardCheckBoxStyle;
 	checkBoxStyle.replace("${checked-img}", checkedImage.c_str());
 	checkBoxStyle.replace("${unchecked-img}", uncheckedImage.c_str());
 	_makerCheckbox->setStyleSheet(checkBoxStyle);
 	_makerCheckbox->setToolTip(obs_module_text("MarketplaceWindow.Settings.EnableMakerTools.Tooltip"));
-	layout->addWidget(_makerCheckbox);
+	auto makerToolsTip = new QLabel(obs_module_text("MarketplaceWindow.Settings.EnableMakerTools.Tip"), this);
+	makerToolsTip->setStyleSheet(EWizardCheckBoxTipStyle);
+
+	auto makerLayout = new QVBoxLayout();
+	makerLayout->setContentsMargins(0, 0, 0, 0);
+	makerLayout->setSpacing(4);
+	makerLayout->addWidget(_makerCheckbox);
+	makerLayout->addWidget(makerToolsTip);
+
+	layout->addLayout(makerLayout);
 
 	connect(_makerCheckbox, &QCheckBox::stateChanged, [this](int state) {
 		bool makerTools = state == Qt::Checked;
@@ -566,31 +615,37 @@ ElgatoCloudConfig::ElgatoCloudConfig(QWidget *parent) : QDialog(parent)
 	});
 
 	std::string restartTxt = elgatoCloud->MakerToolsOnStart() ? obs_module_text("MarketplaceWindow.Settings.MakerToolsRestartWarning.Disabled") : obs_module_text("MarketplaceWindow.Settings.MakerToolsRestartWarning.Enabled");
-	_makerRestartMsg = new QLabel(restartTxt.c_str(), this);
-	_makerRestartMsg->setVisible(false);
-	_makerRestartMsg->setStyleSheet(
-		"QLabel {color: #FFFFFF; padding: 8px 16px 0px 16px; font-size: 12pt; font-style: italic; }");
-	_makerRestartMsg->setAlignment(Qt::AlignCenter);
+	//_makerRestartMsg = new QLabel(restartTxt.c_str(), this);
+	//_makerRestartMsg->setVisible(false);
+	//_makerRestartMsg->setStyleSheet(
+	//	"QLabel {color: #FFFFFF; padding: 8px 16px 0px 16px; font-size: 12pt; font-style: italic; }");
+	//_makerRestartMsg->setAlignment(Qt::AlignCenter);
+
+	std::string infoIconPath = imageBaseDir + "info-icon.svg";
+	_makerRestartMsg = new InfoLabel(restartTxt.c_str(), infoIconPath.c_str(), this);
+	_makerRestartMsg->setVisible(makerTools != elgatoCloud->MakerToolsOnStart());
 	layout->addWidget(_makerRestartMsg);
 	layout->addStretch();
 
-	std::string version = "v";
-	version += versionNoBuild() + releaseType() + " (build " + buildNumber() +")";
+	std::string version = "";
+	version += versionNoBuild() + releaseType() + " (" + buildNumber() +")";
 	auto versionLabel = new QLabel(version.c_str(), this);
-	layout->addWidget(versionLabel);
+	versionLabel->setStyleSheet(EWizardSmallLabel);
+	//layout->addWidget(versionLabel);
 
 	auto buttons = new QHBoxLayout();
 
 	QPushButton *cancelButton = new QPushButton(this);
 	cancelButton->setText(
 		obs_module_text("General.CancelButton"));
-	cancelButton->setStyleSheet(EPushButtonCancelStyle);
+	cancelButton->setStyleSheet(EWizardQuietButtonStyle);
 
 	QPushButton *saveButton = new QPushButton(this);
 	saveButton->setText(
 		obs_module_text("General.SaveButton"));
-	saveButton->setStyleSheet(EPushButtonStyle);
+	saveButton->setStyleSheet(EWizardButtonStyle);
 
+	buttons->addWidget(versionLabel);
 	buttons->addStretch();
 	buttons->addWidget(cancelButton);
 	buttons->addWidget(saveButton);
@@ -608,7 +663,7 @@ ElgatoCloudConfig::ElgatoCloudConfig(QWidget *parent) : QDialog(parent)
 		[this]() { close(); });
 
 	layout->addLayout(buttons);
-	setStyleSheet("background-color: #232323");
+	setStyleSheet("background-color: #151515");
 	setLayout(layout);
 	obs_data_release(config);
 }

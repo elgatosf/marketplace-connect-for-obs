@@ -45,7 +45,7 @@ const std::map<std::string, std::string> extensionMap{
 	{".bmp", "/images/"},     {".webm", "/video/"},
 	{".mov", "/video/"},      {".mp4", "/video/"},
 	{".mkv", "/video/"},      {".mp3", "/audio/"},
-	{".wav", "/aduio/"},      {".effect", "/shaders/"},
+	{".wav", "/audio/"},      {".effect", "/shaders/"},
 	{".shader", "/shaders/"}, {".hlsl", "/shaders/"},
 	{".lua", "/scripts/"},    {".py", "/scripts/"},
 	{".html", "/browser-sources/"},
@@ -122,7 +122,8 @@ bool SceneBundle::FromElgatoCloudFile(std::string filePath,
 std::string SceneBundle::ExtractBundleInfo(std::string filePath)
 {
 	miniz_cpp::zip_file file(filePath);
-	return file.read("bundle_info.json");
+	auto result = file.read("bundle_info.json");
+	return result;
 }
 
 void SceneBundle::SceneCollectionCreated(enum obs_frontend_event event,

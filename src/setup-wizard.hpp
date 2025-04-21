@@ -62,14 +62,16 @@ struct Setup {
 	std::string audioSettings;
 };
 
-class StreamPackageHeader : public QWidget {
+class StepsSideBar : public QWidget {
 	Q_OBJECT
 public:
-	StreamPackageHeader(QWidget *parent, std::string name,
-			    std::string thumbnailPath);
+	StepsSideBar(std::string name, std::string thumbnailPath, QWidget* parent);
+	void setStep(int step);
+	void incrementStep();
+	void decrementStep();
 
 private:
-	QLabel *_thumbnail(std::string thumbnailPath);
+	Stepper* _stepper;
 };
 
 class MissingPlugins : public QWidget {
