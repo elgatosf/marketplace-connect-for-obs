@@ -31,6 +31,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <mutex>
 
 #include "qt-display.hpp"
+#include "elgato-widgets.hpp"
 
 namespace elgatocloud {
 
@@ -57,7 +58,7 @@ private:
 	obs_source_t *_videoCaptureSource = nullptr;
 	OBSQTDisplay *_videoPreview = nullptr;
 	QPushButton *_settingsButton = nullptr;
-	QLabel *_blank = nullptr;
+	CameraPlaceholder *_blank = nullptr;
 	QComboBox *_videoSources = nullptr;
 	std::vector<std::string> _videoSourceIds;
 	std::string _sourceName;
@@ -138,7 +139,7 @@ private:
 	obs_volmeter_t *_volmeter = nullptr;
 	OBSQTDisplay *_videoPreview = nullptr;
 	QCheckBox *_makerCheckbox = nullptr;
-	QLabel* _makerRestartMsg = nullptr;
+	InfoLabel* _makerRestartMsg = nullptr;
 	std::vector<std::string> _toEnable;
 	std::string _installDirectory;
 

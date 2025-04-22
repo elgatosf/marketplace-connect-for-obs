@@ -18,6 +18,9 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 
 #pragma once
 
+#include <Qt>
+#include <QGraphicsOpacityEffect>
+#include <QHoverEvent>
 #include <QDialog>
 #include <QWidget>
 #include <QStackedWidget>
@@ -28,6 +31,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <QPushButton>
 #include <QLineEdit>
 #include <QListWidget>
+#include <QMenu>
 #include <QPixmap>
 #include "elgato-product.hpp"
 #include "elgato-cloud-config.hpp"
@@ -42,8 +46,12 @@ public:
 	Avatar(QWidget *parent);
 	void update();
 
+signals:
+	void clicked();
+
 protected:
 	void paintEvent(QPaintEvent *e);
+	void mousePressEvent(QMouseEvent* event) override;
 
 private:
 	std::string _character;
@@ -55,50 +63,94 @@ class AvatarImage : public QWidget {
 public:
 	AvatarImage(QWidget* parent);
 	void update();
+
+signals:
+	void clicked();
+
+protected:
+	void mousePressEvent(QMouseEvent* event) override;
+
 private:
 	QPixmap _setupImage(std::string imagePath);
 
 	QLabel* _avatarImg;
 };
 
-class DownloadProgress : public QWidget {
+class UserMenu : public QWidget {
 	Q_OBJECT
-
 public:
-	DownloadProgress(QWidget *parent);
-	~DownloadProgress();
-	void setMinimum(double minimum);
-	void setMaximum(double maximum);
-	void setValue(double value);
+	UserMenu(QWidget* parent);
 
-protected:
-	void paintEvent(QPaintEvent *e) override;
+signals:
+	void viewAccountClicked();
+	void signOutClicked();
 
 private:
-	int _width;
-	int _height;
-	int _progressWidth;
-	double _minimumValue;
-	double _maximumValue;
-	double _value;
+	QMenu* _menu;
+	QStackedWidget* _stack;
+	Avatar* _plainAvatar;
+	AvatarImage* _imgAvatar;
+	QAction* _accountTitle;
+
+private slots:
+	void _showModalMenu();
+
 };
 
-class DownloadButton : public QWidget {
+class ProgressThumbnail : public QLabel {
+	Q_OBJECT
+public:
+	ProgressThumbnail(float hoverOpacity, bool hoverDisabled, QWidget* parent = nullptr);
+	void setCustomPixmap(const QPixmap& pixmap);
+	void setCustomPixmap(const QPixmap& pixmap, const QSize& size);
+	void setProgress(float progress);
+	void setDownloading(bool downloading);
+	void onHoverEnter(QHoverEvent* event);
+	void onHoverLeave(QHoverEvent* event);
+	void disableHover();
+	void enableHover();
+	QSize sizeHint() const override;
+	virtual void setDisabled(bool disabled);
+protected:
+	void paintEvent(QPaintEvent* event) override;
+	virtual void resizeEvent(QResizeEvent* event);
+
+private:
+	QPixmap _pixmap, _pixmapScaled, _pixmapScaledDisabled;
+	float _progress = 0.5f;
+	float _hoverOpacity;
+	float _opacity;
+	bool _hoverDisabled;
+	bool _disabled = false;
+	bool _downloading = false;
+};
+
+class ProductThumbnail : public QWidget {
 	Q_OBJECT
 
 public:
-	DownloadButton(QWidget *parent);
-	void setDisabled(bool disabled);
-	void setValue(double value);
-	void resetDownload();
-
-private:
-	DownloadProgress *_downloadProgress;
-	QPushButton *_downloadButton;
-	QStackedWidget *_stackedWidget;
+	ProductThumbnail(QWidget* parent, const QPixmap& pixmap);
+	void setPixmap(const QPixmap& pixmap);
+	inline void updateDownloadProgress(float progress) { _thumbnail->setProgress(progress); }
+	void disable(bool disable);
+	void enable(bool enable);
+	void setDownloading(bool downloading);
+	QSize sizeHint() const override;
 
 signals:
 	void downloadClicked();
+	void cancelDownloadClicked();
+
+protected:
+	bool event(QEvent* e);
+	void resizeEvent(QResizeEvent* event) override;
+
+private:
+	ProgressThumbnail* _thumbnail;
+	QPushButton* _downloadButton;
+	QPushButton* _stopDownloadButton;
+	bool _disable = false;
+	bool _downloading = false;
 };
 
 class ElgatoProductItem : public QWidget {
@@ -114,9 +166,8 @@ public:
 	void enableDownload();
 
 private:
-	ElgatoProduct *_product;
-	DownloadButton *_downloadButton;
-	QLabel *_labelImg;
+	ElgatoProduct* _product;
+	ProductThumbnail* _labelImg;
 	QPixmap _setupImage(std::string imagePath);
 };
 
@@ -138,6 +189,7 @@ private:
 	QPushButton *_logOutButton;
 	Avatar *_avatar;
 	AvatarImage* _avatarImage;
+	UserMenu* _userMenu;
 
 signals:
 	void settingsClicked();

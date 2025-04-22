@@ -69,56 +69,40 @@ std::string GetBundleInfo(std::string filename)
 	return data;
 }
 
-StreamPackageHeader::StreamPackageHeader(QWidget *parent, std::string name,
-					 std::string thumbnailPath = "")
+
+StepsSideBar::StepsSideBar(std::string name, std::string thumbnailPath, QWidget* parent)
 	: QWidget(parent)
 {
-	QVBoxLayout *layout = new QVBoxLayout(this);
+	std::string nameText = obs_module_text("SetupWizard.ImportTitlePrefix");
+	nameText += " " + name;
+
+	QVBoxLayout* layout = new QVBoxLayout(this);
+	auto header = new StreamPackageHeader(this, nameText, thumbnailPath);
+
+	// TODO- translations for steps
+	std::vector<std::string> steps = { "Get started", "Name scene collection", "Set up cameras", "Choose microphone" };
+
+	_stepper = new Stepper(steps, this);
 	layout->setSpacing(16);
-	layout->setContentsMargins(0, 0, 0, 0);
-	QLabel *nameLabel = new QLabel(this);
-	nameLabel->setText(name.c_str());
-	nameLabel->setSizePolicy(QSizePolicy::Expanding,
-				 QSizePolicy::Preferred);
-	nameLabel->setStyleSheet("QLabel {font-size: 18pt;}");
-	nameLabel->setWordWrap(true);
-	layout->addWidget(nameLabel);
-	if (thumbnailPath != "") {
-		auto thumbnail = _thumbnail(thumbnailPath);
-		thumbnail->setAlignment(Qt::AlignCenter);
-		layout->addWidget(thumbnail);
-	}
+	layout->setContentsMargins(8, 0, 24, 0);
+	layout->addWidget(header);
+	layout->addWidget(_stepper);
+	layout->addStretch();
 }
 
-QLabel *StreamPackageHeader::_thumbnail(std::string thumbnailPath)
+void StepsSideBar::setStep(int step)
 {
-	int targetHeight = 140;
-	int cornerRadius = 8;
+	_stepper->setStep(step);
+}
 
-	QPixmap img;
-	img.load(thumbnailPath.c_str());
+void StepsSideBar::incrementStep()
+{
+	_stepper->incrementStep();
+}
 
-	int width = img.width();
-	int height = img.height();
-	int targetWidth =
-		int((double)targetHeight * (double)width / (double)height);
-	QPixmap target(targetWidth, targetHeight);
-	target.fill(Qt::transparent);
-	QPainter painter(&target);
-
-	painter.setRenderHint(QPainter::Antialiasing, true);
-	painter.setRenderHint(QPainter::SmoothPixmapTransform, true);
-
-	QPainterPath path = QPainterPath();
-	path.addRoundedRect(0, 0, targetWidth, targetHeight, cornerRadius,
-			    cornerRadius);
-	painter.setClipPath(path);
-	painter.drawPixmap(0, 0, img.scaledToHeight(targetHeight));
-
-	QLabel *labelImg = new QLabel(this);
-	labelImg->setPixmap(target);
-	labelImg->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
-	return labelImg;
+void StepsSideBar::decrementStep()
+{
+	_stepper->decrementStep();
 }
 
 MissingPlugins::MissingPlugins(QWidget *parent, std::string name,
@@ -127,7 +111,7 @@ MissingPlugins::MissingPlugins(QWidget *parent, std::string name,
 	: QWidget(parent)
 {
 	QVBoxLayout *layout = new QVBoxLayout(this);
-	StreamPackageHeader *header = new StreamPackageHeader(parent, name);
+	StreamPackageHeader *header = new StreamPackageHeader(parent, name, thumbnailPath);
 	layout->addWidget(header);
 	QLabel *title = new QLabel(this);
 	title->setText(obs_module_text("SetupWizard.MissingPlugins.Title"));
@@ -167,7 +151,7 @@ MissingPluginItem::MissingPluginItem(QWidget *parent, std::string label,
 	auto layout = new QHBoxLayout(this);
 	auto itemLabel = new QLabel(this);
 	itemLabel->setText(label.c_str());
-	itemLabel->setStyleSheet("QLabel {font-size: 12pt;}");
+	itemLabel->setStyleSheet(EWizardFieldLabel);
 	layout->addWidget(itemLabel);
 
 	auto spacer = new QWidget(this);
@@ -176,7 +160,7 @@ MissingPluginItem::MissingPluginItem(QWidget *parent, std::string label,
 
 	auto downloadButton = new QPushButton(this);
 	downloadButton->setText(obs_module_text("SetupWizard.MissingPlugins.DownloadButton"));
-	downloadButton->setStyleSheet(EPushButtonStyle);
+	downloadButton->setStyleSheet(EWizardButtonStyle);
 
 	connect(downloadButton, &QPushButton::released, this,
 		[url]() { QDesktopServices::openUrl(QUrl(url.c_str())); });
@@ -222,27 +206,65 @@ StartInstall::StartInstall(QWidget* parent, std::string name,
 	: QWidget(parent)
 {
 	QVBoxLayout* layout = new QVBoxLayout(this);
-	StreamPackageHeader* header =
-		new StreamPackageHeader(parent, name, thumbnailPath);
-	layout->addWidget(header);
+	layout->setSpacing(16);
 	layout->addStretch();
-	QLabel* startInstall = new QLabel(this);
-	startInstall->setText(obs_module_text("SetupWizard.StartInstall.Title"));
-	startInstall->setAlignment(Qt::AlignCenter);
-	startInstall->setStyleSheet("QLabel {font-size: 13pt;}");
-	layout->addWidget(startInstall);
 
-	// Setup New and Existing buttons.
-	QHBoxLayout* buttons = new QHBoxLayout(this);
+	if (thumbnailPath != "") {
+		auto thumbnail = new RoundedImageLabel(8, this);
+		QPixmap image(thumbnailPath.c_str());
+		thumbnail->setImage(image);
+		thumbnail->setFixedWidth(320);
+		//thumbnail->setMaximumWidth(320);
+		thumbnail->setAlignment(Qt::AlignCenter);
+
+		auto thumbLayout = centeredWidgetLayout(thumbnail);
+
+		layout->addLayout(thumbLayout);
+	} else {
+		auto placeholder = new CameraPlaceholder(8, this);
+		std::string imageBaseDir = GetDataPath();
+		imageBaseDir += "/images/";
+		std::string imgPath = imageBaseDir + "icon-scene-collection.svg";
+		placeholder->setIcon(imgPath.c_str());
+		placeholder->setFixedWidth(320);
+
+		auto placeholderLayout = centeredWidgetLayout(placeholder);
+
+		layout->addLayout(placeholderLayout);
+	}
+
+	std::string nameText = obs_module_text("SetupWizard.ImportTitlePrefix");
+	nameText += " " + name;
+	auto title = new QLabel(nameText.c_str(), this);
+	title->setStyleSheet(EWizardStepTitle);
+	title->setAlignment(Qt::AlignCenter);
+	title->setFixedWidth(320);
+	title->setWordWrap(true);
+
+	auto titleLayout = centeredWidgetLayout(title);
+	layout->addLayout(titleLayout);
+
+	auto subTitle = new QLabel(obs_module_text("SetupWizard.StartInstallation.Description"), this);
+	subTitle->setStyleSheet(EWizardStepSubTitle);
+	subTitle->setFixedWidth(320);
+	subTitle->setAlignment(Qt::AlignCenter);
+	subTitle->setWordWrap(true);
+
+	auto subTitleLayout = centeredWidgetLayout(subTitle);
+	layout->addLayout(subTitleLayout);
+
+	QHBoxLayout* buttons = new QHBoxLayout();
 	QPushButton* continueButton = new QPushButton(this);
 	continueButton->setText(obs_module_text("SetupWizard.GetStartedButton"));
-	continueButton->setStyleSheet(EPushButtonDarkStyle);
+	continueButton->setStyleSheet(EWizardButtonStyle);
 
 	connect(continueButton, &QPushButton::released, this,
 		[this]() { emit continuePressed(); });
+	buttons->addStretch();
 	buttons->addWidget(continueButton);
-	layout->addStretch();
+	buttons->addStretch();
 	layout->addLayout(buttons);
+	layout->addStretch();
 }
 
 NewCollectionName::NewCollectionName(QWidget *parent, std::string name,
@@ -250,42 +272,62 @@ NewCollectionName::NewCollectionName(QWidget *parent, std::string name,
 	: QWidget(parent)
 {
 	_existingCollections = GetSceneCollectionNames();
-	QVBoxLayout *layout = new QVBoxLayout(this);
-	StreamPackageHeader *header =
-		new StreamPackageHeader(parent, name, thumbnailPath);
-	layout->addWidget(header);
-	QLabel *nameCollection = new QLabel(this);
-	nameCollection->setText(obs_module_text("SetupWizard.CreateCollection.Title"));
-	nameCollection->setStyleSheet(
-		"QLabel {font-size: 12pt; margin-top: 16px;}");
-	layout->addWidget(nameCollection);
-
+	// TODO- check _existingCollections to see if name is in it.
+	std::string nameValue = name;
+	auto layout = new QVBoxLayout(this);
+	layout->setContentsMargins(0, 0, 0, 0);
+	auto main = new QHBoxLayout();
+	main->setAlignment(Qt::AlignTop);
+	main->setContentsMargins(0, 0, 0, 0);
+	auto sideBar = new StepsSideBar(name, thumbnailPath, this);
+	sideBar->setContentsMargins(0, 0, 0, 0);
+	sideBar->setFixedWidth(240);
+	sideBar->setStep(1);
+	auto form = new QVBoxLayout();
+	auto title = new QLabel(obs_module_text("SetupWizard.CreateCollection.Title"), this);
+	title->setStyleSheet(EWizardStepTitle);
+	auto subTitle = new QLabel(obs_module_text("SetupWizard.CreateCollection.SubTitle"), this);
+	subTitle->setStyleSheet(EWizardStepSubTitle);
+	auto image = new RoundedImageLabel(8, this);
+	std::string imageBaseDir = GetDataPath();
+	imageBaseDir += "/images/";
+	std::string imgPath = imageBaseDir + "new-sc-example.png";
+	QPixmap sampleImage(imgPath.c_str());
+	image->setImage(sampleImage);
+	image->setFixedWidth(364);
+	image->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Preferred);
+	
+	auto fieldLabel = new QLabel(obs_module_text("SetupWizard.CreateCollection.NewNameLabel"));
+	fieldLabel->setStyleSheet(EWizardFieldLabel);
 	_nameField = new QLineEdit(this);
-	_nameField->setPlaceholderText(obs_module_text("SetupWizard.CreateCollection.NewNamePlaceholder"));
-	_nameField->setStyleSheet(ELineEditStyle);
+	_nameField->setText(nameValue.c_str());
+	_nameField->setStyleSheet(EWizardTextField);
 	_nameField->setMaxLength(64);
 	layout->addWidget(_nameField);
 	connect(_nameField, &QLineEdit::textChanged,
 		[this](const QString text) {
 			_proceedButton->setEnabled(text.length() > 0);
 		});
+	form->addWidget(title);
+	form->addWidget(subTitle);
+	form->addWidget(image);
+	form->addWidget(fieldLabel);
+	form->addWidget(_nameField);
+	form->addStretch();
+	main->addWidget(sideBar);
+	main->addLayout(form);
 
-	QWidget *spacer = new QWidget(this);
-	spacer->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
-	layout->addWidget(spacer);
 	auto buttons = new QHBoxLayout();
-	auto hSpacer = new QWidget(this);
-	spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
-	buttons->addWidget(hSpacer);
+	buttons->setContentsMargins(0, 0, 0, 0);
+	buttons->addStretch();
 	_proceedButton = new QPushButton(this);
 	_proceedButton->setText(obs_module_text("SetupWizard.NextButton"));
 	_proceedButton->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
-	_proceedButton->setStyleSheet(EPushButtonStyle);
-	_proceedButton->setDisabled(true);
+	_proceedButton->setStyleSheet(EWizardButtonStyle);
 	connect(_proceedButton, &QPushButton::released, this, [this]() {
-		QString qName = _nameField->text();
-		std::string name = qName.toUtf8().constData();
-		if (std::find(_existingCollections.begin(),
+	QString qName = _nameField->text();
+	std::string name = qName.toUtf8().constData();
+	if (std::find(_existingCollections.begin(),
 			      _existingCollections.end(),
 			      name) != _existingCollections.end()) {
 			QMessageBox::warning(
@@ -297,6 +339,9 @@ NewCollectionName::NewCollectionName(QWidget *parent, std::string name,
 		emit proceedPressed(name.c_str());
 	});
 	buttons->addWidget(_proceedButton);
+
+	layout->addLayout(main);
+	layout->addStretch();
 	layout->addLayout(buttons);
 }
 
@@ -306,18 +351,14 @@ VideoSetup::VideoSetup(QWidget *parent, std::string name,
 	: QWidget(parent)
 {
 	auto layout = new QVBoxLayout(this);
-	setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
-	//StreamPackageHeader *header = new StreamPackageHeader(this, name, "");
-	//layout->addWidget(header);
 	layout->setContentsMargins(0, 0, 0, 0);
-
-	auto sourceWidget = new QWidget(this);
-	sourceWidget->setSizePolicy(QSizePolicy::Expanding,
-				    QSizePolicy::Preferred);
-	sourceWidget->setContentsMargins(0, 0, 0, 0);
-	auto sourceGrid = new QGridLayout(sourceWidget);
-	sourceGrid->setContentsMargins(0, 0, 0, 0);
-	sourceGrid->setSpacing(18);
+	auto main = new QHBoxLayout();
+	main->setAlignment(Qt::AlignTop);
+	main->setContentsMargins(0, 0, 0, 0);
+	auto sideBar = new StepsSideBar(name, thumbnailPath, this);
+	sideBar->setContentsMargins(0, 0, 0, 0);
+	sideBar->setFixedWidth(240);
+	sideBar->setStep(2);
 
 	obs_data_t *config = elgatoCloud->GetConfig();
 
@@ -329,47 +370,86 @@ VideoSetup::VideoSetup(QWidget *parent, std::string name,
 			? obs_data_create_from_json(videoSettingsJson.c_str())
 			: nullptr;
 
-	int i = 0;
-	int j = 0;
-	bool first = true;
-	for (auto const &[sourceName, label] : videoSourceLabels) {
+	auto form = new QVBoxLayout();
+	if (videoSourceLabels.size() == 1) {
+		auto title = new QLabel(obs_module_text("SetupWizard.VideoSetup.Title.Singular"), this);
+		title->setStyleSheet(EWizardStepTitle);
+		title->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+		auto subTitle = new QLabel(obs_module_text("SetupWizard.VideoSetup.SubTitle.Singular"), this);
+		subTitle->setStyleSheet(EWizardStepSubTitle);
+		subTitle->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+		form->addWidget(title);
+		form->addWidget(subTitle);
+		auto it = videoSourceLabels.begin();
+		auto sourceName = it->first;
+		auto label = it->second;
 
 		auto vSource = new VideoCaptureSourceSelector(
-			sourceWidget, label, sourceName,
-			first ? videoData : nullptr);
-		sourceGrid->addWidget(vSource, i, j);
-		i += j % 2;
-		j += 1;
-		j %= 2;
+			this, label, sourceName, videoData);
+		form->addWidget(vSource);
 		_videoSelectors.push_back(vSource);
-		first = false;
+	} else if (videoSourceLabels.size() > 1) {
+		std::string titleText = obs_module_text("SetupWizard.VideoSetup.Title.Plural");
+		titleText = std::to_string(videoSourceLabels.size()) + " " + titleText;
+		auto title = new QLabel(titleText.c_str());
+		title->setStyleSheet(EWizardStepTitle);
+		auto subTitle = new QLabel(obs_module_text("SetupWizard.VideoSetup.SubTitle.Plural"), this);
+		subTitle->setStyleSheet(EWizardStepSubTitle);
+		form->addWidget(title);
+		form->addWidget(subTitle);
+
+		auto sourceWidget = new QWidget(this);
+		sourceWidget->setSizePolicy(QSizePolicy::Expanding,
+					    QSizePolicy::Preferred);
+		sourceWidget->setContentsMargins(0, 0, 0, 0);
+		auto sourceGrid = new QGridLayout(sourceWidget);
+		sourceGrid->setContentsMargins(0, 0, 0, 0);
+		sourceGrid->setSpacing(18);
+
+		int i = 0;
+		int j = 0;
+		bool first = true;
+		for (auto const &[sourceName, label] : videoSourceLabels) {
+			auto vSource = new VideoCaptureSourceSelector(
+				sourceWidget, label, sourceName,
+				first ? videoData : nullptr);
+			vSource->setFixedWidth(170);
+			vSource->setFixedHeight(170);
+			sourceGrid->addWidget(vSource, i, j);
+			i += j % 2;
+			j += 1;
+			j %= 2;
+			_videoSelectors.push_back(vSource);
+			first = false;
+		}
+
+		auto scrollArea = new QScrollArea(this);
+		scrollArea->setContentsMargins(0, 0, 0, 0);
+		scrollArea->setWidget(sourceWidget);
+		scrollArea->setSizePolicy(QSizePolicy::Expanding,
+					  QSizePolicy::Expanding);
+		scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+		scrollArea->setStyleSheet("QScrollArea { border: none; }");
+		form->addWidget(scrollArea);
 	}
 
-	obs_data_release(videoData);
+	form->addStretch();
 
-	auto scrollArea = new QScrollArea(this);
-	scrollArea->setContentsMargins(0, 0, 0, 0);
-	scrollArea->setWidget(sourceWidget);
-	scrollArea->setSizePolicy(QSizePolicy::Expanding,
-				  QSizePolicy::Expanding);
-	scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-	scrollArea->setStyleSheet("QScrollArea { border: none; }");
-	layout->addWidget(scrollArea);
+	main->addWidget(sideBar);
+	main->addLayout(form);
 
-	auto buttons = new QHBoxLayout();
-
-	auto spacer = new QWidget(this);
-	spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
 
 	QPushButton *backButton = new QPushButton(this);
 	backButton->setText(obs_module_text("SetupWizard.BackButton"));
-	backButton->setStyleSheet(EPushButtonStyle);
+	backButton->setStyleSheet(EWizardQuietButtonStyle);
 
 	QPushButton *proceedButton = new QPushButton(this);
 	proceedButton->setText(obs_module_text("SetupWizard.NextButton"));
-	proceedButton->setStyleSheet(EPushButtonStyle);
+	proceedButton->setStyleSheet(EWizardButtonStyle);
 
-	buttons->addWidget(spacer);
+	auto buttons = new QHBoxLayout();
+	buttons->setContentsMargins(0, 0, 0, 0);
+	buttons->addStretch();
 	buttons->addWidget(backButton);
 	buttons->addWidget(proceedButton);
 	connect(proceedButton, &QPushButton::released, this, [this]() {
@@ -385,8 +465,93 @@ VideoSetup::VideoSetup(QWidget *parent, std::string name,
 	connect(backButton, &QPushButton::released, this,
 		[this]() { emit backPressed(); });
 
+	layout->addLayout(main);
+	layout->addStretch();
 	layout->addLayout(buttons);
 	obs_data_release(config);
+	obs_data_release(videoData);
+
+	//setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+	////StreamPackageHeader *header = new StreamPackageHeader(this, name, "");
+	////layout->addWidget(header);
+	//layout->setContentsMargins(0, 0, 0, 0);
+
+	//auto sourceWidget = new QWidget(this);
+	//sourceWidget->setSizePolicy(QSizePolicy::Expanding,
+	//			    QSizePolicy::Preferred);
+	//sourceWidget->setContentsMargins(0, 0, 0, 0);
+	//auto sourceGrid = new QGridLayout(sourceWidget);
+	//sourceGrid->setContentsMargins(0, 0, 0, 0);
+	//sourceGrid->setSpacing(18);
+
+	//obs_data_t *config = elgatoCloud->GetConfig();
+
+	//std::string videoSettingsJson =
+	//	obs_data_get_string(config, "DefaultVideoCaptureSettings");
+
+	//obs_data_t *videoData =
+	//	videoSettingsJson != ""
+	//		? obs_data_create_from_json(videoSettingsJson.c_str())
+	//		: nullptr;
+
+	//int i = 0;
+	//int j = 0;
+	//bool first = true;
+	//for (auto const &[sourceName, label] : videoSourceLabels) {
+
+	//	auto vSource = new VideoCaptureSourceSelector(
+	//		sourceWidget, label, sourceName,
+	//		first ? videoData : nullptr);
+	//	sourceGrid->addWidget(vSource, i, j);
+	//	i += j % 2;
+	//	j += 1;
+	//	j %= 2;
+	//	_videoSelectors.push_back(vSource);
+	//	first = false;
+	//}
+
+	//obs_data_release(videoData);
+
+	//auto scrollArea = new QScrollArea(this);
+	//scrollArea->setContentsMargins(0, 0, 0, 0);
+	//scrollArea->setWidget(sourceWidget);
+	//scrollArea->setSizePolicy(QSizePolicy::Expanding,
+	//			  QSizePolicy::Expanding);
+	//scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+	//scrollArea->setStyleSheet("QScrollArea { border: none; }");
+	//layout->addWidget(scrollArea);
+
+	//auto buttons = new QHBoxLayout();
+
+	//auto spacer = new QWidget(this);
+	//spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+
+	//QPushButton *backButton = new QPushButton(this);
+	//backButton->setText(obs_module_text("SetupWizard.BackButton"));
+	//backButton->setStyleSheet(EPushButtonStyle);
+
+	//QPushButton *proceedButton = new QPushButton(this);
+	//proceedButton->setText(obs_module_text("SetupWizard.NextButton"));
+	//proceedButton->setStyleSheet(EPushButtonStyle);
+
+	//buttons->addWidget(spacer);
+	//buttons->addWidget(backButton);
+	//buttons->addWidget(proceedButton);
+	//connect(proceedButton, &QPushButton::released, this, [this]() {
+	//	std::map<std::string, std::string> res;
+	//	int i = 0;
+	//	for (auto const &source : this->_videoSelectors) {
+	//		std::string settings = source->GetSettings();
+	//		std::string sourceName = source->GetSourceName();
+	//		res[sourceName] = settings;
+	//	}
+	//	emit proceedPressed(res);
+	//});
+	//connect(backButton, &QPushButton::released, this,
+	//	[this]() { emit backPressed(); });
+
+	//layout->addLayout(buttons);
+	//obs_data_release(config);
 }
 
 VideoSetup::~VideoSetup() {}
@@ -432,26 +597,34 @@ AudioSetup::AudioSetup(QWidget *parent, std::string name,
 	: QWidget(parent)
 {
 	auto layout = new QVBoxLayout(this);
-	setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
 	layout->setContentsMargins(0, 0, 0, 0);
+	auto main = new QHBoxLayout();
+	main->setAlignment(Qt::AlignTop);
+	main->setContentsMargins(0, 0, 0, 0);
+	auto sideBar = new StepsSideBar(name, thumbnailPath, this);
+	sideBar->setContentsMargins(0, 0, 0, 0);
+	sideBar->setFixedWidth(240);
+	sideBar->setStep(3);
+
+	obs_data_t* config = elgatoCloud->GetConfig();
+
+	auto form = new QVBoxLayout();
 
 	QLabel *audioDeviceLabel = new QLabel(this);
 	audioDeviceLabel->setText(obs_module_text("SetupWizard.AudioSetup.Device.Text"));
 	_audioSources = new QComboBox(this);
-	_audioSources->setStyleSheet(EComboBoxStyle);
+	_audioSources->setStyleSheet(EWizardComboBoxStyle);
 
 	_levelsWidget = new SimpleVolumeMeter(this, _volmeter);
 	// Add Dropdown and meter
-	QWidget *spacer = new QWidget(this);
-	spacer->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
 
-	layout->addWidget(audioDeviceLabel);
-	layout->addWidget(_audioSources);
-	layout->addWidget(_levelsWidget);
-	layout->addWidget(spacer);
+	form->addWidget(audioDeviceLabel);
+	form->addWidget(_audioSources);
+	form->addWidget(_levelsWidget);
+	form->addStretch();
 
-	// Get settings
-	obs_data_t *config = elgatoCloud->GetConfig();
+	main->addWidget(sideBar);
+	main->addLayout(form);
 
 	std::string audioSettingsJson =
 		obs_data_get_string(config, "DefaultAudioCaptureSettings");
@@ -496,11 +669,11 @@ AudioSetup::AudioSetup(QWidget *parent, std::string name,
 
 	QPushButton *backButton = new QPushButton(this);
 	backButton->setText(obs_module_text("SetupWizard.BackButton"));
-	backButton->setStyleSheet(EPushButtonStyle);
+	backButton->setStyleSheet(EWizardQuietButtonStyle);
 
 	QPushButton *proceedButton = new QPushButton(this);
-	proceedButton->setText(obs_module_text("SetupWizard.NextButton"));
-	proceedButton->setStyleSheet(EPushButtonStyle);
+	proceedButton->setText(obs_module_text("SetupWizard.InstallButton"));
+	proceedButton->setStyleSheet(EWizardButtonStyle);
 
 	buttons->addWidget(bSpacer);
 	buttons->addWidget(backButton);
@@ -514,6 +687,9 @@ AudioSetup::AudioSetup(QWidget *parent, std::string name,
 	});
 	connect(backButton, &QPushButton::released, this,
 		[this]() { emit backPressed(); });
+
+	layout->addLayout(main);
+	layout->addStretch();
 	layout->addLayout(buttons);
 	obs_data_release(config);
 }
@@ -633,33 +809,31 @@ Loading::Loading(QWidget *parent) : QWidget(parent)
 {
 	QVBoxLayout *layout = new QVBoxLayout(this);
 
-	auto spacerTop = new QWidget(this);
-	spacerTop->setSizePolicy(QSizePolicy::Preferred,
-				 QSizePolicy::Expanding);
-	layout->addWidget(spacerTop);
+	layout->addStretch();
 
-	auto spinner = new SpinnerPanel(this, "", "", false);
-	layout->addWidget(spinner);
+	auto spinner = new SmallSpinner(this);
+	auto spinnerLayout = centeredWidgetLayout(spinner);
+	layout->addLayout(spinnerLayout);
 
 	auto title = new QLabel(this);
 	title->setText(obs_module_text("SetupWizard.Loading.Title"));
-	title->setStyleSheet(ETitleStyle);
+	title->setStyleSheet(EBlankSlateTitleStyle);
 	title->setAlignment(Qt::AlignCenter);
-	layout->addWidget(title);
+	title->setFixedWidth(360);
+	auto titleLayout = centeredWidgetLayout(title);
+	layout->addLayout(titleLayout);
 
 	auto subTitle = new QLabel(this);
 	subTitle->setText(
 		obs_module_text("SetupWizard.Loading.Text"));
-	subTitle->setStyleSheet(
-		"QLabel{ font-size: 13pt; }");
+	subTitle->setStyleSheet(EBlankSlateSubTitleStyle);
 	subTitle->setAlignment(Qt::AlignCenter);
 	subTitle->setWordWrap(true);
-	layout->addWidget(subTitle);
+	subTitle->setFixedWidth(360);
+	auto subTitleLayout = centeredWidgetLayout(subTitle);
+	layout->addLayout(subTitleLayout);
 
-	auto spacerBottom = new QWidget(this);
-	spacerBottom->setSizePolicy(QSizePolicy::Preferred,
-				    QSizePolicy::Expanding);
-	layout->addWidget(spacerBottom);
+	layout->addStretch();
 	layout->setSpacing(16);
 }
 
@@ -834,7 +1008,7 @@ void StreamPackageSetupWizard::_buildMissingPluginsUI(
 
 void StreamPackageSetupWizard::_buildBaseUI()
 {
-	setFixedSize(320, 400);
+	setFixedSize(640, 448);
 	QVBoxLayout *layout = new QVBoxLayout(this);
 	_steps = new QStackedWidget(this);
 
@@ -843,7 +1017,7 @@ void StreamPackageSetupWizard::_buildBaseUI()
 
 	setupWizard = this;
 	setWindowTitle(obs_module_text("SetupWizard.WindowTitle"));
-	setStyleSheet("background-color: #232323");
+	setStyleSheet("background-color: #151515;");
 
 	layout->addWidget(_steps);
 }
@@ -868,7 +1042,7 @@ void StreamPackageSetupWizard::_buildSetupUI(
 	//		setFixedSize(320, 384);
 	//	});
 	//_steps->addWidget(installerType);
-
+	setFixedSize(640, 448);
 	// Step 1 start install screen
 	StartInstall* startInstall =
 		new StartInstall(this, _productName, _thumbnailPath);
@@ -876,7 +1050,6 @@ void StreamPackageSetupWizard::_buildSetupUI(
 		[this]() {
 			_setup.installType = InstallTypes::NewCollection;
 			_steps->setCurrentIndex(2);
-			setFixedSize(320, 384);
 		});
 	_steps->addWidget(startInstall);
 
@@ -888,11 +1061,9 @@ void StreamPackageSetupWizard::_buildSetupUI(
 			_setup.collectionName = name;
 			if (videoSourceLabels.size() > 0) {
 				_steps->setCurrentIndex(4);
-				setFixedSize(554, 440);
 				_vSetup->EnableTempSources();
 			} else {
 				_steps->setCurrentIndex(5);
-				setFixedSize(320, 384);
 			}
 		});
 	_steps->addWidget(newName);
@@ -910,12 +1081,10 @@ void StreamPackageSetupWizard::_buildSetupUI(
 			//blog(LOG_INFO, "%s", settings.c_str());
 			_setup.videoSettings = settings;
 			_steps->setCurrentIndex(5);
-			setFixedSize(320, 384);
 			_vSetup->DisableTempSources();
 		});
 	connect(_vSetup, &VideoSetup::backPressed, this, [this]() {
 		_steps->setCurrentIndex(2);
-		setFixedSize(320, 384);
 		_vSetup->DisableTempSources();
 	});
 	// Step 4- Setup Audio Inputs (step index: 5)
@@ -933,11 +1102,9 @@ void StreamPackageSetupWizard::_buildSetupUI(
 		[this, videoSourceLabels]() {
 			if (videoSourceLabels.size() > 0) {
 				_steps->setCurrentIndex(4);
-				setFixedSize(554, 440);
 				_vSetup->EnableTempSources();
 			} else {
 				_steps->setCurrentIndex(2);
-				setFixedSize(320, 384);
 			}
 		});
 	_steps->setCurrentIndex(1);

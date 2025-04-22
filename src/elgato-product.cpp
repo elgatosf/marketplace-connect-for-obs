@@ -35,11 +35,11 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <obs-frontend-api.h>
 
 #include <plugin-support.h>
-#include "downloader.h"
 #include "elgato-cloud-data.hpp"
 #include "elgato-cloud-window.hpp"
 #include "util.h"
 #include "setup-wizard.hpp"
+#include "downloader.h"
 
 namespace elgatocloud {
 
@@ -79,8 +79,7 @@ ElgatoProduct::ElgatoProduct(std::string collectionName)
 	  variantId(""),
 	  _fileSize(0)
 {
-	thumbnailPath = obs_get_module_data_path(obs_current_module());
-	thumbnailPath += "/images/thumbnail-holder.png";
+	thumbnailPath = "";
 	_thumbnailReady = true;
 }
 
@@ -122,6 +121,11 @@ bool ElgatoProduct::DownloadProduct()
 	std::shared_ptr<Downloader> dl = Downloader::getInstance("");
 	dl->Enqueue(url, savePath, ElgatoProduct::DownloadProgress, nullptr, this);
 	return true;
+}
+
+void ElgatoProduct::StopProductDownload()
+{
+
 }
 
 void ElgatoProduct::_downloadThumbnail()

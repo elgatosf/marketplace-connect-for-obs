@@ -36,14 +36,36 @@ with this program.If not, see < https://www.gnu.org/licenses/>
 #include <QTConcurrent>
 
 #include "scene-bundle.hpp"
+#include "elgato-widgets.hpp"
+
 
 namespace elgatocloud {
+
+class ExportStepsSideBar : public QWidget {
+	Q_OBJECT
+public:
+	ExportStepsSideBar(std::string name, QWidget* parent);
+	void setStep(int step);
+	void incrementStep();
+	void decrementStep();
+
+private:
+	Stepper* _stepper;
+};
+
+class StartExport : public QWidget {
+	Q_OBJECT
+public:
+	StartExport(std::string name, QWidget* parent);
+signals:
+	void continuePressed();
+};
 
 class FileCollectionCheck : public QWidget {
 	Q_OBJECT
 
 public:
-	FileCollectionCheck(QWidget *parent, std::vector<std::string> files);
+	FileCollectionCheck(std::string name, std::vector<std::string> files, QWidget* parent);
 
 signals:
 	void continuePressed();
@@ -57,8 +79,8 @@ private:
 class VideoSourceLabels : public QWidget {
 	Q_OBJECT
 public:
-	VideoSourceLabels(QWidget *parent,
-			  std::map<std::string, std::string> devices);
+	VideoSourceLabels(std::string name,
+			  std::map<std::string, std::string> devices, QWidget* parent);
 	inline std::map<std::string, std::string> Labels() { return _labels; }
 signals:
 	void continuePressed();
@@ -71,8 +93,8 @@ private:
 class RequiredPlugins : public QWidget {
 	Q_OBJECT
 public:
-	RequiredPlugins(QWidget *parent,
-			std::vector<obs_module_t *> installedPlugins);
+	RequiredPlugins(std::string name,
+			std::vector<obs_module_t *> installedPlugins, QWidget* parent);
 	std::vector<std::string> RequiredPluginList();
 signals:
 	void continuePressed();
@@ -85,7 +107,7 @@ private:
 class Exporting : public QWidget {
 	Q_OBJECT
 public:
-	Exporting(QWidget *parent);
+	Exporting(std::string name, QWidget *parent);
 	~Exporting();
 
 private:
@@ -96,7 +118,7 @@ class ExportComplete : public QWidget {
 	Q_OBJECT
 
 public:
-	ExportComplete(QWidget *parent);
+	ExportComplete(std::string name, QWidget *parent);
 
 signals:
 	void closePressed();
