@@ -78,7 +78,7 @@ BOOL CALLBACK WindowToForeground(HWND hwnd, LPARAM lParam) {
 		// Bring the window to the foreground
 		if (title.rfind(L"OBS ", 0) == 0) { // the main OBS window title starts with 'OBS '
 			SetForegroundWindow(hwnd);
-			ShowWindow(hwnd, SW_RESTORE);
+			ShowWindow(hwnd, SW_SHOW);
 			return FALSE;  // Stop enumerating windows (we found the window)
 		}
 	}
