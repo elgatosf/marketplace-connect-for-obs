@@ -66,6 +66,7 @@ DWORD GetProcessIdFromExe(const std::wstring& exeName) {
 	return 0; // Not found
 }
 
+
 // Callback function to find the window associated with a given process ID
 BOOL CALLBACK WindowToForeground(HWND hwnd, LPARAM lParam) {
 	DWORD processId;
@@ -77,8 +78,14 @@ BOOL CALLBACK WindowToForeground(HWND hwnd, LPARAM lParam) {
 		std::wstring title = windowTitle;
 		// Bring the window to the foreground
 		if (title.rfind(L"OBS ", 0) == 0) { // the main OBS window title starts with 'OBS '
+			bool maximized = IsZoomed(hwnd);
+			bool minimized = IsIconic(hwnd);
+			if (!minimized) {
+				ShowWindow(hwnd, maximized ? SW_SHOWMAXIMIZED : SW_SHOW);
+			} else {
+				ShowWindow(hwnd, SW_RESTORE);
+			}
 			SetForegroundWindow(hwnd);
-			ShowWindow(hwnd, SW_SHOW);
 			return FALSE;  // Stop enumerating windows (we found the window)
 		}
 	}
