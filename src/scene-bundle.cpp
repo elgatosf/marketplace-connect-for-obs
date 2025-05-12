@@ -287,6 +287,7 @@ bool SceneBundle::ToCollection(std::string collection_name,
 
 SceneBundleStatus SceneBundle::ToElgatoCloudFile(
 	std::string file_path, std::vector<std::string> plugins,
+	std::vector<SceneInfo> outputScenes,
 	std::map<std::string, std::string> videoDeviceDescriptions)
 {
 	_interrupt = false;
@@ -297,6 +298,15 @@ SceneBundleStatus SceneBundle::ToElgatoCloudFile(
 	struct obs_video_info ovi = {};
 	obs_get_video_info(&ovi);
 
+	std::vector<std::map<std::string, std::string>> oScenes;
+	for (auto const& scene : outputScenes) {
+		std::map<std::string, std::string> s = {
+			{"id", scene.id },
+			{"name", scene.name }
+		};
+		oScenes.push_back(s);
+	}
+
 	nlohmann::json bundleInfo;
 	bundleInfo["canvas"]["width"] = ovi.base_width;
 	bundleInfo["canvas"]["height"] = ovi.base_height;
@@ -305,6 +315,7 @@ SceneBundleStatus SceneBundle::ToElgatoCloudFile(
 	bundleInfo["id"] = gen_uuid();
 	bundleInfo["plugins_required"] = plugins;
 	bundleInfo["video_devices"] = videoDeviceDescriptions;
+	bundleInfo["output_scenes"] = oScenes;
 
 	// Write the scene collection json file to zip archive.
 	std::string collection_json = _collection.dump(2);

@@ -41,6 +41,12 @@ enum class SceneBundleStatus {
 	Error
 };
 
+struct SceneInfo {
+	std::string name;
+	std::string id;
+	bool outputScene;
+};
+
 class SceneBundle {
 private:
 	// Key: original file path, Value: new file name
@@ -67,6 +73,7 @@ public:
 			  std::string audioSettings);
 	SceneBundleStatus ToElgatoCloudFile(
 		std::string file_path, std::vector<std::string> plugins,
+		std::vector<SceneInfo> outputScenes,
 		std::map<std::string, std::string> videoDeviceDescriptions);
 
 	bool FileCheckDialog();

@@ -25,6 +25,7 @@ with this program.If not, see < https://www.gnu.org/licenses/>
 #include <obs-frontend-api.h>
 #include <util/config-file.h>
 #include <obs.hpp>
+#include <obs.h>
 #include <obs-module.h>
 
 #include <QDialog>
@@ -74,6 +75,22 @@ signals:
 private:
 	std::vector<std::string> _files;
 	bool _SubFiles(std::vector<std::string>& files, std::string curDir);
+};
+
+class SelectOutputScenes : public QWidget {
+	Q_OBJECT
+
+public:
+	SelectOutputScenes(std::string name, QWidget* parent = nullptr);
+	std::vector<SceneInfo> OutputScenes() const;
+	static bool AddScene(void* data, obs_source_t* scene);
+
+signals:
+	void continuePressed();
+	void backPressed();
+
+private:
+	std::vector<SceneInfo> _scenes;
 };
 
 class VideoSourceLabels : public QWidget {

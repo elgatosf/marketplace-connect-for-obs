@@ -42,12 +42,13 @@ SceneBundle *bundle = new SceneBundle();
 
 SceneBundleStatus createBundle(std::string filename,
 			       std::vector<std::string> plugins,
+				   std::vector<SceneInfo> outputScenes,
 			       std::map<std::string, std::string> vidDevLabels)
 {
 	if (!bundle) {
 		return SceneBundleStatus::InvalidBundle;
 	}
-	return bundle->ToElgatoCloudFile(filename, plugins, vidDevLabels);
+	return bundle->ToElgatoCloudFile(filename, plugins, outputScenes, vidDevLabels);
 }
 
 // TODO: For MacOS the filename sigatures will be different
@@ -71,7 +72,7 @@ ExportStepsSideBar::ExportStepsSideBar(std::string name, QWidget* parent)
 	setFixedWidth(240);
 
 	// TODO- translations for steps
-	std::vector<std::string> steps = { "Get started", "Collect media files", "Bundle required plugins", "Rename video sources" };
+	std::vector<std::string> steps = { "Get started", "Collect media files", "Select Output Scenes", "Bundle required plugins", "Rename video sources" };
 
 	std::string titleString = obs_module_text("ExportWizard.Export");
 	titleString += " " + name;
@@ -333,7 +334,7 @@ VideoSourceLabels::VideoSourceLabels(std::string name,
 	auto sideBar = new ExportStepsSideBar(name, this);
 	sideBar->setContentsMargins(0, 0, 0, 0);
 	sideBar->setFixedWidth(240);
-	sideBar->setStep(3);
+	sideBar->setStep(4);
 
 	auto formLayout = new QVBoxLayout();
 
@@ -478,6 +479,122 @@ VideoSourceLabels::VideoSourceLabels(std::string name,
 	layout->addLayout(buttons);
 }
 
+SelectOutputScenes::SelectOutputScenes(std::string name, QWidget* parent)
+	: QWidget(parent)
+{
+	obs_enum_scenes(SelectOutputScenes::AddScene, this);
+	std::sort(_scenes.begin(), _scenes.end(), [](const SceneInfo& a, const SceneInfo& b) {
+		return a.name < b.name;
+	});
+
+	std::string imagesPath = getImagesPath();
+	std::string checkedImage = imagesPath + "checkbox_checked.png";
+	std::string uncheckedImage = imagesPath + "checkbox_unchecked.png";
+	QString checklistStyle = EWizardChecklistStyle;
+	obs_log(LOG_INFO, "checked image: %s", checkedImage.c_str());
+	checklistStyle.replace("${checked-img}", checkedImage.c_str());
+	checklistStyle.replace("${unchecked-img}", uncheckedImage.c_str());
+	obs_log(LOG_INFO, "style: %s", checklistStyle.toStdString().c_str());
+
+	QVBoxLayout* layout = new QVBoxLayout(this);
+	layout->setContentsMargins(0, 0, 0, 0);
+	auto main = new QHBoxLayout();
+	main->setAlignment(Qt::AlignTop);
+	main->setContentsMargins(0, 0, 0, 0);
+	auto sideBar = new ExportStepsSideBar(name, this);
+	sideBar->setContentsMargins(0, 0, 0, 0);
+	sideBar->setFixedWidth(240);
+	sideBar->setStep(2);
+
+	auto formLayout = new QVBoxLayout();
+
+
+	auto title = new QLabel(obs_module_text("ExportWizard.OutputScenes.Title"), this);
+	title->setStyleSheet(EWizardStepTitle);
+
+	auto subTitle = new QLabel(this);
+	subTitle->setText(obs_module_text("ExportWizard.OutputScenes.Subtitle"));
+	subTitle->setStyleSheet(EWizardStepSubTitle);
+
+	auto sceneList = new QListWidget(this);
+	sceneList->setSizePolicy(QSizePolicy::Preferred,
+		QSizePolicy::Expanding);
+	sceneList->setSpacing(8);
+	sceneList->setStyleSheet(checklistStyle);
+	sceneList->setSelectionMode(QAbstractItemView::NoSelection);
+	sceneList->setFocusPolicy(Qt::FocusPolicy::NoFocus);
+
+	for (auto scene : _scenes) {
+		sceneList->addItem(scene.name.c_str());
+	}
+
+	QListWidgetItem* item = nullptr;
+	for (int i = 0; i < sceneList->count(); ++i) {
+		item = sceneList->item(i);
+		item->setFlags(item->flags() | Qt::ItemIsUserCheckable);
+		item->setCheckState(Qt::Unchecked);
+	}
+
+	connect(sceneList, &QListWidget::itemChanged, this,
+		[this, sceneList](QListWidgetItem* item) {
+			int index = sceneList->row(item);
+			bool outputScene = item->checkState() == Qt::Checked;
+			_scenes[index].outputScene = outputScene;
+		});
+
+	formLayout->addWidget(title);
+	formLayout->addWidget(subTitle);
+	formLayout->addWidget(sceneList);
+
+	auto buttons = new QHBoxLayout();
+	auto backButton = new QPushButton(this);
+	backButton->setText(
+		obs_module_text("ExportWizard.BackButton"));
+	backButton->setStyleSheet(EWizardQuietButtonStyle);
+	connect(backButton, &QPushButton::released, this,
+		[this]() { emit backPressed(); });
+
+	auto continueButton = new QPushButton(this);
+	continueButton->setText(
+		obs_module_text("ExportWizard.NextButton"));
+	continueButton->setStyleSheet(EWizardButtonStyle);
+
+	connect(continueButton, &QPushButton::released, this,
+		[this]() { emit continuePressed(); });
+	buttons->addStretch();
+	buttons->addWidget(backButton);
+	buttons->addWidget(continueButton);
+
+	main->addWidget(sideBar);
+	main->addLayout(formLayout);
+	layout->addLayout(main);
+	layout->addLayout(buttons);
+}
+
+bool SelectOutputScenes::AddScene(void* data, obs_source_t* scene)
+{
+	auto instance = static_cast<SelectOutputScenes*>(data);
+	if (obs_source_is_group(scene)) {
+		return true;
+	}
+	std::string name = obs_source_get_name(scene);
+	std::string id = obs_source_get_uuid(scene);
+	SceneInfo info = { name, id, false };
+	instance->_scenes.push_back(info);
+	return true;
+}
+
+std::vector<SceneInfo> SelectOutputScenes::OutputScenes() const
+{
+	std::vector<SceneInfo> output;
+	for (auto const& scene : _scenes) {
+		if (scene.outputScene) {
+			output.push_back(scene);
+		}
+	}
+	return output;
+}
+
 RequiredPlugins::RequiredPlugins(std::string name,
 				 std::vector<obs_module_t *> installedPlugins, QWidget* parent)
 	: QWidget(parent)
@@ -506,7 +623,7 @@ RequiredPlugins::RequiredPlugins(std::string name,
 	auto sideBar = new ExportStepsSideBar(name, this);
 	sideBar->setContentsMargins(0, 0, 0, 0);
 	sideBar->setFixedWidth(240);
-	sideBar->setStep(2);
+	sideBar->setStep(3);
 
 	auto formLayout = new QVBoxLayout();
 
@@ -763,39 +880,49 @@ void StreamPackageExportWizard::SetupUI()
 		[this]() { close(); });
 	_steps->addWidget(fileCheck);
 
-	// Step 3- Specify required plugins (step index: 2)
+	// Step 3- let maker select output scenes for partial imports
+	auto outputScenes = new SelectOutputScenes(collectionName, this);
+	connect(outputScenes, &SelectOutputScenes::continuePressed, this,
+		[this]() { _steps->setCurrentIndex(3); });
+	connect(outputScenes, &SelectOutputScenes::backPressed, this,
+		[this]() { _steps->setCurrentIndex(1); });
+	_steps->addWidget(outputScenes);
+
+	// Step 4- Specify required plugins (step index: 3)
 	auto reqPlugins = new RequiredPlugins(collectionName, _modules, this);
 	connect(reqPlugins, &RequiredPlugins::continuePressed, this, [this]() {
-		_steps->setCurrentIndex(3);
+		_steps->setCurrentIndex(4);
 		});
 	connect(reqPlugins, &RequiredPlugins::backPressed, this,
-		[this]() { _steps->setCurrentIndex(1); });
+		[this]() { _steps->setCurrentIndex(2); });
 	_steps->addWidget(reqPlugins);
 
-	// Step 4- Add labels for each video capture device source (step index: 3)
+	// Step 5- Add labels for each video capture device source (step index: 4)
 	auto videoLabels = new VideoSourceLabels(collectionName, vidDevs, this);
 	connect(videoLabels, &VideoSourceLabels::continuePressed, this,
-		[this, videoLabels, reqPlugins]() {
+		[this, videoLabels, reqPlugins, outputScenes]() {
 			
 			auto vidDevLabels = videoLabels->Labels();
 			auto plugins = reqPlugins->RequiredPluginList();
+			auto oScenes = outputScenes->OutputScenes();
+
 			QWidget* window = (QWidget*)obs_frontend_get_main_window();
 			QString filename = QFileDialog::getSaveFileName(
 				window, "Save As...", QString(), "*.elgatoscene");
 			if (filename == "") {
-				_steps->setCurrentIndex(3);
+				_steps->setCurrentIndex(4);
 				return;
 			}
 			if (!filename.endsWith(".elgatoscene")) {
 				filename += ".elgatoscene";
 			}
-			_steps->setCurrentIndex(4);
+			_steps->setCurrentIndex(5);
 			std::string filename_utf8 = filename.toUtf8().constData();
 			// This is a bit of threading hell.
 			// Find a better way to set this up, perhaps in an
 			// installer handler thread handling object.
 			_future =
-				QtConcurrent::run(createBundle, filename_utf8, plugins,
+				QtConcurrent::run(createBundle, filename_utf8, plugins, oScenes,
 					vidDevLabels)
 				.then([this](SceneBundleStatus status) {
 				// We are now in a different thread, so we need to execute this
@@ -807,13 +934,13 @@ void StreamPackageExportWizard::SetupUI()
 						if (status ==
 							SceneBundleStatus::
 							Success) {
-							_steps->setCurrentIndex(5);
+							_steps->setCurrentIndex(6);
 						}
 						else if (
 							status ==
 							SceneBundleStatus::
 							Cancelled) {
-							_steps->setCurrentIndex(3);
+							_steps->setCurrentIndex(4);
 						}
 					});
 					})
@@ -825,7 +952,7 @@ void StreamPackageExportWizard::SetupUI()
 
 
 	connect(videoLabels, &VideoSourceLabels::backPressed, this,
-		[this]() { _steps->setCurrentIndex(2); });
+		[this]() { _steps->setCurrentIndex(3); });
 	_steps->addWidget(videoLabels);
 
 	auto exporting = new Exporting(collectionName, this);
