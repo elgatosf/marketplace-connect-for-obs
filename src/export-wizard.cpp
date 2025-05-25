@@ -491,10 +491,8 @@ SelectOutputScenes::SelectOutputScenes(std::string name, QWidget* parent)
 	std::string checkedImage = imagesPath + "checkbox_checked.png";
 	std::string uncheckedImage = imagesPath + "checkbox_unchecked.png";
 	QString checklistStyle = EWizardChecklistStyle;
-	obs_log(LOG_INFO, "checked image: %s", checkedImage.c_str());
 	checklistStyle.replace("${checked-img}", checkedImage.c_str());
 	checklistStyle.replace("${unchecked-img}", uncheckedImage.c_str());
-	obs_log(LOG_INFO, "style: %s", checklistStyle.toStdString().c_str());
 
 	QVBoxLayout* layout = new QVBoxLayout(this);
 	layout->setContentsMargins(0, 0, 0, 0);
@@ -947,7 +945,6 @@ void StreamPackageExportWizard::SetupUI()
 				.onCanceled([]() {
 
 				});
-			//createBundle(filename_utf8, plugins, vidDevLabels);
 		});
 
 

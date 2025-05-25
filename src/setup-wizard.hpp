@@ -55,17 +55,24 @@ enum class InstallTypes {
 	ReplaceCollection
 };
 
+struct OutputScene {
+	std::string id;
+	std::string name;
+	bool enabled;
+};
+
 struct Setup {
 	InstallTypes installType;
 	std::string collectionName;
 	std::map<std::string, std::string> videoSettings;
 	std::string audioSettings;
+	std::vector<std::string> scenesToMerge;
 };
 
 class StepsSideBar : public QWidget {
 	Q_OBJECT
 public:
-	StepsSideBar(std::string name, std::string thumbnailPath, QWidget* parent);
+	StepsSideBar(std::vector<std::string> const& steps, std::string name, std::string thumbnailPath, QWidget* parent);
 	void setStep(int step);
 	void incrementStep();
 	void decrementStep();
@@ -104,14 +111,18 @@ public:
 	StartInstall(QWidget* parent, std::string name,
 		std::string thumbnailPath);
 signals:
-	void continuePressed();
+	void newCollectionPressed();
+	void mergeCollectionPressed();
 };
 
 class NewCollectionName : public QWidget {
 	Q_OBJECT
 public:
-	NewCollectionName(QWidget *parent, std::string name,
-			  std::string thumbnailPath);
+	NewCollectionName(
+		std::string titleText, std::string subTitleText,
+		std::vector<std::string> const& steps, int step,
+		std::string name, std::string thumbnailPath,
+		QWidget* parent);
 
 private:
 	std::vector<std::string> _existingCollections;
@@ -119,13 +130,14 @@ private:
 	QPushButton *_proceedButton = nullptr;
 signals:
 	void proceedPressed(std::string name);
+	void backPressed();
 };
 
 class VideoSetup : public QWidget {
 	Q_OBJECT
 public:
-	VideoSetup(QWidget *parent, std::string name, std::string thumbnailPath,
-		   std::map<std::string, std::string> videoSourceLabels);
+	VideoSetup(std::vector<std::string> const& steps, int step, std::string name, std::string thumbnailPath,
+		   std::map<std::string, std::string> videoSourceLabels, QWidget* parent);
 	~VideoSetup();
 
 	void OpenConfigVideoSource();
@@ -148,8 +160,8 @@ signals:
 class AudioSetup : public QWidget {
 	Q_OBJECT
 public:
-	AudioSetup(QWidget *parent, std::string name,
-		   std::string thumbnailPath);
+	AudioSetup(std::vector<std::string> const& steps, int step, std::string name,
+		   std::string thumbnailPath, QWidget* parent);
 	~AudioSetup();
 
 	void SetupVolMeter();
@@ -173,6 +185,22 @@ private:
 signals:
 	void proceedPressed(std::string settings);
 	void backPressed();
+};
+
+
+class MergeSelectScenes : public QWidget {
+	Q_OBJECT
+public:
+	MergeSelectScenes(std::vector<OutputScene>& outputScenes, std::vector<std::string> const& steps, int step, std::string name,
+		std::string thumbnailPath, QWidget* parent);
+	~MergeSelectScenes();
+	std::vector<std::string> getSelectedScenes();
+signals:
+	void proceedPressed();
+	void backPressed();
+
+private:
+	std::vector<OutputScene> _outputScenes;
 };
 
 class Loading : public QWidget {
@@ -201,22 +229,29 @@ private:
 	void _buildBaseUI();
 	void _buildMissingPluginsUI(std::vector<PluginDetails> &missing);
 	void
-	_buildSetupUI(std::map<std::string, std::string> &videoSourceLabels);
+	_buildSetupUI(std::map<std::string, std::string> &videoSourceLabels, std::vector<OutputScene> &outputScenes);
+	void _buildNewCollectionUI(std::map<std::string, std::string>& videoSourceLabels);
+	void _buildMergeCollectionUI(std::map<std::string, std::string>& videoSourceLabels, std::vector<OutputScene>& outputScenes);
 	std::string _productName;
 	std::string _thumbnailPath;
 	std::string _filename;
 	std::string _curCollectionFileName;
 	bool _deleteOnClose;
 	bool _installStarted;
-	QStackedWidget *_steps;
+	QStackedWidget* _newCollectionSteps;
+	QStackedWidget* _container;
+	QStackedWidget* _mergeCollectionSteps;
 	Setup _setup;
 	std::vector<std::string> _toEnable;
 	VideoSetup *_vSetup;
+	VideoSetup* _vSetupMerge;
+	VideoSetup* _vSetupSubMerge;
 
 	QFuture<void> _future;
 };
 
 void installStreamPackage(Setup setup, std::string filename, bool deleteOnClose, std::vector<std::string> toEnable);
+void mergeStreamPackage(Setup setup, std::string filename, bool deleteOnClose, std::vector<std::string> toEnable);
 
 bool EnableVideoCaptureSourcesActive(void* data, obs_source_t* source);
 void EnableVideoCaptureSourcesJson(std::vector<std::string> sourceIds, std::string curFileName);
