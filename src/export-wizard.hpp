@@ -26,7 +26,6 @@ with this program.If not, see < https://www.gnu.org/licenses/>
 #include <util/config-file.h>
 #include <obs.hpp>
 #include <obs.h>
-#include <obs-module.h>
 
 #include <QDialog>
 #include <QWidget>
@@ -120,6 +119,39 @@ signals:
 private:
 	std::map<std::string, std::pair<bool, std::string>> _pluginStatus;
 };
+
+class ThirdPartyRequirements : public QWidget {
+	Q_OBJECT
+public:
+	ThirdPartyRequirements(std::string name, QWidget* parent);
+	std::vector<std::pair<std::string, std::string>> getRequirements() const;
+
+signals:
+	void continuePressed();
+	void backPressed();
+
+private slots:
+	void onTextChanged();
+	void onDeleteClicked();
+
+private:
+	struct InputRow {
+		QWidget* rowWidget;
+		QLineEdit* titleEdit;
+		QLineEdit* urlEdit;
+		QPushButton* deleteButton;
+	};
+
+	QVBoxLayout* _formLayout;
+	QVector<InputRow> _inputRows;
+
+	void addInputRow();
+	void removeInputRow(QWidget* rowWidget);
+	bool isLastRow(const InputRow& row) const;
+	bool isRowFilled(const InputRow& row) const;
+};
+
+static bool isValidHttpUrl(const QString& urlStr);
 
 class Exporting : public QWidget {
 	Q_OBJECT

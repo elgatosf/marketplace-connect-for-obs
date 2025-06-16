@@ -603,7 +603,7 @@ void ElgatoCloudWindow::initialize()
 	_layout->addWidget(_mainWidget);
 
 	setLayout(_layout);
-	setFixedSize(960, 520);
+	setFixedSize(970, 520);
 }
 
 void ElgatoCloudWindow::setLoading()

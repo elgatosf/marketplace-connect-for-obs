@@ -30,6 +30,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <QListWidget>
 #include <QLineEdit>
 #include <QDir>
+#include <QUrl>
 #include <QSvgRenderer>
 #include <QPainter>
 
@@ -42,13 +43,14 @@ SceneBundle *bundle = new SceneBundle();
 
 SceneBundleStatus createBundle(std::string filename,
 			       std::vector<std::string> plugins,
+				   std::vector<std::pair<std::string, std::string>> thirdParty,
 				   std::vector<SceneInfo> outputScenes,
 			       std::map<std::string, std::string> vidDevLabels)
 {
 	if (!bundle) {
 		return SceneBundleStatus::InvalidBundle;
 	}
-	return bundle->ToElgatoCloudFile(filename, plugins, outputScenes, vidDevLabels);
+	return bundle->ToElgatoCloudFile(filename, plugins, thirdParty, outputScenes, vidDevLabels);
 }
 
 // TODO: For MacOS the filename sigatures will be different
@@ -72,7 +74,7 @@ ExportStepsSideBar::ExportStepsSideBar(std::string name, QWidget* parent)
 	setFixedWidth(240);
 
 	// TODO- translations for steps
-	std::vector<std::string> steps = { "Get started", "Collect media files", "Select Output Scenes", "Bundle required plugins", "Rename video sources" };
+	std::vector<std::string> steps = { "Get started", "Collect media files", "Select Output Scenes", "Bundle required plugins", "3rd Party Requirements", "Rename video sources"};
 
 	std::string titleString = obs_module_text("ExportWizard.Export");
 	titleString += " " + name;
@@ -334,7 +336,7 @@ VideoSourceLabels::VideoSourceLabels(std::string name,
 	auto sideBar = new ExportStepsSideBar(name, this);
 	sideBar->setContentsMargins(0, 0, 0, 0);
 	sideBar->setFixedWidth(240);
-	sideBar->setStep(4);
+	sideBar->setStep(5);
 
 	auto formLayout = new QVBoxLayout();
 
@@ -707,6 +709,164 @@ RequiredPlugins::RequiredPlugins(std::string name,
 	layout->addLayout(buttons);
 }
 
+ThirdPartyRequirements::ThirdPartyRequirements(std::string name, QWidget* parent)
+	: QWidget(parent)
+{
+	QVBoxLayout* layout = new QVBoxLayout(this);
+	layout->setContentsMargins(0, 0, 0, 0);
+	auto main = new QHBoxLayout();
+	main->setAlignment(Qt::AlignTop);
+	main->setContentsMargins(0, 0, 0, 0);
+	auto sideBar = new ExportStepsSideBar(name, this);
+	sideBar->setContentsMargins(0, 0, 0, 0);
+	sideBar->setFixedWidth(240);
+	sideBar->setStep(4);
+
+
+	std::string titleText = obs_module_text("ExportWizard.ThirdPartyRequirements.Title");
+	auto title = new QLabel(titleText.c_str(), this);
+	title->setStyleSheet(EWizardStepTitle);
+
+	auto subTitle = new QLabel(this);
+	subTitle->setText(obs_module_text("ExportWizard.ThirdPartyRequirements.SubTitle"));
+	subTitle->setStyleSheet(EWizardStepSubTitle);
+
+	_formLayout = new QVBoxLayout();
+	_formLayout->setAlignment(Qt::AlignTop);
+	_formLayout->addWidget(title);
+	_formLayout->addWidget(subTitle);
+	_formLayout->addStretch();
+	addInputRow();
+
+	auto buttons = new QHBoxLayout();
+	auto backButton = new QPushButton(this);
+	backButton->setText(
+		obs_module_text("ExportWizard.BackButton"));
+	backButton->setStyleSheet(EWizardQuietButtonStyle);
+	connect(backButton, &QPushButton::released, this,
+		[this]() { emit backPressed(); });
+
+	auto continueButton = new QPushButton(this);
+	continueButton->setText(
+		obs_module_text("ExportWizard.NextButton"));
+	continueButton->setStyleSheet(EWizardButtonStyle);
+
+	connect(continueButton, &QPushButton::released, this,
+		[this]() { emit continuePressed(); });
+	buttons->addStretch();
+	buttons->addWidget(backButton);
+	buttons->addWidget(continueButton);
+
+	main->addWidget(sideBar);
+	main->addLayout(_formLayout);
+	layout->addLayout(main);
+	layout->addLayout(buttons);
+}
+
+void ThirdPartyRequirements::addInputRow()
+{
+	QWidget* rowWidget = new QWidget(this);
+	QHBoxLayout* rowLayout = new QHBoxLayout(rowWidget);
+
+	QLineEdit* titleEdit = new QLineEdit;
+	QLineEdit* urlEdit = new QLineEdit;
+	QPushButton* deleteButton = new QPushButton("Delete");
+
+	titleEdit->setPlaceholderText("Title");
+	urlEdit->setPlaceholderText("URL");
+
+	rowLayout->addWidget(titleEdit);
+	rowLayout->addWidget(urlEdit);
+	rowLayout->addWidget(deleteButton);
+
+	rowWidget->setLayout(rowLayout);
+	_formLayout->insertWidget(_formLayout->count() - 1, rowWidget);
+	//_formLayout->addWidget(rowWidget);
+
+	InputRow row = { rowWidget, titleEdit, urlEdit, deleteButton };
+	_inputRows.append(row);
+
+	connect(titleEdit, &QLineEdit::textChanged, this, &ThirdPartyRequirements::onTextChanged);
+	connect(urlEdit, &QLineEdit::textChanged, this, &ThirdPartyRequirements::onTextChanged);
+	connect(deleteButton, &QPushButton::clicked, this, &ThirdPartyRequirements::onDeleteClicked);
+}
+
+bool ThirdPartyRequirements::isLastRow(const InputRow& row) const
+{
+	return !_inputRows.isEmpty() && _inputRows.last().rowWidget == row.rowWidget;
+}
+
+bool ThirdPartyRequirements::isRowFilled(const InputRow& row) const
+{
+	return !row.titleEdit->text().isEmpty() && isValidHttpUrl(row.urlEdit->text());
+}
+
+void ThirdPartyRequirements::removeInputRow(QWidget* rowWidget)
+{
+	for (int i = 0; i < _inputRows.size(); ++i) {
+		if (_inputRows[i].rowWidget == rowWidget) {
+			_formLayout->removeWidget(rowWidget);
+			_inputRows.removeAt(i);
+			rowWidget->deleteLater();
+			break;
+		}
+	}
+
+	// Ensure at least one empty row exists
+	if (_inputRows.isEmpty() || isRowFilled(_inputRows.last())) {
+		addInputRow();
+	}
+}
+
+void ThirdPartyRequirements::onTextChanged()
+{
+	if (_inputRows.isEmpty())
+		return;
+
+	const InputRow& last = _inputRows.last();
+
+	if (isRowFilled(last)) {
+		addInputRow();
+	}
+}
+
+std::vector<std::pair<std::string, std::string>> ThirdPartyRequirements::getRequirements() const
+{
+	std::vector<std::pair<std::string, std::string>> entries;
+
+	for (const auto& row : _inputRows) {
+		QString title = row.titleEdit->text().trimmed();
+		QString url = row.urlEdit->text().trimmed();
+
+		if (!title.isEmpty() && !url.isEmpty()) {
+			entries.emplace_back(title.toStdString(), url.toStdString());
+		}
+	}
+
+	return entries;
+}
+
+static bool isValidHttpUrl(const QString& urlStr) {
+	QUrl url(urlStr);
+	return url.isValid() && (url.scheme() == "http" || url.scheme() == "https");
+}
+
+void ThirdPartyRequirements::onDeleteClicked()
+{
+	QPushButton* senderButton = qobject_cast<QPushButton*>(sender());
+	if (!senderButton)
+		return;
+
+	for (int i = 0; i < _inputRows.size(); ++i) {
+		if (_inputRows[i].deleteButton == senderButton) {
+			removeInputRow(_inputRows[i].rowWidget);
+			break;
+		}
+	}
+}
+
+
+
 ExportComplete::ExportComplete(std::string name, QWidget *parent) : QWidget(parent)
 {
 
@@ -895,32 +1055,42 @@ void StreamPackageExportWizard::SetupUI()
 		[this]() { _steps->setCurrentIndex(2); });
 	_steps->addWidget(reqPlugins);
 
-	// Step 5- Add labels for each video capture device source (step index: 4)
+	// Step 5- Specify required plugins (step index: 4)
+	auto thirdPartyReqs = new ThirdPartyRequirements(collectionName, this);
+	connect(thirdPartyReqs, &ThirdPartyRequirements::continuePressed, this, [this]() {
+		_steps->setCurrentIndex(5);
+		});
+	connect(thirdPartyReqs, &ThirdPartyRequirements::backPressed, this,
+		[this]() { _steps->setCurrentIndex(3); });
+	_steps->addWidget(thirdPartyReqs);
+
+	// Step 6- Add labels for each video capture device source (step index: 5)
 	auto videoLabels = new VideoSourceLabels(collectionName, vidDevs, this);
 	connect(videoLabels, &VideoSourceLabels::continuePressed, this,
-		[this, videoLabels, reqPlugins, outputScenes]() {
+		[this, videoLabels, reqPlugins, thirdPartyReqs, outputScenes]() {
 			
 			auto vidDevLabels = videoLabels->Labels();
 			auto plugins = reqPlugins->RequiredPluginList();
 			auto oScenes = outputScenes->OutputScenes();
+			auto thirdParty = thirdPartyReqs->getRequirements();
 
 			QWidget* window = (QWidget*)obs_frontend_get_main_window();
 			QString filename = QFileDialog::getSaveFileName(
 				window, "Save As...", QString(), "*.elgatoscene");
 			if (filename == "") {
-				_steps->setCurrentIndex(4);
+				_steps->setCurrentIndex(5);
 				return;
 			}
 			if (!filename.endsWith(".elgatoscene")) {
 				filename += ".elgatoscene";
 			}
-			_steps->setCurrentIndex(5);
+			_steps->setCurrentIndex(6);
 			std::string filename_utf8 = filename.toUtf8().constData();
 			// This is a bit of threading hell.
 			// Find a better way to set this up, perhaps in an
 			// installer handler thread handling object.
 			_future =
-				QtConcurrent::run(createBundle, filename_utf8, plugins, oScenes,
+				QtConcurrent::run(createBundle, filename_utf8, plugins, thirdParty, oScenes,
 					vidDevLabels)
 				.then([this](SceneBundleStatus status) {
 				// We are now in a different thread, so we need to execute this
@@ -932,13 +1102,13 @@ void StreamPackageExportWizard::SetupUI()
 						if (status ==
 							SceneBundleStatus::
 							Success) {
-							_steps->setCurrentIndex(6);
+							_steps->setCurrentIndex(7);
 						}
 						else if (
 							status ==
 							SceneBundleStatus::
 							Cancelled) {
-							_steps->setCurrentIndex(4);
+							_steps->setCurrentIndex(5);
 						}
 					});
 					})
@@ -949,8 +1119,9 @@ void StreamPackageExportWizard::SetupUI()
 
 
 	connect(videoLabels, &VideoSourceLabels::backPressed, this,
-		[this]() { _steps->setCurrentIndex(3); });
+		[this]() { _steps->setCurrentIndex(4); });
 	_steps->addWidget(videoLabels);
+
 
 	auto exporting = new Exporting(collectionName, this);
 	_steps->addWidget(exporting);

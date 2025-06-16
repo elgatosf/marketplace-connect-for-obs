@@ -504,6 +504,7 @@ std::string SceneBundle::_currentCollectionPath()
 
 SceneBundleStatus SceneBundle::ToElgatoCloudFile(
 	std::string file_path, std::vector<std::string> plugins,
+	std::vector<std::pair<std::string, std::string>> thirdParty,
 	std::vector<SceneInfo> outputScenes,
 	std::map<std::string, std::string> videoDeviceDescriptions)
 {
@@ -524,6 +525,15 @@ SceneBundleStatus SceneBundle::ToElgatoCloudFile(
 		oScenes.push_back(s);
 	}
 
+	std::vector<std::map<std::string, std::string>> thirdPartyReqs;
+	for (auto const& req : thirdParty) {
+		std::map<std::string, std::string> r = {
+			{"name", req.first},
+			{"url", req.second}
+		};
+		thirdPartyReqs.push_back(r);
+	}
+
 	nlohmann::json bundleInfo;
 	bundleInfo["canvas"]["width"] = ovi.base_width;
 	bundleInfo["canvas"]["height"] = ovi.base_height;
@@ -531,6 +541,7 @@ SceneBundleStatus SceneBundle::ToElgatoCloudFile(
 	bundleInfo["ec_version"] = "1.0";
 	bundleInfo["id"] = gen_uuid();
 	bundleInfo["plugins_required"] = plugins;
+	bundleInfo["third_party"] = thirdPartyReqs;
 	bundleInfo["video_devices"] = videoDeviceDescriptions;
 	bundleInfo["output_scenes"] = oScenes;
 
