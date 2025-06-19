@@ -75,11 +75,11 @@ public:
 				 std::string destination);
 	bool ToCollection(std::string collection_name,
 			  std::map<std::string, std::string> videoSettings,
-			  std::string audioSettings);
+			  std::string audioSettings, std::string id);
 	bool MergeCollection(std::string collection_name,
 			  std::vector<std::string> scenes,
 			  std::map<std::string, std::string> videoSettings,
-			  std::string audioSettings);
+			  std::string audioSettings, std::string id);
 	SceneBundleStatus ToElgatoCloudFile(
 		std::string file_path, std::vector<std::string> plugins,
 		std::vector<std::pair<std::string, std::string>> thirdParty,

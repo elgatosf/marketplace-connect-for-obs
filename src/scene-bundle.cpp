@@ -24,6 +24,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <util/config-file.h>
 #include <QDialog>
 #include <QApplication>
+#include <QMessageBox>
 #include <QThread>
 #include <QMetaObject>
 #include <vector>
@@ -39,6 +40,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include "util.h"
 #include "obs-utils.hpp"
 #include "setup-wizard.hpp"
+#include "api.hpp"
 
 const std::map<std::string, std::string> extensionMap{
 	{".jpg", "/images/"},     {".jpeg", "/images/"},
@@ -151,7 +153,7 @@ void SceneBundle::SceneCollectionChanged(enum obs_frontend_event event,
 bool SceneBundle::MergeCollection(std::string collection_name,
 	std::vector<std::string> scenes,
 	std::map<std::string, std::string> videoSettings,
-	std::string audioSettings)
+	std::string audioSettings, std::string id)
 {
 	const auto userConf = GetUserConfig();
 	_backupCurrentCollection();
@@ -159,6 +161,7 @@ bool SceneBundle::MergeCollection(std::string collection_name,
 	char* collection_str = os_quick_read_utf8_file(curCollectionPath.c_str());
 	nlohmann::json currentCollectionJson = nlohmann::json::parse(collection_str);
 	bfree(collection_str);
+	
 	std::vector<std::string> cColSourceNames;
 	std::vector<std::string> cColUuids;
 	std::vector<std::string> cColGroupNames;
@@ -208,6 +211,11 @@ bool SceneBundle::MergeCollection(std::string collection_name,
 		os_quick_read_utf8_file(collection_file_path.c_str());
 	std::string collectionData = ecollection_str;
 	bfree(ecollection_str);
+
+	std::string bundle_info_path = _packPath + "/bundle_info.json";
+	char* bundle_info_str = os_quick_read_utf8_file(bundle_info_path.c_str());
+	std::string bundleInfoData = bundle_info_str;
+	bfree(bundle_info_str);
 
 	// replace all uuid clashses with a new uuid
 	for (auto uuid : cColUuids) {
@@ -344,23 +352,65 @@ bool SceneBundle::MergeCollection(std::string collection_name,
 
 	currentCollectionJson["scene_order"] = mergeSceneOrder;
 
+	_bundleInfo = nlohmann::json::parse(bundleInfoData);
+
+
+
+	nlohmann::json module_info = {
+		{"first_run", true}
+	};
+
+	if (_bundleInfo.contains("third_party")) {
+		module_info["third_party"] = _bundleInfo["third_party"];
+	}
+
+	if (!id.empty()) {
+		module_info["id"] = id;
+	}
+
 	_collection = currentCollectionJson;
+
+	if (_collection.contains("modules") &&
+		_collection["modules"].contains("elgato_marketplace_connect") &&
+		_collection["modules"]["elgato_marketplace_connect"].contains("id")
+		) { // This was a downloaded collection that has been exported
+		auto api = elgatocloud::MarketplaceApi::getInstance();
+		std::string currentId = api->id();
+		std::string embeddedId = _collection["modules"]["elgato_marketplace_connect"]["id"];
+		if (currentId != embeddedId) {
+			obs_log(LOG_INFO, "Ids don't match");
+			QMessageBox msgBox;
+			msgBox.setWindowTitle("Alert");
+			msgBox.setText("This scene collection file contains portions of a scene collection purchased on the Elgato Marketplace. To install it, you will need to be logged in to the original account that purchased the collection. Please log in through the Elgato Marketplace menu item, and try to install again.");
+			msgBox.setIcon(QMessageBox::Information);
+			msgBox.setStandardButtons(QMessageBox::Close);
+			msgBox.exec();
+			return false;
+		}
+		id = embeddedId;
+	}
+
+	_collection["modules"]["elgato_marketplace_connect"] = module_info;
 	
 	return _createSceneCollection(collection_name);
 }
 
 bool SceneBundle::ToCollection(std::string collection_name,
 			       std::map<std::string, std::string> videoSettings,
-			       std::string audioSettings)
+			       std::string audioSettings, std::string id)
 {
 	const auto userConf = GetUserConfig();
 	_backupCurrentCollection();
 
 	std::string collection_file_path = _packPath + "/collection.json";
+	std::string bundle_info_path = _packPath + "/bundle_info.json";
 	char *collection_str =
 		os_quick_read_utf8_file(collection_file_path.c_str());
+	char* bundle_info_str = os_quick_read_utf8_file(bundle_info_path.c_str());
 	std::string collectionData = collection_str;
+	std::string bundleInfoData = bundle_info_str;
 	bfree(collection_str);
+	bfree(bundle_info_str);
 
 	std::string needle = "{FILE}:";
 	std::string word = _packPath + "/";
@@ -375,6 +425,41 @@ bool SceneBundle::ToCollection(std::string collection_name,
 	replace_all(collectionData, needle, audioSettings);
 
 	_collection = nlohmann::json::parse(collectionData);
+	_bundleInfo = nlohmann::json::parse(bundleInfoData);
+
+	if (_collection.contains("modules") &&
+		_collection["modules"].contains("elgato_marketplace_connect") &&
+		_collection["modules"]["elgato_marketplace_connect"].contains("id")
+	) { // This was a downloaded collection that has been exported
+		auto api = elgatocloud::MarketplaceApi::getInstance();
+		std::string currentId = api->id();
+		std::string embeddedId = _collection["modules"]["elgato_marketplace_connect"]["id"];
+		if (currentId != embeddedId) {
+			obs_log(LOG_INFO, "Ids don't match");
+			QMessageBox msgBox;
+			msgBox.setWindowTitle("Alert");
+			msgBox.setText("This scene collection file contains portions of a scene collection purchased on the Elgato Marketplace. To install it, you will need to be logged in to the original account that purchased the collection. Please log in through the Elgato Marketplace menu item, and try to install again.");
+			msgBox.setIcon(QMessageBox::Information);
+			msgBox.setStandardButtons(QMessageBox::Close);
+			msgBox.exec();
+			return false;
+		}
+		id = embeddedId;
+	}
+
+	nlohmann::json module_info = {
+		{"first_run", true}
+	};
+	
+	if (_bundleInfo.contains("third_party")) {
+		module_info["third_party"] = _bundleInfo["third_party"];
+	}
+
+	if (!id.empty()) {
+		module_info["id"] = id;
+	}
+
+	_collection["modules"]["elgato_marketplace_connect"] = module_info;
 
 	return _createSceneCollection(collection_name);
 }

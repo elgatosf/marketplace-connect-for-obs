@@ -141,6 +141,7 @@ void MarketplaceApi::setUserDetails(nlohmann::json &data)
 	try {
 		_firstName = data.at("first_name").template get<std::string>();
 		_lastName = data.at("last_name").template get<std::string>();
+		_id = data.at("id").template get<std::string>();
 		std::string color = data.at("default_avatar_color")
 					    .template get<std::string>();
 		_avatarColor = avatarColors.at(color);

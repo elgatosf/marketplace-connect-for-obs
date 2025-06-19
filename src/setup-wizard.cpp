@@ -46,6 +46,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include "obs-utils.hpp"
 #include "util.h"
 #include "platform.h"
+#include "api.hpp"
 
 namespace elgatocloud {
 
@@ -1306,12 +1307,18 @@ void mergeStreamPackage(Setup setup, std::string filename, bool deleteOnClose, s
 		return;
 	}
 	obs_data_release(config);
+	std::string id = "";
+	if (deleteOnClose) {
+		auto api = MarketplaceApi::getInstance();
+		id = api->id();
+	}
 
 	bool collectionChanged = bundle.MergeCollection(
 		setup.collectionName,
 		setup.scenesToMerge,
 		setup.videoSettings,
-		setup.audioSettings);
+		setup.audioSettings,
+		id);
 
 	if (deleteOnClose) {
 		// Delete the scene collection file
@@ -1352,11 +1359,17 @@ void installStreamPackage(Setup setup, std::string filename, bool deleteOnClose,
 		return;
 	}
 	obs_data_release(config);
+	std::string id = "";
+	if (deleteOnClose) {
+		auto api = MarketplaceApi::getInstance();
+		id = api->id();
+	}
 
 	bool collectionChanged = bundle.ToCollection(
 			    setup.collectionName,
 				setup.videoSettings,
-			    setup.audioSettings);
+			    setup.audioSettings,
+				id);
 
 	if (deleteOnClose) {
 		// Delete the scene collection file

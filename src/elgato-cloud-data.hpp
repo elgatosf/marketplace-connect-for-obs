@@ -74,6 +74,7 @@ public:
 	ElgatoCloudWindow *window = nullptr;
 	inline bool MakerToolsOnStart() const { return _makerToolsOnStart; }
 	static void FrontEndEventHandler(enum obs_frontend_event event, void* data);
+	static void FrontEndSaveLoadHandler(obs_data_t* save_data, bool saving, void* data);
 
 private:
 	void _Initialize();

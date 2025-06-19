@@ -65,6 +65,8 @@ target_sources(
           src/scene-bundle.hpp
           src/setup-wizard.cpp
           src/setup-wizard.hpp
+          src/scene-collection-info.cpp
+          src/scene-collection-info.hpp
           src/export-wizard.cpp
           src/export-wizard.hpp
           src/elgato-product.cpp
