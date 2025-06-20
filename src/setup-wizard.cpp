@@ -1227,13 +1227,17 @@ void StreamPackageSetupWizard::_buildMergeCollectionUI(std::map<std::string, std
 		});
 	_mergeCollectionSteps->addWidget(newName);
 
-	// Step 1- select scenes to merge
+	// Step 1- select scenes to merge (step index: 1)
 	auto mergeScenes = new MergeSelectScenes(outputScenes, steps, 2, _productName, _thumbnailPath, this);
 	_mergeCollectionSteps->addWidget(mergeScenes);
 	connect(mergeScenes, &MergeSelectScenes::proceedPressed, this,
-		[this, mergeScenes]() {
-			_vSetupMerge->EnableTempSources();
-			_mergeCollectionSteps->setCurrentIndex(2);
+		[this, mergeScenes, videoSourceLabels]() {
+			if (videoSourceLabels.size() > 0) {
+				_vSetupMerge->EnableTempSources();
+				_mergeCollectionSteps->setCurrentIndex(2);
+			} else {
+				_mergeCollectionSteps->setCurrentIndex(3);
+			}
 			_setup.scenesToMerge = mergeScenes->getSelectedScenes();
 		});
 
@@ -1242,7 +1246,7 @@ void StreamPackageSetupWizard::_buildMergeCollectionUI(std::map<std::string, std
 			_mergeCollectionSteps->setCurrentIndex(0);
 		});
 
-	// Step 2- Set up Video inputs (step index: 1)
+	// Step 2- Set up Video inputs (step index: 2)
 	_vSetupMerge = new VideoSetup(steps, 3, _productName, _thumbnailPath,
 		videoSourceLabels, this);
 	_vSetupMerge->DisableTempSources();
@@ -1259,7 +1263,7 @@ void StreamPackageSetupWizard::_buildMergeCollectionUI(std::map<std::string, std
 		_vSetupMerge->DisableTempSources();
 		});
 
-	// Step 2- Setup Audio Inputs (step index: 1)
+	// Step 2- Setup Audio Inputs (step index: 3)
 	auto aSetup = new AudioSetup(steps, 4, _productName, _thumbnailPath, this);
 	_mergeCollectionSteps->addWidget(aSetup);
 	connect(aSetup, &AudioSetup::proceedPressed, this,
@@ -1272,11 +1276,10 @@ void StreamPackageSetupWizard::_buildMergeCollectionUI(std::map<std::string, std
 	connect(aSetup, &AudioSetup::backPressed, this,
 		[this, videoSourceLabels]() {
 			if (videoSourceLabels.size() > 0) {
-				_mergeCollectionSteps->setCurrentIndex(4);
+				_mergeCollectionSteps->setCurrentIndex(2);
 				_vSetupMerge->EnableTempSources();
-			}
-			else {
-				_mergeCollectionSteps->setCurrentIndex(3);
+			} else {
+				_mergeCollectionSteps->setCurrentIndex(1);
 			}
 		});
 	_mergeCollectionSteps->setCurrentIndex(0);

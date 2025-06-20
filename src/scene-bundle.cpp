@@ -240,7 +240,7 @@ bool SceneBundle::MergeCollection(std::string collection_name,
 				sceneName = newName;
 			}
 		}
-		replace_all(collectionData, name, newName);
+		replace_all(collectionData, "\"" + name + "\"", "\"" + newName + "\"");
 	}
 
 	std::string needle = "{FILE}:";
