@@ -257,11 +257,36 @@ bool SceneBundle::MergeCollection(std::string collection_name,
 
 	_collection = nlohmann::json::parse(collectionData);
 
+	if (_collection.contains("modules") &&
+		_collection["modules"].contains("elgato_marketplace_connect") &&
+		_collection["modules"]["elgato_marketplace_connect"].contains("id")
+		) { // This was a downloaded collection that has been exported
+		auto api = elgatocloud::MarketplaceApi::getInstance();
+		std::string currentId = api->id();
+		std::string embeddedId = _collection["modules"]["elgato_marketplace_connect"]["id"];
+		if (currentId != embeddedId) {
+			obs_log(LOG_INFO, "Ids don't match");
+			QMessageBox msgBox;
+			msgBox.setWindowTitle("Alert");
+			msgBox.setText("This scene collection file contains portions of a scene collection purchased on the Elgato Marketplace. To install it, you will need to be logged in to the original account that purchased the collection. Please log in through the Elgato Marketplace menu item, and try to install again.");
+			msgBox.setIcon(QMessageBox::Information);
+			msgBox.setStandardButtons(QMessageBox::Close);
+			msgBox.exec();
+			return false;
+		}
+		id = embeddedId;
+	}
+
 	// Code to swap out video capture devices in _collection,
 	// with source clones if needed.
 
 	for (auto& source : _collection["sources"]) {
 		if (source["id"] == "dshow_input") {
+			// If the user did not select a video device for this
+			// source.. continue
+			if (!source["settings"].contains("video_device_id")) {
+				continue;
+			}
 			std::string vdi = source["settings"]["video_device_id"];
 			if (cVideoCaptureSources.find(vdi) != cVideoCaptureSources.end()) {
 				source["id"] = "source-clone";
@@ -354,8 +379,6 @@ bool SceneBundle::MergeCollection(std::string collection_name,
 
 	_bundleInfo = nlohmann::json::parse(bundleInfoData);
 
-
-
 	nlohmann::json module_info = {
 		{"first_run", true}
 	};
@@ -369,26 +392,6 @@ bool SceneBundle::MergeCollection(std::string collection_name,
 	}
 
 	_collection = currentCollectionJson;
-
-	if (_collection.contains("modules") &&
-		_collection["modules"].contains("elgato_marketplace_connect") &&
-		_collection["modules"]["elgato_marketplace_connect"].contains("id")
-		) { // This was a downloaded collection that has been exported
-		auto api = elgatocloud::MarketplaceApi::getInstance();
-		std::string currentId = api->id();
-		std::string embeddedId = _collection["modules"]["elgato_marketplace_connect"]["id"];
-		if (currentId != embeddedId) {
-			obs_log(LOG_INFO, "Ids don't match");
-			QMessageBox msgBox;
-			msgBox.setWindowTitle("Alert");
-			msgBox.setText("This scene collection file contains portions of a scene collection purchased on the Elgato Marketplace. To install it, you will need to be logged in to the original account that purchased the collection. Please log in through the Elgato Marketplace menu item, and try to install again.");
-			msgBox.setIcon(QMessageBox::Information);
-			msgBox.setStandardButtons(QMessageBox::Close);
-			msgBox.exec();
-			return false;
-		}
-		id = embeddedId;
-	}
 
 	_collection["modules"]["elgato_marketplace_connect"] = module_info;
 	
