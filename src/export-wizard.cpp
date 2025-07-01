@@ -33,6 +33,8 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <QUrl>
 #include <QSvgRenderer>
 #include <QPainter>
+#include <QApplication>
+#include <QMap>
 
 #include "obs-utils.hpp"
 #include "util.h"
@@ -64,6 +66,25 @@ const std::vector<std::string> ExcludedModules{
 	"obs-browser.dll", "nv-filters.dll", "image-source.dll",
 	"frontend-tools.dll", "decklink-output-ui.dll", "decklink-captions.dll",
 	"coreaudio-encoder.dll", "elgato-marketplace.dll"};
+
+// Helper to get icon path based on file extension
+QString iconForExtension(const QString& extension) {
+	static const QMap<QString, QString> extensionIconMap = {
+		{"jpg", "IconImage.svg"},		{"jpeg", "IconImage.svg"},
+		{"gif", "IconImage.svg"},		{"png", "IconImage.svg"},
+		{"bmp", "IconImage.svg"},		{"webm", "IconVideo.svg"},
+		{"mov", "IconVideo.svg"},		{"mp4", "IconVideo.svg"},
+		{"mkv", "IconVideo.svg"},		{"mp3", "IconVolume.svg"},
+		{"wav", "IconVolume.svg"},      {"effect", "IconFile.svg"},
+		{"shader", "IconFile.svg"},		{"hlsl", "IconFile.svg"},
+		{"lua", "IconLogoLua.svg"},		{"py", "IconFile.svg"},
+		{"html", "IconLogoHtml.svg"},	{"htm", "IconLogoHtml.svg"},
+		{"js", "IconLogoJs.svg"},		{"css", "IconLogoCss.svg"}
+	};
+
+	QString ext = extension.toLower();
+	return extensionIconMap.contains(ext) ? extensionIconMap[ext] : "IconFile.svg";
+}
 
 
 ExportStepsSideBar::ExportStepsSideBar(std::string name, QWidget* parent)
@@ -164,6 +185,72 @@ StartExport::StartExport(std::string name, QWidget* parent)
 	layout->addStretch();
 }
 
+SceneCollectionFilesDelegate::SceneCollectionFilesDelegate(QObject* parent)
+	: QStyledItemDelegate(parent) {
+}
+
+QString SceneCollectionFilesDelegate::elideMiddlePath(const QString& fullPath, const QFontMetrics& metrics, int maxWidth) const {
+	QFileInfo fileInfo(fullPath);
+	QString drivePrefix = fullPath.section("/", 0, 0) + "/";  // e.g., "C:/"
+	QString suffix = fileInfo.fileName();                     // e.g., "file.jpg"
+
+	QStringList parts = fullPath.split('/');
+	if (parts.size() < 2)
+		return fullPath;
+
+	// Reconstruct from the back, keeping the filename and as many folders as fit
+	QStringList suffixParts;
+	suffixParts.prepend(suffix);
+	int baseWidth = metrics.horizontalAdvance(drivePrefix + "/.../");  // guaranteed fixed prefix
+	int availableWidth = maxWidth - baseWidth;
+
+	int usedWidth = metrics.horizontalAdvance(suffix);
+	for (int i = parts.size() - 2; i > 0 && usedWidth < availableWidth; --i) {
+		QString part = parts[i];
+		int partWidth = metrics.horizontalAdvance("/" + part);
+		if (usedWidth + partWidth > availableWidth)
+			break;
+		suffixParts.prepend(part);
+		usedWidth += partWidth;
+	}
+
+	return drivePrefix + "..." + "/" + suffixParts.join("/");
+}
+
+void SceneCollectionFilesDelegate::paint(QPainter* painter, const QStyleOptionViewItem& option,
+	const QModelIndex& index) const
+{
+	painter->save();
+
+	QStyleOptionViewItem opt = option;
+	initStyleOption(&opt, index);
+
+	const QWidget* widget = opt.widget;
+	QStyle* style = widget ? widget->style() : QApplication::style();
+
+	style->drawPrimitive(QStyle::PE_PanelItemViewItem, &opt, painter, widget);
+
+	QRect iconRect = style->subElementRect(QStyle::SE_ItemViewItemDecoration, &opt, widget);
+	QPixmap pixmap = opt.icon.pixmap(opt.decorationSize);
+	painter->drawPixmap(iconRect.topLeft(), pixmap);
+
+	QRect textRect = style->subElementRect(QStyle::SE_ItemViewItemText, &opt, widget);
+	QString elided = elideMiddlePath(opt.text, painter->fontMetrics(), textRect.width());
+	style->drawItemText(painter, textRect, opt.displayAlignment, opt.palette, true, elided, QPalette::Text);
+
+	painter->restore();
+}
+
+QSize SceneCollectionFilesDelegate::sizeHint(const QStyleOptionViewItem& option,
+	const QModelIndex& index) const
+{
+	QSize base = QStyledItemDelegate::sizeHint(option, index);
+	base.setHeight(qMax(base.height(), option.decorationSize.height()));
+	return base;
+}
+
+
+
 FileCollectionCheck::FileCollectionCheck(std::string name,
 					 std::vector<std::string> files, QWidget* parent)
 	: QWidget(parent),
@@ -186,16 +273,17 @@ FileCollectionCheck::FileCollectionCheck(std::string name,
 	const char* subtitleLookup = _files.size() == 1 ? "ExportWizard.MediaFileCheck.SubtitleSingular" : "ExportWizard.MediaFileCheck.SubtitlePlural";
 
 	if (_files.size() > 0) {
-		std::string titleText = std::to_string(_files.size()) + " " + std::string(obs_module_text(titleLookup));
-		title->setText(titleText.c_str());
-		title->setStyleSheet(EWizardStepTitle);
-		std::string subtitleText = obs_module_text(subtitleLookup);
-		auto subTitle = new QLabel(this);
-		subTitle->setText(subtitleText.c_str());
-		subTitle->setStyleSheet(EWizardStepSubTitle);
-		subTitle->setWordWrap(true);
+		std::string imageBaseDir = GetDataPath();
+		imageBaseDir += "/images/";
+		//std::string iconPath = imageBaseDir + "IconFile.svg";
 
 		auto fileList = new QListWidget(this);
+		fileList->setItemDelegate(new SceneCollectionFilesDelegate(fileList));
+		fileList->setIconSize(QSize(20, 20));
+		fileList->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+		fileList->setTextElideMode(Qt::ElideNone);
+		fileList->setWordWrap(false);
+		
 		std::vector<std::string> browserSourceDirs;
 
 		for (auto fileName : _files) {
@@ -214,19 +302,42 @@ FileCollectionCheck::FileCollectionCheck(std::string name,
 					std::vector<std::string> parentDirFiles;
 					_SubFiles(parentDirFiles, parentDir);
 					for (auto parentFileName : parentDirFiles) {
-						fileList->addItem(parentFileName.c_str());
+						QFileInfo info(parentFileName.c_str());
+						QString extension = info.suffix();
+						std::string iconPath = imageBaseDir + iconForExtension(extension).toStdString();
+						QListWidgetItem* item = new QListWidgetItem(QIcon(iconPath.c_str()), parentFileName.c_str());
+						//fileList->addItem(parentFileName.c_str());
+						item->setToolTip(parentFileName.c_str());
+						fileList->addItem(item);
 					}
 				}
 			}
 			else {
-				fileList->addItem(fileName.c_str());
+				QFileInfo info(fileName.c_str());
+				QString extension = info.suffix();
+				std::string iconPath = imageBaseDir + iconForExtension(extension).toStdString();
+
+				QListWidgetItem* item = new QListWidgetItem(QIcon(iconPath.c_str()), fileName.c_str());
+				//fileList->addItem(fileName.c_str());
+				item->setToolTip(fileName.c_str());
+				fileList->addItem(item);
 			}
 		}
-		fileList->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+		int includedCount = fileList->count();
+		//fileList->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 		fileList->setStyleSheet(EListStyle);
 		fileList->setSpacing(4);
 		fileList->setSelectionMode(QAbstractItemView::NoSelection);
 		fileList->setFocusPolicy(Qt::FocusPolicy::NoFocus);
+
+		std::string titleText = std::to_string(includedCount) + " " + std::string(obs_module_text(titleLookup));
+		title->setText(titleText.c_str());
+		title->setStyleSheet(EWizardStepTitle);
+		std::string subtitleText = obs_module_text(subtitleLookup);
+		auto subTitle = new QLabel(this);
+		subTitle->setText(subtitleText.c_str());
+		subTitle->setStyleSheet(EWizardStepSubTitle);
+		subTitle->setWordWrap(true);
 
 		form->addWidget(title);
 		form->addWidget(subTitle);

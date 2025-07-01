@@ -78,6 +78,7 @@ public:
 	inline std::string avatarUrl() const { return _avatarUrl; }
 	inline bool avatarReady() const { return _avatarReady; }
 	inline std::string avatarPath() const { return _avatarPath; }
+	inline bool loggedIn() const { return _loggedIn; }
 	static void AvatarProgress(void* ptr, bool finished,
 		bool downloading, uint64_t fileSize,
 		uint64_t chunkSize, uint64_t downloaded);
@@ -85,6 +86,7 @@ public:
 	void setUserDetails(nlohmann::json &data);
 	void logOut();
 	void OpenStoreInBrowser() const;
+	void OpenAccountInBrowser() const;
 	std::string getAuthUrl(std::vector<std::string> const& segments, std::map<std::string, std::string> const& queryParams);
 	std::string getGatewayUrl(
 		std::vector<std::string> const& segments,
@@ -93,6 +95,7 @@ public:
 
 signals:
 	void AvatarDownloaded();
+	void UserDetailsUpdated();
 
 private:
 	MarketplaceApi();

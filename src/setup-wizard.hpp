@@ -95,6 +95,14 @@ public:
 	MissingPluginItem(QWidget *parent, std::string label, std::string url);
 };
 
+class MissingSourceClone : public QWidget {
+	Q_OBJECT
+public:
+	MissingSourceClone(std::string name, std::string thumbnailPath, QWidget* parent=nullptr);
+signals:
+	void backPressed();
+};
+
 class InstallType : public QWidget {
 	Q_OBJECT
 public:

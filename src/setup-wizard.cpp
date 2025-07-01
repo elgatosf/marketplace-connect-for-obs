@@ -148,6 +148,7 @@ MissingPluginItem::MissingPluginItem(QWidget *parent, std::string label,
 {
 	auto layout = new QHBoxLayout(this);
 	auto itemLabel = new QLabel(this);
+	setStyleSheet("background-color: #232323;");
 	itemLabel->setText(label.c_str());
 	itemLabel->setStyleSheet(EWizardFieldLabel);
 	layout->addWidget(itemLabel);
@@ -163,6 +164,81 @@ MissingPluginItem::MissingPluginItem(QWidget *parent, std::string label,
 	connect(downloadButton, &QPushButton::released, this,
 		[url]() { QDesktopServices::openUrl(QUrl(url.c_str())); });
 	layout->addWidget(downloadButton);
+}
+
+MissingSourceClone::MissingSourceClone(std::string name, std::string thumbnailPath, QWidget* parent)
+	: QWidget(parent)
+{
+	auto layout = new QVBoxLayout(this);
+	layout->setSpacing(16);
+	layout->addStretch();
+
+	if (thumbnailPath != "") {
+		auto thumbnail = new RoundedImageLabel(8, this);
+		QPixmap image(thumbnailPath.c_str());
+		thumbnail->setImage(image);
+		thumbnail->setFixedWidth(320);
+		//thumbnail->setMaximumWidth(320);
+		thumbnail->setAlignment(Qt::AlignCenter);
+
+		auto thumbLayout = centeredWidgetLayout(thumbnail);
+
+		layout->addLayout(thumbLayout);
+	}
+	else {
+		auto placeholder = new CameraPlaceholder(8, this);
+		std::string imageBaseDir = GetDataPath();
+		imageBaseDir += "/images/";
+		std::string imgPath = imageBaseDir + "icon-scene-collection.svg";
+		placeholder->setIcon(imgPath.c_str());
+		placeholder->setFixedWidth(320);
+
+		auto placeholderLayout = centeredWidgetLayout(placeholder);
+
+		layout->addLayout(placeholderLayout);
+	}
+
+	QLabel* title = new QLabel(this);
+	title->setText(obs_module_text("SetupWizard.MissingSourceClone.Title"));
+	title->setStyleSheet(EWizardStepTitle);
+	title->setAlignment(Qt::AlignCenter);
+	title->setFixedWidth(320);
+	title->setWordWrap(true);
+	auto titleLayout = centeredWidgetLayout(title);
+	layout->addLayout(titleLayout);
+
+	auto subTitle = new QLabel(obs_module_text("SetupWizard.MissingSourceClone.Description"), this);
+	subTitle->setStyleSheet(EWizardStepSubTitle);
+	subTitle->setFixedWidth(320);
+	subTitle->setAlignment(Qt::AlignCenter);
+	subTitle->setWordWrap(true);
+
+	auto subTitleLayout = centeredWidgetLayout(subTitle);
+	layout->addLayout(subTitleLayout);
+
+	// Setup New and Existing buttons.
+	QHBoxLayout* buttons = new QHBoxLayout(this);
+	QPushButton* backButton = new QPushButton(this);
+	backButton->setText(obs_module_text("SetupWizard.BackButton"));
+	backButton->setStyleSheet(EWizardQuietButtonStyle);
+
+	connect(backButton, &QPushButton::released, this,
+		[this]() { emit backPressed(); });
+
+	QPushButton* getButton = new QPushButton(this);
+	std::string sourceCloneUrl = "https://obsproject.com/forum/resources/source-clone.1632/";
+	getButton->setText(obs_module_text("SetupWizard.MissingPlugins.DownloadButton"));
+	getButton->setStyleSheet(EWizardButtonStyle);
+	connect(getButton, &QPushButton::released, this,
+		[sourceCloneUrl]() { 
+			QDesktopServices::openUrl(QUrl(sourceCloneUrl.c_str()));
+		});
+	buttons->addStretch();
+	buttons->addWidget(backButton);
+	buttons->addWidget(getButton);
+	buttons->addStretch();
+
+	layout->addLayout(buttons);
 }
 
 InstallType::InstallType(QWidget *parent, std::string name,
@@ -260,7 +336,7 @@ StartInstall::StartInstall(QWidget* parent, std::string name,
 
 	QPushButton* mergeCollectionButton = new QPushButton(this);
 	mergeCollectionButton->setText(obs_module_text("SetupWizard.MergeCollection"));
-	mergeCollectionButton->setStyleSheet(EWizardButtonStyle);
+	mergeCollectionButton->setStyleSheet(EWizardQuietButtonStyle);
 	connect(mergeCollectionButton, &QPushButton::released, this,
 		[this]() { emit mergeCollectionPressed(); });
 
@@ -1200,6 +1276,21 @@ void StreamPackageSetupWizard::_buildNewCollectionUI(std::map<std::string, std::
 void StreamPackageSetupWizard::_buildMergeCollectionUI(std::map<std::string, std::string>& videoSourceLabels, std::vector<OutputScene>& outputScenes)
 {
 	_mergeCollectionSteps = new QStackedWidget(this);
+
+	PluginInfo pi;
+	std::vector<PluginDetails>
+		missing = pi.missing({ "source-clone.dll" });
+	if (missing.size() > 0) {
+		auto missingSourceClone = new MissingSourceClone(_productName, _thumbnailPath, this);
+		connect(missingSourceClone, &MissingSourceClone::backPressed, this, [this]() {
+			_container->setCurrentIndex(1);
+		});
+
+		_mergeCollectionSteps->addWidget(missingSourceClone);
+		_mergeCollectionSteps->setCurrentIndex(0);
+		_container->addWidget(_mergeCollectionSteps);
+		return;
+	}
 
 	std::vector<std::string> steps = {
 		obs_module_text("SetupWizard.MergeCollectionSteps.GetStarted"),

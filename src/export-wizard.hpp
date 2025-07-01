@@ -34,6 +34,8 @@ with this program.If not, see < https://www.gnu.org/licenses/>
 #include <QStackedWidget>
 #include <QMovie>
 #include <QTConcurrent>
+#include <QStyledItemDelegate>
+#include <QFontMetrics>
 
 #include "scene-bundle.hpp"
 #include "elgato-widgets.hpp"
@@ -60,6 +62,21 @@ public:
 signals:
 	void continuePressed();
 };
+
+
+class SceneCollectionFilesDelegate : public QStyledItemDelegate {
+	Q_OBJECT
+public:
+	explicit SceneCollectionFilesDelegate(QObject* parent = nullptr);
+
+	QString elideMiddlePath(const QString& fullPath, const QFontMetrics& metrics, int maxWidth) const;
+
+	void paint(QPainter* painter, const QStyleOptionViewItem& option,
+		const QModelIndex& index) const override;
+
+	QSize sizeHint(const QStyleOptionViewItem& option, const QModelIndex& index) const override;
+};
+
 
 class FileCollectionCheck : public QWidget {
 	Q_OBJECT

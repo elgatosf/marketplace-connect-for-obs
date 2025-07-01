@@ -174,6 +174,7 @@ void MarketplaceApi::setUserDetails(nlohmann::json &data)
 			}
 		}
 		_loggedIn = true;
+		emit UserDetailsUpdated();
 	} catch (...) {
 		obs_log(LOG_ERROR, "There was a problem processing the user response data.");
 	}
@@ -221,6 +222,24 @@ void MarketplaceApi::OpenStoreInBrowser() const
 	std::string storeUrl =
 		_storeUrl +
 		"/obs/scene-collections?utm_source=mp_connect&utm_medium=direct_software&utm_campaign=v_1.0";
+	std::string url;
+	if (accessToken != "") {
+		std::string storeUrlEnc = url_encode(storeUrl);
+		url = _storeUrl + "/api/auth/login?token=" + accessToken + "&redirect=" + storeUrlEnc;
+	}
+	else {
+		url = storeUrl;
+	}
+	ShellExecuteA(NULL, NULL, url.c_str(), NULL, NULL, SW_SHOW);
+}
+
+void MarketplaceApi::OpenAccountInBrowser() const
+{
+	auto ec = GetElgatoCloud();
+	auto accessToken = ec->GetAccessToken();
+	std::string storeUrl =
+		_storeUrl +
+		"/account/personal?utm_source=mp_connect&utm_medium=direct_software&utm_campaign=v_1.0";
 	std::string url;
 	if (accessToken != "") {
 		std::string storeUrlEnc = url_encode(storeUrl);

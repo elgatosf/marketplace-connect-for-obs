@@ -207,6 +207,17 @@ UserMenu::UserMenu(QWidget* parent) : QWidget(parent)
 	_stack->addWidget(_plainAvatar);
 	_stack->addWidget(_imgAvatar);
 	_stack->setCurrentIndex(elgatoCloud->loggedIn && api->avatarReady() ? 1 : 0);
+
+	connect(api, &MarketplaceApi::UserDetailsUpdated, this, [this, api]() {
+		bool avatar = elgatoCloud->loggedIn && api->hasAvatar();
+		_stack->setCurrentIndex(avatar ? 1 : 0);
+		if (elgatoCloud->loggedIn) {
+			std::string name = api->firstName() + " " + api->lastName();
+			_accountTitle->setText(name.c_str());
+			_plainAvatar->update();
+		}
+	});
+
 	connect(api, &MarketplaceApi::AvatarDownloaded, this, [this, api]() {
 		_stack->setCurrentIndex(elgatoCloud->loggedIn && api->avatarReady() ? 1 : 0);
 		if (elgatoCloud->loggedIn) {
@@ -225,7 +236,8 @@ UserMenu::UserMenu(QWidget* parent) : QWidget(parent)
 		_showModalMenu();
 	});
 
-	connect(viewAccount, &QAction::triggered, []() {
+	connect(viewAccount, &QAction::triggered, [api]() {
+		api->OpenAccountInBrowser();
 	});
 
 	connect(signOut, &QAction::triggered, []() {
@@ -263,17 +275,14 @@ WindowToolBar::WindowToolBar(QWidget *parent) : QWidget(parent)
 	std::string imageBaseDir = GetDataPath();
 	imageBaseDir += "/images/";
 
-	setFixedHeight(48);
+	setFixedHeight(40);
 
 	auto api = MarketplaceApi::getInstance();
-
-	QPalette pal = QPalette();
-	pal.setColor(QPalette::Window, "#000000");
-	setAutoFillBackground(true);
-	setPalette(pal);
+	setAttribute(Qt::WA_StyledBackground, true);
+	setStyleSheet("background-color: #000000;");
 
 	_layout = new QHBoxLayout(this);
-	_layout->setContentsMargins(8, 8, 8, 8);
+	_layout->setContentsMargins(8, 8, 8, 0);
 	_layout->setSpacing(0);
 	_logo = new QLabel(this);
 	std::string logoPath = imageBaseDir + "marketplace-full-logo.svg";
@@ -314,28 +323,6 @@ WindowToolBar::WindowToolBar(QWidget *parent) : QWidget(parent)
 		[this]() { emit settingsClicked(); });
 	_layout->addWidget(_settingsButton);
 
-	//_logInButton = new QPushButton(this);
-	//_logInButton->setText(
-	//	obs_module_text("MarketplaceWindow.LoginButton.LogIn"));
-	//_logInButton->setHidden(elgatoCloud->loggedIn);
-	//_logInButton->setStyleSheet(
-	//	"QPushButton {font-size: 12pt; border-radius: 8px; padding: 8px; background-color: #232323; border: none; } "
-	//	"QPushButton:hover {background-color: #444444; }");
-	//_layout->addWidget(_logInButton);
-	//connect(_logInButton, &QPushButton::clicked, this,
-	//	[this]() { elgatoCloud->StartLogin(); });
-
-	//_logOutButton = new QPushButton(this);
-	//_logOutButton->setText(
-	//	obs_module_text("MarketplaceWindow.LoginButton.LogOut"));
-	//_logOutButton->setHidden(!elgatoCloud->loggedIn);
-	//_logOutButton->setStyleSheet(
-	//	"QPushButton {font-size: 12pt; border-radius: 8px; padding: 8px; background-color: #232323; border: none; } "
-	//	"QPushButton:hover {background-color: #444444; }");
-	//connect(_logOutButton, &QPushButton::clicked, this,
-	//	[this]() { elgatoCloud->LogOut(); });
-
-	//_layout->addWidget(_logOutButton);
 	_userMenu = new UserMenu(this);
 	_userMenu->setHidden(!elgatoCloud->loggedIn);
 	
@@ -357,12 +344,6 @@ void WindowToolBar::updateState()
 {
 	auto api = MarketplaceApi::getInstance();
 	_userMenu->setHidden(!elgatoCloud->loggedIn);
-	//_avatar->setHidden(!elgatoCloud->loggedIn || api->avatarReady());
-	//_avatarImage->setHidden(!elgatoCloud->loggedIn || !api->avatarReady());
-	//if (elgatoCloud->loggedIn) {
-		//_avatar->update();
-		//_avatarImage->update();
-	//}
 }
 
 Placeholder::Placeholder(QWidget *parent, std::string message) : QWidget(parent)
@@ -438,9 +419,8 @@ OwnedProducts::OwnedProducts(QWidget *parent) : QWidget(parent)
 	_sideMenu = new QListWidget(this);
 	QIcon icon(iconPath.c_str());
 	auto yourLibrary = new QListWidgetItem(icon, obs_module_text("MarketplaceWindow.PurchasedTab"));
+	_sideMenu->setIconSize(QSize(20, 20));
 	_sideMenu->addItem(yourLibrary);
-	//_sideMenu->addItem(obs_module_text("MarketplaceWindow.PurchasedTab"));
-	//_sideMenu->addItem("Installed (#)");
 	_sideMenu->setSizePolicy(QSizePolicy::Preferred,
 				 QSizePolicy::Expanding);
 	_sideMenu->setStyleSheet(ELeftNavListStyle);
@@ -459,6 +439,12 @@ OwnedProducts::OwnedProducts(QWidget *parent) : QWidget(parent)
 				_content->setCurrentIndex(1);
 			}
 		});
+
+	connect(api, &MarketplaceApi::UserDetailsUpdated, this, [this, api]() {
+		if (api->loggedIn()) {
+			refreshProducts();
+		}
+	});
 
 	_content = new QStackedWidget(this);
 	_installed = new Placeholder(this, "Installed, not yet implemented...");
@@ -524,6 +510,8 @@ void OwnedProducts::refreshProducts()
 		_numProducts = _purchased->loadProducts();
 		if (_numProducts == 0) {
 			_content->setCurrentIndex(2);
+		} else {
+			_content->setCurrentIndex(0);
 		}
 	}
 }
@@ -567,6 +555,8 @@ void ElgatoCloudWindow::initialize()
 	mainLayout->setContentsMargins(0, 0, 0, 0);
 
 	_toolbar = new WindowToolBar(_mainWidget);
+	//_toolbar->setStyleSheet("background-color: #000000");
+
 	connect(_toolbar, &WindowToolBar::settingsClicked, this,
 		[this]() { _config = openConfigWindow(this); });
 
