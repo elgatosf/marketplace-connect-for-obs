@@ -419,7 +419,7 @@ void Downloader::fillEntry(Downloader::Entry &dst,
 				last.first - first.first)
 				.count();
 		auto bytesDownloaded = last.second - first.second;
-		dst.speedBps = bytesDownloaded / interval;
+		dst.speedBps = interval != 0 ? bytesDownloaded / interval : 0;
 	}
 }
 
@@ -434,6 +434,9 @@ void Downloader::Entry::Update()
 
 void Downloader::Entry::Stop()
 {
+	if (!parent) {
+		return;
+	}
 	std::unique_lock l(parent->lock);
 	auto dlentry = parent->queue.find(id);
 	if (dlentry != parent->queue.end()) {
@@ -474,6 +477,9 @@ void Downloader::tryDelete(decltype(Downloader::queue)::iterator iter)
 
 Downloader::Entry::~Entry()
 {
+	if (!parent) {
+		return;
+	}
 	std::unique_lock l(parent->lock);
 	auto dlentry = parent->queue.find(id);
 	if (dlentry != parent->queue.end()) {

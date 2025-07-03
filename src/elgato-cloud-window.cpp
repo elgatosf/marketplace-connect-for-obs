@@ -904,6 +904,13 @@ void ProductThumbnail::setDownloading(bool downloading)
 	_downloading = downloading;
 }
 
+ProductThumbnail::~ProductThumbnail()
+{
+	if (_downloading) {
+		emit cancelDownloadClicked();
+	}
+}
+
 ElgatoProductItem::ElgatoProductItem(QWidget *parent, ElgatoProduct *product)
 	: QWidget(parent),
 	  _product(product)

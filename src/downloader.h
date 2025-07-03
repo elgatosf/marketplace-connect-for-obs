@@ -132,7 +132,7 @@ private:
 public:
 	struct Entry {
 		size_t id;
-		Downloader *parent;
+		Downloader *parent = nullptr;
 
 		std::string fileName, url;
 		uint64_t fileSize, downloaded, speedBps; // bytes per second

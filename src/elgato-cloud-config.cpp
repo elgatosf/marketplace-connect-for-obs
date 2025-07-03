@@ -443,7 +443,7 @@ void SimpleVolumeMeter::calculateDisplayPeak(uint64_t ts)
 		_displayPeak = _currentPeak;
 	} else {
 		float decay = deltaT * _decayRate;
-		_displayPeak = std::max(_displayPeak - decay, _minMag);
+		_displayPeak = (std::max)(_displayPeak - decay, _minMag);
 	}
 }
 
@@ -459,7 +459,7 @@ void SimpleVolumeMeter::paintEvent(QPaintEvent *event)
 	float fwidth = static_cast<float>(width) * (_displayPeak - _minMag) /
 		       (-_minMag);
 	int newWidth = static_cast<int>(fwidth);
-	widgetRect.setWidth(std::min(width, newWidth));
+	widgetRect.setWidth((std::min)(width, newWidth));
 
 	QPainter painter(this);
 
@@ -775,8 +775,8 @@ void ElgatoCloudConfig::DrawVideoPreview(void *data, uint32_t cx, uint32_t cy)
 		return;
 
 	uint32_t sourceCX =
-		std::max(obs_source_get_width(window->_videoCaptureSource), 1u);
-	uint32_t sourceCY = std::max(
+		(std::max)(obs_source_get_width(window->_videoCaptureSource), 1u);
+	uint32_t sourceCY = (std::max)(
 		obs_source_get_height(window->_videoCaptureSource), 1u);
 
 	int x, y;

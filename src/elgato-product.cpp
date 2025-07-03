@@ -39,7 +39,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include "elgato-cloud-window.hpp"
 #include "util.h"
 #include "setup-wizard.hpp"
-#include "downloader.h"
+
 
 namespace elgatocloud {
 
@@ -119,13 +119,16 @@ bool ElgatoProduct::DownloadProduct()
 	os_mkdirs(savePath.c_str());
 
 	std::shared_ptr<Downloader> dl = Downloader::getInstance("");
-	dl->Enqueue(url, savePath, ElgatoProduct::DownloadProgress, nullptr, this);
+	auto download = dl->Enqueue(url, savePath, ElgatoProduct::DownloadProgress, nullptr, this);
+	downloadId_ = download.id;
 	return true;
 }
 
 void ElgatoProduct::StopProductDownload()
 {
-
+	std::shared_ptr<Downloader> dl = Downloader::getInstance("");
+	auto download = dl->Lookup(downloadId_);
+	download.Stop();
 }
 
 void ElgatoProduct::_downloadThumbnail()

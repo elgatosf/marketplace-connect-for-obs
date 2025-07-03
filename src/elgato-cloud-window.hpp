@@ -130,6 +130,7 @@ class ProductThumbnail : public QWidget {
 
 public:
 	ProductThumbnail(QWidget* parent, const QPixmap& pixmap);
+	~ProductThumbnail();
 	void setPixmap(const QPixmap& pixmap);
 	inline void updateDownloadProgress(float progress) { _thumbnail->setProgress(progress); }
 	void disable(bool disable);

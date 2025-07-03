@@ -34,6 +34,8 @@ ThirdPartyItem::ThirdPartyItem(std::string label,
 {
 	auto layout = new QHBoxLayout(this);
 	auto itemLabel = new QLabel(this);
+	setStyleSheet("background-color: #232323;");
+
 	itemLabel->setText(label.c_str());
 	itemLabel->setStyleSheet(EWizardFieldLabel);
 	layout->addWidget(itemLabel);
@@ -62,15 +64,13 @@ SceneCollectionInfo::SceneCollectionInfo(std::vector<SceneCollectionLineItem> co
 
 	QLabel* title = new QLabel(this);
 	title->setText(obs_module_text("SceneCollectionInfo.Title"));
-	title->setAlignment(Qt::AlignCenter);
-	title->setStyleSheet("QLabel {font-size: 14pt;}");
+	title->setStyleSheet(EWizardStepTitle);
 	layout->addWidget(title);
 
 	QLabel* subTitle = new QLabel(this);
 	subTitle->setText(obs_module_text("SceneCollectionInfo.Text"));
-	subTitle->setAlignment(Qt::AlignCenter);
 	subTitle->setWordWrap(true);
-	subTitle->setStyleSheet("QLabel {font-size: 12pt;}");
+	subTitle->setStyleSheet(EWizardStepSubTitle);
 	layout->addWidget(subTitle);
 
 	auto thirdPartyList = new QListWidget(this);

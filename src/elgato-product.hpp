@@ -22,6 +22,8 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 
 #include <nlohmann/json.hpp>
 
+#include "downloader.h"
+
 namespace elgatocloud {
 
 class ElgatoProductItem;
@@ -61,6 +63,7 @@ private:
 	bool _thumbnailReady;
 	size_t _fileSize;
 	ElgatoProductItem *_productItem = nullptr;
+	size_t downloadId_;
 };
 
 } // namespace elgatocloud

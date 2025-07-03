@@ -109,19 +109,23 @@ MissingPlugins::MissingPlugins(QWidget *parent, std::string name,
 	: QWidget(parent)
 {
 	QVBoxLayout *layout = new QVBoxLayout(this);
-	StreamPackageHeader *header = new StreamPackageHeader(parent, name, thumbnailPath);
-	layout->addWidget(header);
 	QLabel *title = new QLabel(this);
-	title->setText(obs_module_text("SetupWizard.MissingPlugins.Title"));
-	title->setAlignment(Qt::AlignCenter);
-	title->setStyleSheet("QLabel {font-size: 14pt;}");
+	int count = (int)missing.size();
+	if (count > 1) {
+		std::string titleText = std::to_string(count) + " ";
+		titleText += obs_module_text("SetupWizard.MissingPlugins.Title.Plural");
+		title->setText(titleText.c_str());
+	} else {
+		title->setText(obs_module_text("SetupWizard.MissingPlugins.Title.Single"));
+	}
+	
+	title->setStyleSheet(EWizardStepTitle);
 	layout->addWidget(title);
 
 	QLabel *subTitle = new QLabel(this);
 	subTitle->setText(obs_module_text("SetupWizard.MissingPlugins.Text"));
-	subTitle->setAlignment(Qt::AlignCenter);
 	subTitle->setWordWrap(true);
-	subTitle->setStyleSheet("QLabel {font-size: 12pt;}");
+	subTitle->setStyleSheet(EWizardStepSubTitle);
 	layout->addWidget(subTitle);
 
 	auto pluginList = new QListWidget(this);
@@ -173,31 +177,6 @@ MissingSourceClone::MissingSourceClone(std::string name, std::string thumbnailPa
 	layout->setSpacing(16);
 	layout->addStretch();
 
-	if (thumbnailPath != "") {
-		auto thumbnail = new RoundedImageLabel(8, this);
-		QPixmap image(thumbnailPath.c_str());
-		thumbnail->setImage(image);
-		thumbnail->setFixedWidth(320);
-		//thumbnail->setMaximumWidth(320);
-		thumbnail->setAlignment(Qt::AlignCenter);
-
-		auto thumbLayout = centeredWidgetLayout(thumbnail);
-
-		layout->addLayout(thumbLayout);
-	}
-	else {
-		auto placeholder = new CameraPlaceholder(8, this);
-		std::string imageBaseDir = GetDataPath();
-		imageBaseDir += "/images/";
-		std::string imgPath = imageBaseDir + "icon-scene-collection.svg";
-		placeholder->setIcon(imgPath.c_str());
-		placeholder->setFixedWidth(320);
-
-		auto placeholderLayout = centeredWidgetLayout(placeholder);
-
-		layout->addLayout(placeholderLayout);
-	}
-
 	QLabel* title = new QLabel(this);
 	title->setText(obs_module_text("SetupWizard.MissingSourceClone.Title"));
 	title->setStyleSheet(EWizardStepTitle);
@@ -239,6 +218,7 @@ MissingSourceClone::MissingSourceClone(std::string name, std::string thumbnailPa
 	buttons->addStretch();
 
 	layout->addLayout(buttons);
+	layout->addStretch();
 }
 
 InstallType::InstallType(QWidget *parent, std::string name,
@@ -1152,7 +1132,7 @@ bool StreamPackageSetupWizard::EnableVideoCaptureSourcesActive(void* data,
 void StreamPackageSetupWizard::_buildMissingPluginsUI(
 	std::vector<PluginDetails> &missing)
 {
-	setFixedSize(500, 350);
+	setFixedSize(640, 512);
 	//QVBoxLayout *layout = new QVBoxLayout(this);
 
 	auto missingPlugins =

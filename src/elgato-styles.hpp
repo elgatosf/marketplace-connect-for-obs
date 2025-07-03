@@ -48,6 +48,7 @@ namespace elgatocloud {
 		"QListWidget::item {"
 		"border: none;"
 		"padding: 0px;"
+		"font-size: 16px;"
 		"background-color: #232323;"
 		"border-radius: 8px;"
 		"}"
