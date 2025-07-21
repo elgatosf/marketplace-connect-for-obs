@@ -145,8 +145,9 @@ StartExport::StartExport(std::string name, QWidget* parent)
 	placeholderLayout->addStretch();
 	layout->addLayout(placeholderLayout);
 
-	std::string titleString = obs_module_text("ExportWizard.Export");
-	titleString += " " + name;
+	std::string titleString = obs_module_text("ExportWizard.ExportTitle");
+	replace_all(titleString, "{COLLECTION_NAME}", name);
+	//titleString += " " + name;
 	auto title = new QLabel(titleString.c_str(), this);
 	title->setStyleSheet(EWizardStepTitle);
 	title->setAlignment(Qt::AlignCenter);
@@ -269,7 +270,7 @@ FileCollectionCheck::FileCollectionCheck(std::string name,
 	auto form = new QVBoxLayout();
 
 	auto title = new QLabel(this);
-	const char* titleLookup = _files.size() == 1 ? "ExportWizard.MediaFileCheck.TitleSingular" : "ExportWizard.MediaFileCheck.TitlePlural";
+	std::string titleLookup = _files.size() == 1 ? "ExportWizard.MediaFileCheck.TitleSingular" : "ExportWizard.MediaFileCheck.TitlePlural";
 	const char* subtitleLookup = _files.size() == 1 ? "ExportWizard.MediaFileCheck.SubtitleSingular" : "ExportWizard.MediaFileCheck.SubtitlePlural";
 
 	if (_files.size() > 0) {
@@ -329,8 +330,8 @@ FileCollectionCheck::FileCollectionCheck(std::string name,
 		fileList->setSpacing(4);
 		fileList->setSelectionMode(QAbstractItemView::NoSelection);
 		fileList->setFocusPolicy(Qt::FocusPolicy::NoFocus);
-
-		std::string titleText = std::to_string(includedCount) + " " + std::string(obs_module_text(titleLookup));
+		std::string titleText = obs_module_text(titleLookup.c_str());
+		replace_all(titleText, "{COUNT}", std::to_string(includedCount));
 		title->setText(titleText.c_str());
 		title->setStyleSheet(EWizardStepTitle);
 		std::string subtitleText = obs_module_text(subtitleLookup);
@@ -344,8 +345,8 @@ FileCollectionCheck::FileCollectionCheck(std::string name,
 		form->addWidget(fileList);
 	} else {
 		form->addStretch();
-		std::string titleText = "No " + std::string(obs_module_text(titleLookup));
-		title->setText(titleText.c_str());
+		replace_all(titleLookup, "{COUNT}", std::to_string(0));
+		title->setText(titleLookup.c_str());
 		title->setStyleSheet(EWizardStepTitle);
 		title->setAlignment(Qt::AlignCenter);
 
@@ -739,7 +740,10 @@ RequiredPlugins::RequiredPlugins(std::string name,
 	auto formLayout = new QVBoxLayout();
 
 	if (installed.size() > 0) {
-		std::string titleText = installed.size() == 1 ? obs_module_text("ExportWizard.RequiredPlugins.SingleTitle") : std::to_string(installed.size()) + " " + obs_module_text("ExportWizard.RequiredPlugins.PluralTitle");
+		std::string titleText = installed.size() == 1 ? obs_module_text("ExportWizard.RequiredPlugins.SingleTitle") : obs_module_text("ExportWizard.RequiredPlugins.PluralTitle");
+		
+		replace_all(titleText, "{COUNT}", std::to_string(installed.size()));
+		
 		auto title = new QLabel(titleText.c_str(), this);
 		title->setStyleSheet(EWizardStepTitle);
 		
@@ -998,9 +1002,10 @@ ExportComplete::ExportComplete(std::string name, QWidget *parent) : QWidget(pare
 	placeholderLayout->addStretch();
 	layout->addLayout(placeholderLayout);
 
-	std::string titleString = obs_module_text("ExportWizard.Export");
-	std::string complete = obs_module_text("ExportWizard.Complete");
-	titleString += " " + name + " " + complete;
+	//std::string titleString = obs_module_text("ExportWizard.Export");
+	std::string titleString = obs_module_text("ExportWizard.Complete");
+	replace_all(titleString, "{COLLECTION_NAME}", name);
+	//titleString += " " + name + " " + complete;
 	auto title = new QLabel(titleString.c_str(), this);
 	title->setStyleSheet(EWizardStepTitle);
 	title->setAlignment(Qt::AlignCenter);

@@ -389,12 +389,14 @@ size_t ProductGrid::loadProducts()
 	return elgatoCloud->products.size();
 }
 
-void ProductGrid::disableDownload()
+void ProductGrid::disableDownload(ElgatoProductItem* skip)
 {
 	for (int i = 0; i < layout()->count(); ++i) {
 		auto item = dynamic_cast<ElgatoProductItem *>(
 			layout()->itemAt(i)->widget());
-		item->disableDownload();
+		if (item != skip) {
+			item->disableDownload();
+		}
 	}
 }
 
@@ -404,6 +406,14 @@ void ProductGrid::enableDownload()
 		auto item = dynamic_cast<ElgatoProductItem *>(
 			layout()->itemAt(i)->widget());
 		item->enableDownload();
+	}
+}
+
+void ProductGrid::closing() {
+	for (int i = 0; i < layout()->count(); ++i) {
+		auto item = dynamic_cast<ElgatoProductItem*>(
+			layout()->itemAt(i)->widget());
+		item->closing();
 	}
 }
 
@@ -516,6 +526,11 @@ void OwnedProducts::refreshProducts()
 	}
 }
 
+void OwnedProducts::closing()
+{
+	_purchased->closing();
+}
+
 ElgatoCloudWindow::ElgatoCloudWindow(QWidget *parent) : QDialog(parent)
 //ui(new Ui_ElgatoCloudWindow)
 {
@@ -600,6 +615,15 @@ void ElgatoCloudWindow::setLoading()
 {
 	_toolbar->disableLogout(true);
 	_stackedContent->setCurrentIndex(3);
+}
+
+void ElgatoCloudWindow::closeEvent(QCloseEvent* event)
+{
+	// TODO: Possibly add dialog to confirm if the user wants
+	//       to close the window if an active download is in
+	//       progress?
+	_ownedProducts->closing();
+	event->accept();
 }
 
 void ElgatoCloudWindow::on_logInButton_clicked()
@@ -697,6 +721,9 @@ void ProgressThumbnail::setDisabled(bool disabled)
 void ProgressThumbnail::setDownloading(bool downloading)
 {
 	_downloading = downloading;
+	if (!downloading) {
+		setProgress(1.0);
+	}
 	_opacity = 1.0f;
 	update();
 }
@@ -716,8 +743,9 @@ void ProgressThumbnail::paintEvent(QPaintEvent* event)
 	painter.setClipPath(path);
 
 	QSize labelSize = size();
+	float progress = _downloading ? _progress : 1.0f;
 
-	int splitX = static_cast<int>(labelSize.width() * _progress);
+	int splitX = static_cast<int>(labelSize.width() * progress);
 	int height = _pixmapScaled.height();
 	int width = labelSize.width();
 	float opacity = _downloading ? 1.0 : _opacity;
@@ -741,7 +769,7 @@ void ProgressThumbnail::paintEvent(QPaintEvent* event)
 	painter.setBrush(Qt::NoBrush);
 
 	painter.drawRoundedRect(rect(), radius, radius);
-	if (_progress > 0.0f && _progress < 1.0f) {
+	if (progress > 0.0f && progress < 1.0f) {
 		painter.drawLine(splitX, 0, splitX, height);
 	}
 }
@@ -787,41 +815,61 @@ ProductThumbnail::ProductThumbnail(QWidget* parent, const QPixmap& pixmap)
 	_thumbnail = new ProgressThumbnail(0.1f, false, this);
 	_thumbnail->setCustomPixmap(pixmap);
 	_thumbnail->setProgress(1.0);
+
+	_downloadButton = new QPushButton(this);
+	
+	_downloadButton->hide();
+	connect(_downloadButton, &QPushButton::clicked, this, [this]() {
+		if (!_downloading) {
+			setDownloading(true);
+			emit downloadClicked();
+		} else {
+			setDownloading(false);
+			emit cancelDownloadClicked();
+		}
+		updateButton_();
+	});
+
+	updateButton_();
+	layout->addWidget(_thumbnail);
+}
+
+void ProductThumbnail::updateButton_()
+{
 	std::string imageBaseDir = GetDataPath();
 	imageBaseDir += "/images/";
-	std::string iconPath = imageBaseDir + "button-download.svg";
-	QPixmap iconPixmap(iconPath.c_str());
-	QIcon downloadIcon(iconPixmap);
-	_downloadButton = new QPushButton("Install", this);
-	_downloadButton->setFixedHeight(32);
-	_downloadButton->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
-	_downloadButton->setIcon(downloadIcon);
-	_downloadButton->setIconSize(iconPixmap.rect().size());
-	_downloadButton->setStyleSheet(EBlankSlateButtonStyle);
-	_downloadButton->hide();
-	connect(_downloadButton, &QPushButton::clicked, [this]() {
-		setDownloading(true);
-		emit downloadClicked();
-	});
-
-	std::string stopIconPath = imageBaseDir + "button-stop-download.svg";
-	QPixmap stopIconPixmap(stopIconPath.c_str());
-	QIcon stopDownloadIcon(stopIconPixmap);
-
-	_stopDownloadButton = new QPushButton(this);
-	_stopDownloadButton->setFixedHeight(32);
-	_stopDownloadButton->setFixedWidth(32);
-	_stopDownloadButton->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
-	_stopDownloadButton->setIcon(stopDownloadIcon);
-	_stopDownloadButton->setIconSize(stopIconPixmap.rect().size());
-	_stopDownloadButton->setStyleSheet(EStopDownloadButtonStyle);
-	_stopDownloadButton->hide();
-	connect(_stopDownloadButton, &QPushButton::clicked, [this]() {
-		setDownloading(false);
-		emit cancelDownloadClicked();
-	});
-
-	layout->addWidget(_thumbnail);
+	if (!_downloading) {
+		std::string iconPath = imageBaseDir + "button-download.svg";
+		QPixmap iconPixmap(iconPath.c_str());
+		QIcon downloadIcon(iconPixmap);
+		_downloadButton->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Fixed);
+		_downloadButton->setFixedHeight(32);
+		_downloadButton->setMinimumSize(QSize(0, 0));
+		_downloadButton->setMaximumSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX);
+		_downloadButton->setIcon(downloadIcon);
+		_downloadButton->setIconSize(iconPixmap.rect().size());
+		_downloadButton->setStyleSheet(EBlankSlateButtonStyle);
+		_downloadButton->setText("Install");
+	} else {
+		std::string stopIconPath = imageBaseDir + "button-stop-download.svg";
+		QPixmap stopIconPixmap(stopIconPath.c_str());
+		QIcon stopDownloadIcon(stopIconPixmap);
+		_downloadButton->setText("");
+		_downloadButton->setMinimumSize(32, 32);
+		_downloadButton->setMaximumSize(32, 32);
+		_downloadButton->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+		_downloadButton->setIcon(stopDownloadIcon);
+		_downloadButton->setIconSize(stopIconPixmap.rect().size());
+		_downloadButton->setStyleSheet(EStopDownloadButtonStyle);
+	}
+	_downloadButton->adjustSize();
+	_downloadButton->updateGeometry();
+	QSize thumbSize = _thumbnail->size();
+	QSize buttonSize = _downloadButton->size();
+	int offsetX = (thumbSize.width() - buttonSize.width()) / 2;
+	int offsetY = (thumbSize.height() - buttonSize.height()) / 2;
+	_downloadButton->setGeometry(offsetX, offsetY, buttonSize.width(), buttonSize.height());
+	layout()->activate();
 }
 
 void ProductThumbnail::setPixmap(const QPixmap& pixmap)
@@ -841,28 +889,21 @@ bool ProductThumbnail::event(QEvent* e)
 	switch (e->type()) {
 	case QEvent::HoverEnter:
 		thumbSize = _thumbnail->size();
-		buttonSize = !_downloading ? _downloadButton->size() : _stopDownloadButton->size();
+		buttonSize = _downloadButton->size();
 		offsetX = (thumbSize.width() - buttonSize.width()) / 2;
 		offsetY = (thumbSize.height() - buttonSize.height()) / 2;
 		if (!_downloading) {
 			_thumbnail->onHoverEnter(static_cast<QHoverEvent*>(e));
-			_downloadButton->setGeometry(offsetX, offsetY, buttonSize.width(), buttonSize.height());
-			_downloadButton->show();
-		} else {
-			_stopDownloadButton->setGeometry(offsetX, offsetY, buttonSize.width(), buttonSize.height());
-			_stopDownloadButton->show();
 		}
+		_downloadButton->setGeometry(offsetX, offsetY, buttonSize.width(), buttonSize.height());
+		_downloadButton->show();
 		return true;
-		break;
 	case QEvent::HoverLeave:
 		if (!_downloading) {
 			_thumbnail->onHoverLeave(static_cast<QHoverEvent*>(e));
-			_downloadButton->hide();
-		} else {
-			_stopDownloadButton->hide();
 		}
+		_downloadButton->hide();
 		return true;
-		break;
 	default:
 		break;
 	}
@@ -896,19 +937,15 @@ void ProductThumbnail::enable(bool enable)
 void ProductThumbnail::setDownloading(bool downloading)
 {
 	_thumbnail->setDownloading(downloading);
-	_downloadButton->hide();
-	if (!downloading) {
-		_stopDownloadButton->hide();
-	}
 	update();
 	_downloading = downloading;
 }
 
 ProductThumbnail::~ProductThumbnail()
 {
-	if (_downloading) {
-		emit cancelDownloadClicked();
-	}
+	//if (_downloading) {
+	//	emit cancelDownloadClicked();
+	//}
 }
 
 ElgatoProductItem::ElgatoProductItem(QWidget *parent, ElgatoProduct *product)
@@ -949,7 +986,7 @@ ElgatoProductItem::ElgatoProductItem(QWidget *parent, ElgatoProduct *product)
 
 	connect(_labelImg, &ProductThumbnail::downloadClicked, [this]() {
 		auto p = dynamic_cast<ProductGrid*>(parentWidget());
-		p->disableDownload();
+		p->disableDownload(this);
 		bool success = _product->DownloadProduct();
 		if (!success) {
 			p->enableDownload();
@@ -970,7 +1007,13 @@ ElgatoProductItem::ElgatoProductItem(QWidget *parent, ElgatoProduct *product)
 	setLayout(layout);
 }
 
-ElgatoProductItem::~ElgatoProductItem() {}
+ElgatoProductItem::~ElgatoProductItem() {
+	_product->StopProductDownload();
+}
+
+void ElgatoProductItem::closing() {
+	_product->StopProductDownload();
+}
 
 void ElgatoProductItem::resetDownload()
 {

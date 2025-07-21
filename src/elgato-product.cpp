@@ -77,7 +77,8 @@ ElgatoProduct::ElgatoProduct(std::string collectionName)
 	: name(collectionName),
 	  thumbnailUrl(""),
 	  variantId(""),
-	  _fileSize(0)
+	  _fileSize(0),
+	  downloading_(false)
 {
 	thumbnailPath = "";
 	_thumbnailReady = true;
@@ -121,14 +122,19 @@ bool ElgatoProduct::DownloadProduct()
 	std::shared_ptr<Downloader> dl = Downloader::getInstance("");
 	auto download = dl->Enqueue(url, savePath, ElgatoProduct::DownloadProgress, nullptr, this);
 	downloadId_ = download.id;
+	downloading_ = true;
 	return true;
 }
 
 void ElgatoProduct::StopProductDownload()
 {
-	std::shared_ptr<Downloader> dl = Downloader::getInstance("");
-	auto download = dl->Lookup(downloadId_);
-	download.Stop();
+	if (downloading_) {
+		std::shared_ptr<Downloader> dl = Downloader::getInstance("");
+		auto download = dl->Lookup(downloadId_);
+		download.id = downloadId_;
+		download.Stop();
+		downloading_ = false;
+	}
 }
 
 void ElgatoProduct::_downloadThumbnail()
@@ -185,6 +191,7 @@ void ElgatoProduct::Install(std::string filename_utf8, void *data,
 			    bool fromDownload)
 {
 	auto ep = static_cast<ElgatoProduct *>(data);
+	ep->downloading_ = false;
 	const auto mainWindow =
 		static_cast<QMainWindow *>(obs_frontend_get_main_window());
 	if (ep->_productItem) {

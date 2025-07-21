@@ -147,6 +147,7 @@ protected:
 	void resizeEvent(QResizeEvent* event) override;
 
 private:
+	void updateButton_();
 	ProgressThumbnail* _thumbnail;
 	QPushButton* _downloadButton;
 	QPushButton* _stopDownloadButton;
@@ -165,6 +166,7 @@ public:
 	void resetDownload();
 	void disableDownload();
 	void enableDownload();
+	void closing();
 
 private:
 	ElgatoProduct* _product;
@@ -202,8 +204,9 @@ public:
 	ProductGrid(QWidget *parent);
 	~ProductGrid();
 	size_t loadProducts();
-	void disableDownload();
+	void disableDownload(ElgatoProductItem* skip = nullptr);
 	void enableDownload();
+	void closing();
 
 private:
 	FlowLayout *_layout;
@@ -226,6 +229,7 @@ public:
 	~OwnedProducts();
 
 	void refreshProducts();
+	void closing();
 
 private:
 	QHBoxLayout *_layout = nullptr;
@@ -288,6 +292,9 @@ public:
 public slots:
 	void on_logInButton_clicked();
 	void on_logOutButton_clicked();
+
+protected:
+	void closeEvent(QCloseEvent* event) override;
 
 private:
 	QVBoxLayout *_layout = nullptr;

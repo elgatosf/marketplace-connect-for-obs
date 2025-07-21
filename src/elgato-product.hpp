@@ -64,6 +64,7 @@ private:
 	size_t _fileSize;
 	ElgatoProductItem *_productItem = nullptr;
 	size_t downloadId_;
+	bool downloading_;
 };
 
 } // namespace elgatocloud

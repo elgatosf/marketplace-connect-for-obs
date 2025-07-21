@@ -112,8 +112,8 @@ MissingPlugins::MissingPlugins(QWidget *parent, std::string name,
 	QLabel *title = new QLabel(this);
 	int count = (int)missing.size();
 	if (count > 1) {
-		std::string titleText = std::to_string(count) + " ";
-		titleText += obs_module_text("SetupWizard.MissingPlugins.Title.Plural");
+		std::string titleText = obs_module_text("SetupWizard.MissingPlugins.Title.Plural");
+		replace_all(titleText, "{COUNT}", std::to_string(count));
 		title->setText(titleText.c_str());
 	} else {
 		title->setText(obs_module_text("SetupWizard.MissingPlugins.Title.Single"));
@@ -464,7 +464,7 @@ VideoSetup::VideoSetup(std::vector<std::string> const& steps,
 		_videoSelectors.push_back(vSource);
 	} else if (videoSourceLabels.size() > 1) {
 		std::string titleText = obs_module_text("SetupWizard.VideoSetup.Title.Plural");
-		titleText = std::to_string(videoSourceLabels.size()) + " " + titleText;
+		replace_all(titleText, "{COUNT}", std::to_string(videoSourceLabels.size()));
 		auto title = new QLabel(titleText.c_str());
 		title->setStyleSheet(EWizardStepTitle);
 		auto subTitle = new QLabel(obs_module_text("SetupWizard.VideoSetup.SubTitle.Plural"), this);

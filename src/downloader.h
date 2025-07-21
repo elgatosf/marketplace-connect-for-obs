@@ -83,6 +83,7 @@ private:
 		Downloader *parent;
 		ProgressCallbackFn progressCallback;
 		CompleteCallbackFn completeCallback;
+		int cancel;
 		void *callbackData;
 
 		DownloadEntry(Downloader *parent, std::string url,

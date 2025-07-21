@@ -130,30 +130,34 @@ size_t Downloader::DownloadEntry::handle_progress(void *ptr, curl_off_t dltotal,
 	UNUSED_PARAMETER(ultotal);
 	UNUSED_PARAMETER(ulnow);
 	//double pct = (int)((double)dlnow / (double)dltotal * 100.0);
-	return CURL_PROGRESSFUNC_CONTINUE;
+	return self.cancel;
 }
 
-Downloader::DownloadEntry::DownloadEntry(Downloader *parent, std::string url,
-					 std::string targetPath,
-					 ProgressCallbackFn pc,
-					 CompleteCallbackFn cc,
-					 void *callbackDat)
+Downloader::DownloadEntry::DownloadEntry(Downloader* parent, std::string url,
+	std::string targetPath,
+	ProgressCallbackFn pc,
+	CompleteCallbackFn cc,
+	void* callbackDat)
 	: url(url),
-	  file(nullptr),
-	  fileSize(0),
-	  downloaded(0),
-	  status(Downloader::Status::QUEUED),
-	  references(0),
-	  removed(false),
-	  progressCallback(pc),
-	  completeCallback(cc),
-	  callbackData(callbackDat),
-	  parent(parent)
+	file(nullptr),
+	fileSize(0),
+	downloaded(0),
+	status(Downloader::Status::QUEUED),
+	references(0),
+	removed(false),
+	progressCallback(pc),
+	completeCallback(cc),
+	callbackData(callbackDat),
+	parent(parent),
+	cancel(0)
 {
 	handle = curl_easy_init();
 	curl_easy_setopt(handle, CURLOPT_URL, url.c_str());
 	curl_easy_setopt(handle, CURLOPT_WRITEFUNCTION, write_data);
-	curl_easy_setopt(handle, CURLOPT_WRITEDATA, static_cast<void *>(this));
+	curl_easy_setopt(handle, CURLOPT_WRITEDATA, static_cast<void*>(this));
+	curl_easy_setopt(handle, CURLOPT_XFERINFOFUNCTION, handle_progress);
+	curl_easy_setopt(handle, CURLOPT_XFERINFODATA, static_cast<void*>(this));
+	curl_easy_setopt(handle, CURLOPT_NOPROGRESS, 0L);
 	curl_easy_setopt(handle, CURLOPT_USERAGENT, "elgato-cloud 0.0");
 	curl_easy_setopt(handle, CURLOPT_HEADERFUNCTION, handle_header);
 	curl_easy_setopt(handle, CURLOPT_HEADERDATA, static_cast<void *>(this));
@@ -210,10 +214,16 @@ Downloader::DownloadEntry::~DownloadEntry()
 void Downloader::DownloadEntry::Finish()
 {
 	std::unique_lock l(lock);
-	status = Status::FINISHED;
+	status = status == Status::STOPPED ? Status::STOPPED : Status::FINISHED;
 	curl_multi_remove_handle(parent->handle, handle);
 	curl_easy_cleanup(handle);
 	fclose(file);
+
+	if (status == Status::STOPPED) { // User cancelled the download
+		os_unlink(tmpTargetName.c_str());
+		return;
+	}
+
 	if (fileName == "") {
 		fileName = detectedFileName;
 	}
@@ -226,11 +236,6 @@ void Downloader::DownloadEntry::Finish()
 		char *absPath = os_get_abs_path_ptr(target.c_str());
 		target = std::string(absPath, strlen(absPath));
 		bfree(absPath);
-
-		//absPath = os_get_abs_path_ptr(tmpTargetName.c_str());
-		//tmpTargetName = std::string(absPath, strlen(absPath));
-		//bfree(absPath);
-
 		parent->moveRequests.push_back(
 			{tmpTargetName, target.c_str(), callbackData, completeCallback});
 	}
@@ -410,6 +415,7 @@ void Downloader::fillEntry(Downloader::Entry &dst,
 	dst.fileSize = src.fileSize;
 	dst.downloaded = src.downloaded;
 	dst.status = src.status;
+	dst.parent = src.parent;
 
 	if (src.downloadedHistory.size() > 1) {
 		auto first = src.downloadedHistory.front();
@@ -441,8 +447,11 @@ void Downloader::Entry::Stop()
 	auto dlentry = parent->queue.find(id);
 	if (dlentry != parent->queue.end()) {
 		if (dlentry->second->status == Status::DOWNLOADING) {
-			curl_multi_remove_handle(parent->handle,
-						 dlentry->second->handle);
+			dlentry->second->progressCallback = nullptr;
+			dlentry->second->completeCallback = nullptr;
+			dlentry->second->cancel = 1;
+			//curl_multi_remove_handle(parent->handle,
+			//			 dlentry->second->handle);
 			dlentry->second->status = Status::STOPPED;
 		}
 	}
