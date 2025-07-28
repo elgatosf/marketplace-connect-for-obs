@@ -42,6 +42,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <plugin-support.h>
 #include "setup-wizard.hpp"
 #include "elgato-product.hpp"
+#include "elgato-cloud-window.hpp"
 #include "scene-bundle.hpp"
 #include "obs-utils.hpp"
 #include "util.h"
@@ -983,7 +984,7 @@ StreamPackageSetupWizard::StreamPackageSetupWizard(QWidget *parent,
 StreamPackageSetupWizard::~StreamPackageSetupWizard()
 {
 	if (!_installStarted) { // We've not yet handed control over
-		                    // too install routine.
+		                    // to install routine.
 		if (_deleteOnClose) {
 			// Delete the scene collection file
 			os_unlink(_filename.c_str());
@@ -992,6 +993,10 @@ StreamPackageSetupWizard::~StreamPackageSetupWizard()
 			&StreamPackageSetupWizard::
 			EnableVideoCaptureSourcesActive,
 			this);
+	}
+	auto elgatoCloudWindow = GetElgatoCloudWindow();
+	if (elgatoCloudWindow) {
+		elgatoCloudWindow->resetDownloads();
 	}
 	setupWizard = nullptr;
 }
@@ -1053,6 +1058,14 @@ void StreamPackageSetupWizard::OpenArchive()
 									});
 								}
 							}
+						}
+
+						// In case the setup wizard was closed while the
+						// archive was being extracted, stop execution before
+						// anything is called on the now null setupWizard pointer.
+						auto setupWizard = GetSetupWizard();
+						if (!setupWizard) {
+							return;
 						}
 
 						// Disable all video capture sources so that single-thread

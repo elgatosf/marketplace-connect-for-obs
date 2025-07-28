@@ -206,6 +206,7 @@ public:
 	size_t loadProducts();
 	void disableDownload(ElgatoProductItem* skip = nullptr);
 	void enableDownload();
+	void resetDownloads();
 	void closing();
 
 private:
@@ -230,6 +231,7 @@ public:
 
 	void refreshProducts();
 	void closing();
+	void resetDownloads();
 
 private:
 	QHBoxLayout *_layout = nullptr;
@@ -286,6 +288,7 @@ public:
 	void setLoggedIn();
 	void setLoading();
 	void setupOwnedProducts();
+	void resetDownloads();
 
 	static ElgatoCloudWindow *window;
 

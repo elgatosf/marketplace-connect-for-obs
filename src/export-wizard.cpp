@@ -345,8 +345,9 @@ FileCollectionCheck::FileCollectionCheck(std::string name,
 		form->addWidget(fileList);
 	} else {
 		form->addStretch();
-		replace_all(titleLookup, "{COUNT}", std::to_string(0));
-		title->setText(titleLookup.c_str());
+		std::string titleText = obs_module_text(titleLookup.c_str());
+		replace_all(titleText, "{COUNT}", std::to_string(0));
+		title->setText(titleText.c_str());
 		title->setStyleSheet(EWizardStepTitle);
 		title->setAlignment(Qt::AlignCenter);
 

@@ -409,6 +409,15 @@ void ProductGrid::enableDownload()
 	}
 }
 
+void ProductGrid::resetDownloads()
+{
+	for (int i = 0; i < layout()->count(); ++i) {
+		auto item = dynamic_cast<ElgatoProductItem*>(
+			layout()->itemAt(i)->widget());
+		item->resetDownload();
+	}
+}
+
 void ProductGrid::closing() {
 	for (int i = 0; i < layout()->count(); ++i) {
 		auto item = dynamic_cast<ElgatoProductItem*>(
@@ -531,6 +540,11 @@ void OwnedProducts::closing()
 	_purchased->closing();
 }
 
+void OwnedProducts::resetDownloads()
+{
+	_purchased->resetDownloads();
+}
+
 ElgatoCloudWindow::ElgatoCloudWindow(QWidget *parent) : QDialog(parent)
 //ui(new Ui_ElgatoCloudWindow)
 {
@@ -608,7 +622,14 @@ void ElgatoCloudWindow::initialize()
 	_layout->addWidget(_mainWidget);
 
 	setLayout(_layout);
-	setFixedSize(970, 520);
+	setFixedSize(978, 520);
+}
+
+void ElgatoCloudWindow::resetDownloads()
+{
+	if (_ownedProducts) {
+		_ownedProducts->resetDownloads();
+	}
 }
 
 void ElgatoCloudWindow::setLoading()
@@ -874,7 +895,7 @@ void ProductThumbnail::updateButton_()
 
 void ProductThumbnail::setPixmap(const QPixmap& pixmap)
 {
-	_thumbnail->setPixmap(pixmap);
+	_thumbnail->setCustomPixmap(pixmap);
 }
 
 bool ProductThumbnail::event(QEvent* e)
@@ -992,6 +1013,10 @@ ElgatoProductItem::ElgatoProductItem(QWidget *parent, ElgatoProduct *product)
 			p->enableDownload();
 			resetDownload();
 		}
+		else {
+			p->enableDownload();
+			resetDownload();
+		}
 	});
 
 	connect(_labelImg, &ProductThumbnail::cancelDownloadClicked, [this]() {
@@ -1049,6 +1074,7 @@ void ElgatoProductItem::updateImage()
 					: imageBaseDir + "image-loading.svg";
 	QPixmap image = _setupImage(imagePath);
 	_labelImg->setPixmap(image);
+	_labelImg->update();
 }
 
 QPixmap ElgatoProductItem::_setupImage(std::string imagePath)
