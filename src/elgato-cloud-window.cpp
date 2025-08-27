@@ -42,11 +42,23 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include "elgato-cloud-config.hpp"
 #include "elgato-widgets.hpp"
 #include "setup-wizard.hpp"
+#include "scene-bundle.hpp"
 #include "flowlayout.h"
 #include "api.hpp"
 #include "obs-utils.hpp"
 
+#include <QMimeData>
+#include <QUrl>
+#include <QDragEnterEvent>
+#include <QDropEvent>
+#include <QFileInfo>
+#include <QDrag>
+#include <QDesktopServices>
+
+#include <Windows.h>
+
 #include <plugin-support.h>
+
 
 namespace elgatocloud {
 
@@ -1412,6 +1424,301 @@ extern void CheckForUpdatesOnLaunch(enum obs_frontend_event event,
 						   nullptr);
 		CheckForUpdates(false);
 	}
+}
+
+void OpenElgatoDDTestWindow()
+{
+	const auto mainWindow = static_cast<QMainWindow*>(
+		obs_frontend_get_main_window());
+	const QRect& hostRect = mainWindow->geometry();
+
+	auto window = new ElgatoDDTest(mainWindow);
+	window->setAttribute(Qt::WA_DeleteOnClose);
+
+	window->show();
+	window->move(
+		hostRect.center() -
+		window->rect().center());
+}
+
+static bool isStreamDeckAction(const QMimeData* mime)
+{
+	if (!mime->hasUrls())
+		return false;
+
+	for (const QUrl& url : mime->urls()) {
+		if (url.isLocalFile()) {
+			QFileInfo fi(url.toLocalFile());
+			auto suffix = fi.suffix();
+			if (fi.suffix().compare("streamDeckAction", Qt::CaseInsensitive) == 0)
+				return true;
+		}
+	}
+	return false;
+}
+
+
+QPixmap createIconPixmap(const QByteArray& imageData, const QString& title, SdaIconVerticalAlign vAlign = SdaIconVerticalAlign::Middle, int size = 64)
+{
+	constexpr int padding = 4;  // 4px padding on all sides
+	constexpr double lineHeightScale = 0.85; // shrink line height to 85%
+	constexpr int cornerRadius = 8;     // 8px rounded corners
+
+	QPixmap pix(size, size);
+	pix.fill(Qt::transparent);
+
+	QPainter painter(&pix);
+	painter.setRenderHint(QPainter::Antialiasing);
+
+	// Apply rounded clipping
+	QPainterPath path;
+	path.addRoundedRect(0, 0, size, size, cornerRadius, cornerRadius);
+	painter.setClipPath(path);
+
+	// Draw the image if available
+	if (!imageData.isEmpty()) {
+		QPixmap img;
+		img.loadFromData(imageData);
+		if (!img.isNull()) {
+			img = img.scaled(size, size, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
+			painter.drawPixmap(0, 0, img);
+		}
+	}
+
+	// Draw the title over the image
+	if (!title.isEmpty()) {
+		QFont font = painter.font();
+		font.setBold(true);
+
+		QStringList lines = title.split('\n');
+
+		// Shrink font if needed to fit width
+		QFontMetrics fm(font);
+		int maxLineWidth = 0;
+		int availableWidth = size - 2 * padding;
+		for (const QString& line : lines) {
+			maxLineWidth = std::max(maxLineWidth, fm.horizontalAdvance(line));
+		}
+		while (maxLineWidth > availableWidth && font.pointSize() > 1) {
+			font.setPointSize(font.pointSize() - 1);
+			painter.setFont(font);
+			fm = QFontMetrics(font);
+			maxLineWidth = 0;
+			for (const QString& line : lines) {
+				maxLineWidth = std::max(maxLineWidth, fm.horizontalAdvance(line));
+			}
+		}
+
+		painter.setFont(font);
+		painter.setRenderHint(QPainter::TextAntialiasing);
+
+		int lineHeight = static_cast<int>(fm.height() * lineHeightScale);
+		int totalHeight = lineHeight * lines.size();
+		int availableHeight = size - 2 * padding;
+
+		int yOffset = 0;
+		switch (vAlign) {
+		case SdaIconVerticalAlign::Top: yOffset = padding; break;
+		case SdaIconVerticalAlign::Middle: yOffset = padding + (availableHeight - totalHeight) / 2; break;
+		case SdaIconVerticalAlign::Bottom: yOffset = size - padding - totalHeight; break;
+		}
+
+		// Draw each line with outline
+		for (int i = 0; i < lines.size(); ++i) {
+			QRect lineRect(padding, yOffset + i * lineHeight, size - 2 * padding, lineHeight);
+
+			// Outline
+			painter.setPen(Qt::black);
+			for (int dx = -1; dx <= 1; ++dx) {
+				for (int dy = -1; dy <= 1; ++dy) {
+					if (dx == 0 && dy == 0) continue;
+					QRect offsetRect = lineRect.translated(dx, dy);
+					painter.drawText(offsetRect, Qt::AlignHCenter | Qt::AlignVCenter, lines[i]);
+				}
+			}
+
+			// Main text
+			painter.setPen(Qt::white);
+			painter.drawText(lineRect, Qt::AlignHCenter | Qt::AlignVCenter, lines[i]);
+		}
+	}
+
+	painter.end();
+	return pix;
+}
+
+ElgatoDDTest::ElgatoDDTest(QWidget* parent) : 
+	QDialog(parent),
+	fileList_(new DraggableListWidget(this)),
+	hint_(new QLabel(this))
+{
+	setWindowTitle("Drag/Drop Test");
+	resize(520, 360);
+
+	setAcceptDrops(true);
+
+	hint_->setText(
+		"Drag a stream deck button to this window.\n"
+		"You can then drag the action back out to the\n"
+		"Stream Deck Software"
+	);
+
+	hint_->setAlignment(Qt::AlignCenter);
+	hint_->setStyleSheet("color:#666;");
+
+	fileList_->setSelectionMode(QAbstractItemView::ExtendedSelection);
+	fileList_->setDragEnabled(true);   // allow dragging out
+	fileList_->setAcceptDrops(false);  // we only drop onto the dialog, not back into the list
+	fileList_->setDefaultDropAction(Qt::IgnoreAction);
+	fileList_->setIconSize(QSize(64, 64));
+
+	// Replace default drag behaviour with our own
+	fileList_->setDragDropMode(QAbstractItemView::DragOnly);
+
+	auto* layout = new QVBoxLayout(this);
+	layout->addWidget(hint_);
+	layout->addWidget(fileList_);
+	setLayout(layout);
+}
+
+ElgatoDDTest::~ElgatoDDTest()
+{
+	cleanupTempFiles();
+}
+
+void ElgatoDDTest::dragEnterEvent(QDragEnterEvent* event)
+{
+	// Accept if URLs are present (Explorer provides CF_HDROP which Qt maps to urls)
+	if (isStreamDeckAction(event->mimeData())) {
+		event->acceptProposedAction(); // typically CopyAction
+	}
+	else {
+		event->ignore();
+	}
+}
+
+void ElgatoDDTest::dragMoveEvent(QDragMoveEvent* event)
+{
+	if (isStreamDeckAction(event->mimeData())) {
+		event->acceptProposedAction();
+	}
+	else {
+		event->ignore();
+	}
+}
+
+void ElgatoDDTest::dropEvent(QDropEvent* event)
+{
+	if (!event->mimeData()->hasUrls())
+		return;
+
+	const QList<QUrl> urls = event->mimeData()->urls();
+	const QString tempPath = QStandardPaths::writableLocation(QStandardPaths::TempLocation);
+
+	for (const QUrl& url : urls) {
+		if (!url.isLocalFile())
+			continue;
+
+		QString filePath = url.toLocalFile();
+		if (!filePath.endsWith(".streamDeckAction", Qt::CaseInsensitive))
+			continue;
+
+		QString fileName = QFileInfo(filePath).fileName();
+		QString destPath = tempPath + QDir::separator() + fileName;
+
+		// --- Check if file is already in the list ---
+		bool alreadyAdded = false;
+		for (int i = 0; i < fileList_->count(); ++i) {
+			QListWidgetItem* item = fileList_->item(i);
+			if (item->data(Qt::UserRole).toString() == destPath) {
+				alreadyAdded = true;
+				break;
+			}
+		}
+		if (alreadyAdded)
+			continue;
+		// --------------------------------------------
+
+		// Copy file to temp if not already there
+		if (!QFile::exists(destPath)) {
+			if (!QFile::copy(filePath, destPath)) {
+				qWarning() << "Failed to copy" << filePath << "to" << destPath;
+				continue;
+			}
+		}
+		SdaFile sda(destPath);
+		if (!sda.isValid()) {
+			qWarning() << "Invalid SDA file:" << destPath;
+			continue;
+		}
+
+		auto state = sda.firstState();
+		if (!state) {
+			qWarning() << "No valid state found in SDA file:" << destPath;
+			continue;
+		}
+
+		// Add to list widget
+		QString title = state->hasTitle ? state->title : "(no title)";
+		QListWidgetItem* item = new QListWidgetItem(state->title, fileList_);
+		item->setData(Qt::UserRole, destPath); // track the temp file path
+		if (state->hasImage && !state->imageBytes.isEmpty()) {
+			//QPixmap pix;
+			//pix.loadFromData(state->imageBytes);
+			QPixmap pix = createIconPixmap(state->imageBytes, state->hasTitle ? state->title : "", state->titleAlign);
+			if (!pix.isNull()) {
+				pix = pix.scaled(64, 64, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+				item->setIcon(QIcon(pix));
+			}
+		}
+	}
+
+	event->acceptProposedAction();
+}
+
+void ElgatoDDTest::closeEvent(QCloseEvent* event)
+{
+	cleanupTempFiles();
+	QDialog::closeEvent(event);
+}
+
+void ElgatoDDTest::cleanupTempFiles()
+{
+	for (int i = 0; i < fileList_->count(); ++i) {
+		QListWidgetItem* item = fileList_->item(i);
+		QString tempPath = item->data(Qt::UserRole).toString();
+		if (!tempPath.isEmpty()) {
+			if (!QFile::remove(tempPath)) {
+				qWarning() << "Failed to delete temp file:" << tempPath;
+			}
+		}
+	}
+}
+
+
+void DraggableListWidget::startDrag(Qt::DropActions supportedActions)
+{
+	QList<QListWidgetItem*> items = selectedItems();
+	if (items.isEmpty())
+		return;
+
+	auto* mimeData = new QMimeData();
+	QList<QUrl> urls;
+	for (QListWidgetItem* item : items) {
+		QString path = item->data(Qt::UserRole).toString();
+		if (!path.isEmpty())
+			urls << QUrl::fromLocalFile(path);
+	}
+	if (urls.isEmpty())
+		return;
+
+	mimeData->setUrls(urls);
+
+	QDesktopServices::openUrl(QUrl("streamdeck://open/mainwindow"));
+
+	auto* drag = new QDrag(this);
+	drag->setMimeData(mimeData);
+	drag->exec(supportedActions, Qt::CopyAction);
 }
 
 } // namespace elgatocloud

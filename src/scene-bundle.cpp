@@ -1031,3 +1031,100 @@ void addSources(
 		}
 	}
 }
+
+SdaFile::SdaFile(const QString& path)
+	: originalPath_(path)
+{
+	parse_();
+}
+
+void SdaFile::parse_()
+{
+	try {
+		miniz_cpp::zip_file zip(originalPath_.toStdString());
+
+		// Find the correct manifest.json under Profiles/*
+		std::string chosenManifestPath;
+		nlohmann::json manifest;
+
+		for (auto& entry : zip.namelist()) {
+			if (entry.find("Profiles/") != std::string::npos &&
+				entry.find("manifest.json") != std::string::npos)
+			{
+				std::string jsonStr = zip.read(entry);
+				auto j = nlohmann::json::parse(jsonStr, nullptr, false);
+
+				if (!j.is_discarded() && j.contains("Controllers") && j["Controllers"].is_array()) {
+					for (auto& controller : j["Controllers"]) {
+						if (controller.contains("Type") && controller["Type"] == "Keypad" &&
+							controller.contains("Actions") && !controller["Actions"].is_null()) {
+
+							chosenManifestPath = entry;
+							manifest = j;
+							break;
+						}
+					}
+				}
+			}
+			if (!chosenManifestPath.empty())
+				break;
+		}
+
+		if (chosenManifestPath.empty()) {
+			qWarning() << "SdaFile:" << originalPath_ << "no valid manifest found";
+			return;
+		}
+
+		// Extract Controllers Actions "0,0" first state
+		auto& controllers = manifest["Controllers"];
+		for (auto& controller : manifest["Controllers"]) {
+			if (!controller.contains("Actions")) continue;
+			auto& actions = controller["Actions"];
+			if (!actions.contains("0,0")) continue;
+
+			auto& action = actions["0,0"];
+			if (!action.contains("States") || !action["States"].is_array() || action["States"].empty())
+				continue;
+
+			auto& stateJson = action["States"][0];
+			bool hasImage = stateJson.contains("Image");
+			bool hasTitle = stateJson.contains("Title");
+
+			std::string relImagePath = hasImage ? stateJson["Image"] : "";
+			std::string title = hasTitle ? stateJson["Title"] : "";
+
+			// Build full relative path
+			std::string manifestDir = chosenManifestPath.substr(0, chosenManifestPath.find_last_of('/') + 1);
+			std::string imagePath = manifestDir + relImagePath;
+
+			SdaState s;
+			s.title = QString::fromStdString(title);
+			s.titleAlign = SdaIconVerticalAlign::Bottom;
+			if (hasTitle && stateJson.contains("TitleAlignment")) {
+				std::string align = stateJson["TitleAlignment"];
+				s.titleAlign = align == "top" ? SdaIconVerticalAlign::Top 
+					: align == "middle" ? SdaIconVerticalAlign::Middle 
+					: SdaIconVerticalAlign::Bottom;
+			}
+			s.relativeImagePath = QString::fromStdString(relImagePath);
+			s.hasTitle = hasTitle;
+			s.hasImage = hasImage;
+
+			if (hasImage && zip.has_file(imagePath)) {
+				std::string imgBytes = zip.read(imagePath);
+				s.imageBytes = QByteArray(imgBytes.data(), static_cast<int>(imgBytes.size()));
+			}
+
+			state_ = std::move(s);
+			valid_ = true;
+		}
+	}
+	catch (const std::exception& ex) {
+		qWarning() << "SdaFile error parsing" << originalPath_ << ":" << ex.what();
+	}
+}
+
+std::optional<SdaState> SdaFile::firstState() const
+{
+	return state_;
+}

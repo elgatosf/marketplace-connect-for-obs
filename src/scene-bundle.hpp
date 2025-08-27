@@ -121,4 +121,44 @@ private:
 
 void addSources(std::string sourceName, std::set<std::string>& requiredSources, std::set<std::string>& requiredGroups, std::map<std::string, nlohmann::json>& sourceNames, std::map<std::string, nlohmann::json>& groupNames);
 
+enum class SdaIconVerticalAlign {
+	Top,
+	Middle,
+	Bottom
+};
+
+/// Represents a parsed state inside the SDA file.
+struct SdaState {
+	QString title;
+	SdaIconVerticalAlign titleAlign;
+	QString relativeImagePath;
+	QByteArray imageBytes;
+	bool hasImage;
+	bool hasTitle;
+};
+
+/// Parses and manages an SDA file (.sda = zipped profile).
+class SdaFile
+{
+public:
+	/// Construct from file path
+	explicit SdaFile(const QString& path);
+
+	/// True if the file was parsed successfully
+	bool isValid() const { return valid_; }
+
+	/// Get the original path
+	QString originalPath() const { return originalPath_; }
+
+	/// Return the first parsed state (if any)
+	std::optional<SdaState> firstState() const;
+
+private:
+	void parse_();
+
+	QString originalPath_;
+	bool valid_{ false };
+	std::optional<SdaState> state_;
+};
+
 #endif // SCENEBUNDLE_H
