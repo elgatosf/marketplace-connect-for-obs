@@ -35,11 +35,11 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <obs-frontend-api.h>
 
 #include <plugin-support.h>
-#include "downloader.h"
 #include "elgato-cloud-data.hpp"
 #include "elgato-cloud-window.hpp"
 #include "util.h"
 #include "setup-wizard.hpp"
+
 
 namespace elgatocloud {
 
@@ -77,10 +77,10 @@ ElgatoProduct::ElgatoProduct(std::string collectionName)
 	: name(collectionName),
 	  thumbnailUrl(""),
 	  variantId(""),
-	  _fileSize(0)
+	  _fileSize(0),
+	  downloading_(false)
 {
-	thumbnailPath = obs_get_module_data_path(obs_current_module());
-	thumbnailPath += "/images/thumbnail-holder.png";
+	thumbnailPath = "";
 	_thumbnailReady = true;
 }
 
@@ -120,8 +120,21 @@ bool ElgatoProduct::DownloadProduct()
 	os_mkdirs(savePath.c_str());
 
 	std::shared_ptr<Downloader> dl = Downloader::getInstance("");
-	dl->Enqueue(url, savePath, ElgatoProduct::DownloadProgress, nullptr, this);
+	auto download = dl->Enqueue(url, savePath, ElgatoProduct::DownloadProgress, nullptr, this);
+	downloadId_ = download.id;
+	downloading_ = true;
 	return true;
+}
+
+void ElgatoProduct::StopProductDownload()
+{
+	if (downloading_) {
+		std::shared_ptr<Downloader> dl = Downloader::getInstance("");
+		auto download = dl->Lookup(downloadId_);
+		download.id = downloadId_;
+		download.Stop();
+		downloading_ = false;
+	}
 }
 
 void ElgatoProduct::_downloadThumbnail()
@@ -178,6 +191,7 @@ void ElgatoProduct::Install(std::string filename_utf8, void *data,
 			    bool fromDownload)
 {
 	auto ep = static_cast<ElgatoProduct *>(data);
+	ep->downloading_ = false;
 	const auto mainWindow =
 		static_cast<QMainWindow *>(obs_frontend_get_main_window());
 	if (ep->_productItem) {

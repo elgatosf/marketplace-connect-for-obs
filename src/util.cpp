@@ -661,3 +661,10 @@ std::string decryptString(std::string input)
 	return decrypted;
 }
 
+std::string getImagesPath()
+{
+	std::string path = obs_get_module_data_path(obs_current_module());
+	replace_all(path, "\\", "/");
+	path += "/images/";
+	return path;
+}

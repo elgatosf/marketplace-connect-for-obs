@@ -41,6 +41,17 @@ enum class SceneBundleStatus {
 	Error
 };
 
+struct SceneInfo {
+	std::string name;
+	std::string id;
+	bool outputScene;
+};
+
+struct ThirdPartyRequirement {
+	std::string name;
+	std::string url;
+};
+
 class SceneBundle {
 private:
 	// Key: original file path, Value: new file name
@@ -64,9 +75,15 @@ public:
 				 std::string destination);
 	bool ToCollection(std::string collection_name,
 			  std::map<std::string, std::string> videoSettings,
-			  std::string audioSettings);
+			  std::string audioSettings, std::string id);
+	bool MergeCollection(std::string collection_name,
+			  std::vector<std::string> scenes,
+			  std::map<std::string, std::string> videoSettings,
+			  std::string audioSettings, std::string id);
 	SceneBundleStatus ToElgatoCloudFile(
 		std::string file_path, std::vector<std::string> plugins,
+		std::vector<std::pair<std::string, std::string>> thirdParty,
+		std::vector<SceneInfo> outputScenes,
 		std::map<std::string, std::string> videoDeviceDescriptions);
 
 	bool FileCheckDialog();
@@ -95,7 +112,13 @@ private:
 				  miniz_cpp::zip_file &ecFile);
 	bool _AddBrowserSourceContentsToZip(std::string dirPath, std::string zipDir,
 		miniz_cpp::zip_file& ecFile);
+	bool _createSceneCollection(std::string collectionName);
 	void _reset();
+	void _backupCurrentCollection();
+
+	std::string _currentCollectionPath();
 };
+
+void addSources(std::string sourceName, std::set<std::string>& requiredSources, std::set<std::string>& requiredGroups, std::map<std::string, nlohmann::json>& sourceNames, std::map<std::string, nlohmann::json>& groupNames);
 
 #endif // SCENEBUNDLE_H

@@ -146,6 +146,41 @@
             "files" :[
                 "waveform.dll"
             ]
+        },
+        {
+            "name": "Aitum Vertical",
+            "url":  "https://obsproject.com/forum/resources/aitum-vertical.1715/",
+            "files":  [
+                "vertical-canvas.dll"
+            ]
+        },
+        {
+            "name": "Markdown Source",
+            "url":  "https://obsproject.com/forum/resources/markdown-source.1764/",
+            "files":  [
+                "markdown.dll"
+            ]
+        },
+        {
+            "name": "Ashmanix Countdown Timer",
+            "url":  "https://obsproject.com/forum/resources/ashmanix-countdown-timer.1610/",
+            "files":  [
+                "obs-plugin-countdown.dll"
+            ]
+        },
+        {
+            "name": "SVG Source",
+            "url":  "https://obsproject.com/forum/resources/svg-source.2174/",
+            "files":  [
+                "svg-source.dll"
+            ]
+        },
+        {
+            "name": "Draw",
+            "url":  "https://obsproject.com/forum/resources/draw.2081/",
+            "files":  [
+                "draw-dock.dll"
+            ]
         }
     ]
 }

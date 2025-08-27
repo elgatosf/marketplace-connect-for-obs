@@ -22,6 +22,8 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <random>
 #include <obs-module.h>
 #include <nlohmann/json.hpp>
+#include <QHBoxLayout>
+#include <QWidget>
 
 template<class T>
 static size_t write_data(void *ptr, size_t size, size_t nmemb, void *userdata)
@@ -90,3 +92,4 @@ std::string releaseType();
 
 std::string encryptString(std::string input);
 std::string decryptString(std::string input);
+std::string getImagesPath();

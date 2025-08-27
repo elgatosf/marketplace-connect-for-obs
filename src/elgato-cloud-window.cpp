@@ -55,8 +55,8 @@ ElgatoCloudWindow *ElgatoCloudWindow::window = nullptr;
 Avatar::Avatar(QWidget *parent) : QWidget(parent)
 {
 	update();
-	setFixedWidth(40);
-	setFixedHeight(40);
+	setFixedWidth(32);
+	setFixedHeight(32);
 }
 
 void Avatar::update()
@@ -74,22 +74,32 @@ void Avatar::paintEvent(QPaintEvent *e)
 	paint.setRenderHint(QPainter::Antialiasing);
 	paint.setPen(_bgColor.c_str());
 	paint.setBrush(QBrush(_bgColor.c_str(), Qt::SolidPattern));
-	paint.drawEllipse(1, 1, 38, 38);
+	paint.drawEllipse(5, 5, 22, 22);
 
 	QFont font = paint.font();
-	font.setPixelSize(24);
+	font.setPixelSize(14);
 	paint.setPen("#FFFFFF");
 	paint.setFont(font);
-	paint.drawText(QRect(1, 1, 38, 38), Qt::AlignCenter,
+	paint.drawText(QRect(5, 5, 22, 22), Qt::AlignCenter,
 		       _character.c_str());
 	paint.end();
+
+}
+
+void Avatar::mousePressEvent(QMouseEvent* event)
+{
+	if (event->button() == Qt::LeftButton) {
+		emit clicked();
+	}
+
+	QWidget::mousePressEvent(event); // Pass event along if needed
 }
 
 AvatarImage::AvatarImage(QWidget* parent) : QWidget(parent)
 {
 	auto api = MarketplaceApi::getInstance();
-	setFixedWidth(40);
-	setFixedHeight(40);
+	setFixedWidth(32);
+	setFixedHeight(32);
 
 	std::string imageBaseDir = GetDataPath();
 	imageBaseDir += "/images/";
@@ -101,7 +111,7 @@ AvatarImage::AvatarImage(QWidget* parent) : QWidget(parent)
 	QPixmap avatarPixmap = _setupImage(imagePath);
 
 	auto layout = new QVBoxLayout(this);
-	layout->setContentsMargins(0, 0, 0, 0);
+	layout->setContentsMargins(4, 4, 4, 4);
 	layout->setSpacing(0);
 	_avatarImg = new QLabel(this);
 	_avatarImg->setPixmap(avatarPixmap);
@@ -127,10 +137,19 @@ void AvatarImage::update()
 	_avatarImg->setPixmap(avatarPixmap);
 }
 
+void AvatarImage::mousePressEvent(QMouseEvent* event)
+{
+	if (event->button() == Qt::LeftButton) {
+		emit clicked();
+	}
+
+	QWidget::mousePressEvent(event); // Pass event along if needed
+}
+
 QPixmap AvatarImage::_setupImage(std::string imagePath)
 {
-	int targetHeight = 40;
-	int cornerRadius = 20;
+	int targetHeight = 24;
+	int cornerRadius = 12;
 	QPixmap img;
 
 	if (imagePath != "")
@@ -156,139 +175,99 @@ QPixmap AvatarImage::_setupImage(std::string imagePath)
 	return target;
 }
 
-DownloadButton::DownloadButton(QWidget *parent) : QWidget(parent)
+UserMenu::UserMenu(QWidget* parent) : QWidget(parent)
 {
-	std::string imageBaseDir = GetDataPath();
-	imageBaseDir += "/images/";
+	QSize widgetSize(32, 32);
+	auto api = MarketplaceApi::getInstance();
+	_menu = new QMenu(this);
 
-	//setFixedWidth(48);
+	// Disabled "Account" label
+	std::string name = api->firstName() + " " + api->lastName();
+	_accountTitle = new QAction(name.c_str(), _menu);
+	_accountTitle->setEnabled(false);
+	_menu->addAction(_accountTitle);
 
-	QHBoxLayout *layout = new QHBoxLayout(this);
-	_stackedWidget = new QStackedWidget(this);
-	_stackedWidget->setStyleSheet("background-color: #151515");
-	_stackedWidget->setFixedSize(24, 24);
-	_stackedWidget->setSizePolicy(QSizePolicy::Preferred,
-				      QSizePolicy::Preferred);
+	// View Account (active)
+	QAction* viewAccount = new QAction("View Account", _menu);
+	_menu->addAction(viewAccount);
 
-	_downloadButton = new QPushButton(this);
-	_downloadButton->setToolTip(
-		obs_module_text("MarketplaceWindow.DownloadButton.Tooltip"));
-	std::string downloadIconPath = imageBaseDir + "download.svg";
-	std::string downloadIconHoverPath = imageBaseDir + "download_hover.svg";
-	std::string downloadIconDisabledPath =
-		imageBaseDir + "download_disabled.svg";
-	QString buttonStyle = EIconHoverDisabledButtonStyle;
-	buttonStyle.replace("${img}", downloadIconPath.c_str());
-	buttonStyle.replace("${hover-img}", downloadIconHoverPath.c_str());
-	buttonStyle.replace("${disabled-img}",
-			    downloadIconDisabledPath.c_str());
-	_downloadButton->setFixedSize(24, 24);
-	_downloadButton->setStyleSheet(buttonStyle);
-	_downloadButton->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
-	//_downloadButton->setDisabled(true);
-	connect(_downloadButton, &QPushButton::clicked, [this]() {
-		_stackedWidget->setCurrentIndex(1);
-		emit downloadClicked();
+	// Separator
+	_menu->addSeparator();
+
+	QAction* signOut = new QAction("Sign out", _menu);
+	_menu->addAction(signOut);
+
+	auto layout = new QVBoxLayout(this);
+	setFixedSize(widgetSize);
+	layout->setContentsMargins(0, 0, 0, 0);
+	_plainAvatar = new Avatar(this);
+	_imgAvatar = new AvatarImage(this);
+	_stack = new QStackedWidget(this);
+	_stack->setFixedSize(widgetSize);
+	_stack->addWidget(_plainAvatar);
+	_stack->addWidget(_imgAvatar);
+	_stack->setCurrentIndex(elgatoCloud->loggedIn && api->avatarReady() ? 1 : 0);
+
+	connect(api, &MarketplaceApi::UserDetailsUpdated, this, [this, api]() {
+		bool avatar = elgatoCloud->loggedIn && api->hasAvatar();
+		_stack->setCurrentIndex(avatar ? 1 : 0);
+		if (elgatoCloud->loggedIn) {
+			std::string name = api->firstName() + " " + api->lastName();
+			_accountTitle->setText(name.c_str());
+			_plainAvatar->update();
+		}
 	});
-	_stackedWidget->addWidget(_downloadButton);
 
-	_downloadProgress = new DownloadProgress(this);
-	_downloadProgress->setValue(0.0);
-	_downloadProgress->setMinimum(0.0);
-	_downloadProgress->setMaximum(100.0);
-	_downloadProgress->setFixedHeight(24);
-	_downloadProgress->setFixedWidth(24);
+	connect(api, &MarketplaceApi::AvatarDownloaded, this, [this, api]() {
+		_stack->setCurrentIndex(elgatoCloud->loggedIn && api->avatarReady() ? 1 : 0);
+		if (elgatoCloud->loggedIn) {
+			std::string name = api->firstName() + " " + api->lastName();
+			_accountTitle->setText(name.c_str());
+			_plainAvatar->update();
+			_imgAvatar->update();
+		}
+	});
 
-	_stackedWidget->addWidget(_downloadProgress);
+	connect(_plainAvatar, &Avatar::clicked, [this]() {
+		_showModalMenu();
+	});
 
-	QWidget *spacer = new QWidget(this);
-	spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+	connect(_imgAvatar, &AvatarImage::clicked, [this]() {
+		_showModalMenu();
+	});
 
-	layout->addWidget(spacer);
-	layout->addWidget(_stackedWidget);
+	connect(viewAccount, &QAction::triggered, [api]() {
+		api->OpenAccountInBrowser();
+	});
+
+	connect(signOut, &QAction::triggered, []() {
+		elgatoCloud->LogOut();
+	});
+
+	_menu->setStyleSheet(R"(
+	QMenu::item:disabled {
+		background-color: transparent;
+	})");
 }
 
-void DownloadButton::setDisabled(bool disabled)
+void UserMenu::_showModalMenu()
 {
-	_downloadButton->setDisabled(disabled);
-}
+	// Transparent modal overlay to enforce modality
+	// Create a transparent non-modal QWidget to act as an overlay
+	QWidget* overlay = new QWidget(nullptr, Qt::Tool | Qt::FramelessWindowHint);
+	overlay->setAttribute(Qt::WA_TranslucentBackground);
+	overlay->setAttribute(Qt::WA_DeleteOnClose);
+	overlay->setWindowModality(Qt::ApplicationModal); // Soft application modality
+	overlay->resize(qApp->primaryScreen()->size());
+	overlay->move(0, 0);
+	overlay->show();
 
-void DownloadButton::setValue(double value)
-{
-	_downloadProgress->setValue(value);
-}
+	// Position and show the menu
+	QPoint menuPos = this->mapToGlobal(QPoint(0, this->height()));
+	_menu->popup(menuPos);
 
-void DownloadButton::resetDownload()
-{
-	_stackedWidget->setCurrentIndex(0);
-	_downloadProgress->setValue(0.0);
-}
-
-DownloadProgress::DownloadProgress(QWidget *parent) : QWidget(parent)
-{
-	_width = 20;
-	_height = 20;
-	_minimumValue = 0;
-	_maximumValue = 100;
-	_value = 0;
-	_progressWidth = 2;
-}
-
-DownloadProgress::~DownloadProgress() {}
-
-void DownloadProgress::setValue(double value)
-{
-	_value = value;
-	update();
-}
-
-void DownloadProgress::setMinimum(double minimum)
-{
-	_minimumValue = minimum;
-	update();
-}
-
-void DownloadProgress::setMaximum(double maximum)
-{
-	_maximumValue = maximum;
-	update();
-}
-
-void DownloadProgress::paintEvent(QPaintEvent *e)
-{
-	int margin = _progressWidth / 2;
-
-	int width = _width - _progressWidth;
-	int height = _height - _progressWidth;
-
-	double value = 360.0 * (_value - _minimumValue) /
-		       (_maximumValue - _minimumValue);
-
-	QPainter paint;
-	paint.begin(this);
-	paint.setRenderHint(QPainter::Antialiasing);
-
-	QRect rect(0, 0, _width, _height);
-	paint.setPen(Qt::NoPen);
-	paint.drawRect(rect);
-
-	QPen pen;
-	pen.setColor(QColor(32, 76, 254));
-	pen.setWidth(_progressWidth);
-
-	paint.setPen(pen);
-	paint.drawArc(margin, margin, width, height, 90.0 * 16.0,
-		      -value * 16.0);
-
-	QPen bgPen;
-	bgPen.setColor(QColor(59, 59, 59));
-	bgPen.setWidth(_progressWidth);
-	paint.setPen(bgPen);
-	float remaining = 360.0 - value;
-	paint.drawArc(margin, margin, width, height, 90.0 * 16.0,
-		      remaining * 16.0);
-
-	paint.end();
+	// Close the overlay when the menu is dismissed
+	connect(_menu, &QMenu::aboutToHide, overlay, &QWidget::close);
 }
 
 WindowToolBar::WindowToolBar(QWidget *parent) : QWidget(parent)
@@ -296,35 +275,47 @@ WindowToolBar::WindowToolBar(QWidget *parent) : QWidget(parent)
 	std::string imageBaseDir = GetDataPath();
 	imageBaseDir += "/images/";
 
-	auto api = MarketplaceApi::getInstance();
+	setFixedHeight(40);
 
-	QPalette pal = QPalette();
-	pal.setColor(QPalette::Window, "#151515");
-	setAutoFillBackground(true);
-	setPalette(pal);
+	auto api = MarketplaceApi::getInstance();
+	setAttribute(Qt::WA_StyledBackground, true);
+	setStyleSheet("background-color: #000000;");
 
 	_layout = new QHBoxLayout(this);
-	_layout->setContentsMargins(16, 12, 16, 12);
-	_layout->setSpacing(16);
+	_layout->setContentsMargins(8, 8, 8, 0);
+	_layout->setSpacing(0);
 	_logo = new QLabel(this);
-	std::string logoPath = imageBaseDir + "mp-logo-full.png";
+	std::string logoPath = imageBaseDir + "marketplace-full-logo.svg";
 	QPixmap logoPixmap = QPixmap(logoPath.c_str());
 	_logo->setPixmap(logoPixmap);
 	_layout->addWidget(_logo);
 
 	_layout->addStretch();
 
+	_storeButton = new QPushButton(this);
+	_storeButton->setToolTip(
+		obs_module_text("MarketplaceWindow.StoreButton.Tooltip"));
+	std::string storeIconPath = imageBaseDir + "button-marketplace-icon.svg";
+	QString buttonStyle = EIconOnlyButtonStyle;
+	buttonStyle.replace("${img}", storeIconPath.c_str());
+	_storeButton->setFixedSize(32, 32);
+	_storeButton->setMaximumHeight(32);
+	_storeButton->setStyleSheet(buttonStyle);
+	_storeButton->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+
+	connect(_storeButton, &QPushButton::pressed, this, [this, api]() {
+		api->OpenStoreInBrowser();
+		});
+	_layout->addWidget(_storeButton);
+
 	_settingsButton = new QPushButton(this);
 	_settingsButton->setToolTip(obs_module_text(
 		"MarketplaceWindow.OpenSettingsButton.Tooltip"));
-	std::string settingsIconPath = imageBaseDir + "settings.svg";
-	std::string settingsIconHoverPath = imageBaseDir + "settings_hover.svg";
-	QString settingsButtonStyle = EIconHoverButtonStyle;
+	std::string settingsIconPath = imageBaseDir + "button-settings-icon.svg";
+	QString settingsButtonStyle = EIconOnlyButtonStyle;
 	settingsButtonStyle.replace("${img}", settingsIconPath.c_str());
-	settingsButtonStyle.replace("${hover-img}",
-				    settingsIconHoverPath.c_str());
-	_settingsButton->setFixedSize(24, 24);
-	_settingsButton->setMaximumHeight(24);
+	_settingsButton->setFixedSize(32, 32);
+	_settingsButton->setMaximumHeight(32);
 	_settingsButton->setStyleSheet(settingsButtonStyle);
 	_settingsButton->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
 
@@ -332,51 +323,10 @@ WindowToolBar::WindowToolBar(QWidget *parent) : QWidget(parent)
 		[this]() { emit settingsClicked(); });
 	_layout->addWidget(_settingsButton);
 
-	_storeButton = new QPushButton(this);
-	_storeButton->setToolTip(
-		obs_module_text("MarketplaceWindow.StoreButton.Tooltip"));
-	std::string storeIconPath = imageBaseDir + "marketplace-logo.svg";
-	std::string storeIconHoverPath =
-		imageBaseDir + "marketplace-logo_hover.svg";
-	QString buttonStyle = EIconHoverButtonStyle;
-	buttonStyle.replace("${img}", storeIconPath.c_str());
-	buttonStyle.replace("${hover-img}", storeIconHoverPath.c_str());
-	_storeButton->setFixedSize(24, 24);
-	_storeButton->setMaximumHeight(24);
-	_storeButton->setStyleSheet(buttonStyle);
-	_storeButton->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
-
-	connect(_storeButton, &QPushButton::pressed, this, [this, api]() {
-		api->OpenStoreInBrowser();
-	});
-	_layout->addWidget(_storeButton);
-
-	_logInButton = new QPushButton(this);
-	_logInButton->setText(
-		obs_module_text("MarketplaceWindow.LoginButton.LogIn"));
-	_logInButton->setHidden(elgatoCloud->loggedIn);
-	_logInButton->setStyleSheet(
-		"QPushButton {font-size: 12pt; border-radius: 8px; padding: 8px; background-color: #232323; border: none; } "
-		"QPushButton:hover {background-color: #444444; }");
-	_layout->addWidget(_logInButton);
-	connect(_logInButton, &QPushButton::clicked, this,
-		[this]() { elgatoCloud->StartLogin(); });
-
-	_logOutButton = new QPushButton(this);
-	_logOutButton->setText(
-		obs_module_text("MarketplaceWindow.LoginButton.LogOut"));
-	_logOutButton->setHidden(!elgatoCloud->loggedIn);
-	_logOutButton->setStyleSheet(
-		"QPushButton {font-size: 12pt; border-radius: 8px; padding: 8px; background-color: #232323; border: none; } "
-		"QPushButton:hover {background-color: #444444; }");
-	connect(_logOutButton, &QPushButton::clicked, this,
-		[this]() { elgatoCloud->LogOut(); });
-
-	_layout->addWidget(_logOutButton);
-	_avatar = new Avatar(this);
-	_avatarImage = new AvatarImage(this);
-	_layout->addWidget(_avatar);
-	_layout->addWidget(_avatarImage);
+	_userMenu = new UserMenu(this);
+	_userMenu->setHidden(!elgatoCloud->loggedIn);
+	
+	_layout->addWidget(_userMenu);
 
 	connect(api, &MarketplaceApi::AvatarDownloaded, this, [this]() {
 		updateState();
@@ -387,20 +337,13 @@ WindowToolBar::~WindowToolBar() {}
 
 void WindowToolBar::disableLogout(bool disabled)
 {
-	_logOutButton->setDisabled(disabled);
+//	_logOutButton->setDisabled(disabled);
 }
 
 void WindowToolBar::updateState()
 {
 	auto api = MarketplaceApi::getInstance();
-	_logInButton->setHidden(elgatoCloud->loggedIn);
-	_logOutButton->setHidden(!elgatoCloud->loggedIn);
-	_avatar->setHidden(!elgatoCloud->loggedIn || api->avatarReady());
-	_avatarImage->setHidden(!elgatoCloud->loggedIn || !api->avatarReady());
-	if (elgatoCloud->loggedIn) {
-		_avatar->update();
-		_avatarImage->update();
-	}
+	_userMenu->setHidden(!elgatoCloud->loggedIn);
 }
 
 Placeholder::Placeholder(QWidget *parent, std::string message) : QWidget(parent)
@@ -446,12 +389,14 @@ size_t ProductGrid::loadProducts()
 	return elgatoCloud->products.size();
 }
 
-void ProductGrid::disableDownload()
+void ProductGrid::disableDownload(ElgatoProductItem* skip)
 {
 	for (int i = 0; i < layout()->count(); ++i) {
 		auto item = dynamic_cast<ElgatoProductItem *>(
 			layout()->itemAt(i)->widget());
-		item->disableDownload();
+		if (item != skip) {
+			item->disableDownload();
+		}
 	}
 }
 
@@ -464,18 +409,42 @@ void ProductGrid::enableDownload()
 	}
 }
 
+void ProductGrid::resetDownloads()
+{
+	for (int i = 0; i < layout()->count(); ++i) {
+		auto item = dynamic_cast<ElgatoProductItem*>(
+			layout()->itemAt(i)->widget());
+		item->resetDownload();
+	}
+}
+
+void ProductGrid::closing() {
+	for (int i = 0; i < layout()->count(); ++i) {
+		auto item = dynamic_cast<ElgatoProductItem*>(
+			layout()->itemAt(i)->widget());
+		item->closing();
+	}
+}
+
 OwnedProducts::OwnedProducts(QWidget *parent) : QWidget(parent)
 {
 	auto api = MarketplaceApi::getInstance();
+
+	std::string imageBaseDir = GetDataPath();
+	imageBaseDir += "/images/";
+	std::string iconPath = imageBaseDir + "your-library-icon.svg";
+
 	_layout = new QHBoxLayout(this);
 	_sideMenu = new QListWidget(this);
-	_sideMenu->addItem(obs_module_text("MarketplaceWindow.PurchasedTab"));
-	//_sideMenu->addItem("Installed (#)");
+	QIcon icon(iconPath.c_str());
+	auto yourLibrary = new QListWidgetItem(icon, obs_module_text("MarketplaceWindow.PurchasedTab"));
+	_sideMenu->setIconSize(QSize(20, 20));
+	_sideMenu->addItem(yourLibrary);
 	_sideMenu->setSizePolicy(QSizePolicy::Preferred,
 				 QSizePolicy::Expanding);
-	_sideMenu->setStyleSheet(
-		"QListWidget { border: none; font-size: 12pt; outline: none; } QListWidget::item { padding: 12px; border-radius: 8px; } QListWidget::item:selected { background-color: #444444} QListWidget::item:hover { background-color: #656565; }");
+	_sideMenu->setStyleSheet(ELeftNavListStyle);
 	_sideMenu->setCurrentRow(0);
+	_sideMenu->setFixedWidth(240);
 	connect(_sideMenu, &QListWidget::itemPressed, this,
 		[this](QListWidgetItem *item) {
 			QString val = item->text();
@@ -490,12 +459,20 @@ OwnedProducts::OwnedProducts(QWidget *parent) : QWidget(parent)
 			}
 		});
 
+	connect(api, &MarketplaceApi::UserDetailsUpdated, this, [this, api]() {
+		if (api->loggedIn()) {
+			refreshProducts();
+		}
+	});
+
 	_content = new QStackedWidget(this);
 	_installed = new Placeholder(this, "Installed, not yet implemented...");
 
 	auto scroll = new QScrollArea(this);
 	scroll->setWidgetResizable(true);
-	scroll->setStyleSheet("border: none;");
+	//scroll->setStyleSheet("border: none;");
+	scroll->setStyleSheet(ESlateContainerStyle);
+
 
 	_purchased = new ProductGrid(this);
 	_purchased->setSizePolicy(QSizePolicy::Expanding,
@@ -503,30 +480,29 @@ OwnedProducts::OwnedProducts(QWidget *parent) : QWidget(parent)
 	refreshProducts();
 
 	auto noProducts = new QWidget(this);
+	noProducts->setStyleSheet(ESlateContainerStyle);
 	auto npLayout = new QVBoxLayout(noProducts);
 	npLayout->addStretch();
 	auto npTitle = new QLabel(
 		obs_module_text("MarketplaceWindow.Purchased.NoPurchasesTitle"),
 		noProducts);
-	npTitle->setStyleSheet("QLabel {font-size: 18pt;}");
+	npTitle->setStyleSheet(EBlankSlateTitleStyle);
 	npTitle->setAlignment(Qt::AlignCenter);
 	npLayout->addWidget(npTitle);
 	auto npSubTitle = new QLabel(
 		obs_module_text(
 			"MarketplaceWindow.Purchased.NoPurchasesSubtitle"),
 		noProducts);
-	npSubTitle->setStyleSheet("QLabel {font-size: 13pt;}");
+	npSubTitle->setStyleSheet(EBlankSlateSubTitleStyle);
 	npSubTitle->setAlignment(Qt::AlignCenter);
 	npLayout->addWidget(npSubTitle);
-	npLayout->setSpacing(16);
+	npLayout->setSpacing(8);
 
 	auto hLayout = new QHBoxLayout();
 	auto mpButton = new QPushButton(this);
 	mpButton->setText(
 		obs_module_text("MarketplaceWindow.Purchased.OpenMarketplaceButton"));
-	mpButton->setStyleSheet(
-		"QPushButton {font-size: 12pt; border-radius: 8px; padding: 16px; background-color: #232323; border: none; } "
-		"QPushButton:hover {background-color: #444444; }");
+	mpButton->setStyleSheet(EBlankSlateButtonStyle);
 	connect(mpButton, &QPushButton::clicked, this, [this, api]() {
 		api->OpenStoreInBrowser();
 	});
@@ -553,8 +529,20 @@ void OwnedProducts::refreshProducts()
 		_numProducts = _purchased->loadProducts();
 		if (_numProducts == 0) {
 			_content->setCurrentIndex(2);
+		} else {
+			_content->setCurrentIndex(0);
 		}
 	}
+}
+
+void OwnedProducts::closing()
+{
+	_purchased->closing();
+}
+
+void OwnedProducts::resetDownloads()
+{
+	_purchased->resetDownloads();
 }
 
 ElgatoCloudWindow::ElgatoCloudWindow(QWidget *parent) : QDialog(parent)
@@ -579,10 +567,10 @@ ElgatoCloudWindow::~ElgatoCloudWindow()
 void ElgatoCloudWindow::initialize()
 {
 	setWindowTitle(QString("Elgato Marketplace Connect"));
-	setFixedSize(1140, 600);
+	//setFixedSize(1140, 600);
 
 	QPalette pal = QPalette();
-	pal.setColor(QPalette::Window, "#151515");
+	pal.setColor(QPalette::Window, "#000000");
 	setAutoFillBackground(true);
 	setPalette(pal);
 
@@ -596,12 +584,14 @@ void ElgatoCloudWindow::initialize()
 	mainLayout->setContentsMargins(0, 0, 0, 0);
 
 	_toolbar = new WindowToolBar(_mainWidget);
+	//_toolbar->setStyleSheet("background-color: #000000");
+
 	connect(_toolbar, &WindowToolBar::settingsClicked, this,
 		[this]() { _config = openConfigWindow(this); });
 
 	mainLayout->addWidget(_toolbar);
 	_stackedContent = new QStackedWidget(_mainWidget);
-	_stackedContent->setStyleSheet("background-color: #151515");
+	_stackedContent->setStyleSheet("background-color: #000000");
 	_stackedContent->setSizePolicy(QSizePolicy::Expanding,
 				       QSizePolicy::Expanding);
 
@@ -632,12 +622,29 @@ void ElgatoCloudWindow::initialize()
 	_layout->addWidget(_mainWidget);
 
 	setLayout(_layout);
+	setFixedSize(978, 520);
+}
+
+void ElgatoCloudWindow::resetDownloads()
+{
+	if (_ownedProducts) {
+		_ownedProducts->resetDownloads();
+	}
 }
 
 void ElgatoCloudWindow::setLoading()
 {
 	_toolbar->disableLogout(true);
 	_stackedContent->setCurrentIndex(3);
+}
+
+void ElgatoCloudWindow::closeEvent(QCloseEvent* event)
+{
+	// TODO: Possibly add dialog to confirm if the user wants
+	//       to close the window if an active download is in
+	//       progress?
+	_ownedProducts->closing();
+	event->accept();
 }
 
 void ElgatoCloudWindow::on_logInButton_clicked()
@@ -678,12 +685,295 @@ void ElgatoCloudWindow::setupOwnedProducts()
 	_stackedContent->setCurrentIndex(0);
 }
 
+ProgressThumbnail::ProgressThumbnail(float hoverOpacity, bool hoverDisabled, QWidget* parent)
+	: QLabel(parent), _hoverOpacity(hoverOpacity), _hoverDisabled(hoverDisabled), _opacity(1.0f)
+{
+	setAttribute(Qt::WA_TranslucentBackground);
+	setStyleSheet("background: transparent;");
+	setMinimumSize(1, 1);
+}
+
+void ProgressThumbnail::setCustomPixmap(const QPixmap& pixmap)
+{
+	setCustomPixmap(pixmap, size());
+}
+
+void ProgressThumbnail::setCustomPixmap(const QPixmap& pixmap, const QSize& size)
+{
+	_pixmap = pixmap;
+	_pixmapScaled = _pixmap.scaledToWidth(size.width(), Qt::SmoothTransformation);
+	QImage grayImage = _pixmapScaled.toImage().convertToFormat(QImage::Format_Grayscale8);
+	_pixmapScaledDisabled = QPixmap::fromImage(grayImage);
+	updateGeometry();
+	update();
+}
+
+QSize ProgressThumbnail::sizeHint() const
+{
+	//auto size = _pixmapScaled.size();
+	//return _pixmapScaled.size();
+	if (_pixmap.isNull())
+		return QLabel::sizeHint();
+
+	int labelWidth = width() > 0 ? width() : _pixmap.width();
+	int scaledHeight = (labelWidth * _pixmap.height()) / _pixmap.width();
+	return QSize(labelWidth, scaledHeight);
+}
+
+void ProgressThumbnail::setProgress(float progress)
+{
+	// Clamp value between 0.0 and 1.0
+	_progress = std::clamp(progress, 0.0f, 1.0f);
+	update();
+}
+
+void ProgressThumbnail::resizeEvent(QResizeEvent* event)
+{
+	QLabel::resizeEvent(event);
+	setCustomPixmap(_pixmap, event->size());
+}
+
+void ProgressThumbnail::setDisabled(bool disabled)
+{
+	_disabled = disabled;
+	update();
+}
+
+void ProgressThumbnail::setDownloading(bool downloading)
+{
+	_downloading = downloading;
+	if (!downloading) {
+		setProgress(1.0);
+	}
+	_opacity = 1.0f;
+	update();
+}
+
+void ProgressThumbnail::paintEvent(QPaintEvent* event)
+{
+	if (_pixmap.isNull()) return;
+
+	QPainter painter(this);
+	painter.setRenderHint(QPainter::Antialiasing);
+	painter.setRenderHint(QPainter::SmoothPixmapTransform);
+
+	// Rounded corners
+	const int radius = 8;
+	QPainterPath path;
+	path.addRoundedRect(rect(), radius, radius);
+	painter.setClipPath(path);
+
+	QSize labelSize = size();
+	float progress = _downloading ? _progress : 1.0f;
+
+	int splitX = static_cast<int>(labelSize.width() * progress);
+	int height = _pixmapScaled.height();
+	int width = labelSize.width();
+	float opacity = _downloading ? 1.0 : _opacity;
+
+	painter.setOpacity(opacity);
+	if (!_disabled || _downloading) {
+		painter.drawPixmap(0, 0, splitX, height, _pixmapScaled, 0, 0, splitX, height);
+	} else {
+		painter.drawPixmap(0, 0, splitX, height, _pixmapScaledDisabled, 0, 0, splitX, height);
+	}
+
+	QRect rightSide(splitX, 0, width - splitX, height);
+	QColor bgColor(42,42,42);
+	painter.fillRect(rightSide, bgColor);
+
+	painter.setOpacity(1.0);
+	QColor borderColor(255, 255, 255, 64);
+	QPen pen(borderColor);
+	pen.setWidthF(2.0);
+	painter.setPen(pen);
+	painter.setBrush(Qt::NoBrush);
+
+	painter.drawRoundedRect(rect(), radius, radius);
+	if (progress > 0.0f && progress < 1.0f) {
+		painter.drawLine(splitX, 0, splitX, height);
+	}
+}
+
+void ProgressThumbnail::onHoverEnter(QHoverEvent* event)
+{
+	if (_hoverDisabled) {
+		return;
+	}
+	_opacity = _hoverOpacity;
+	update();
+}
+
+void ProgressThumbnail::onHoverLeave(QHoverEvent* event)
+{
+	if (_hoverDisabled) {
+		return;
+	}
+	_opacity = 1.0f;
+	update();
+}
+
+void ProgressThumbnail::disableHover()
+{
+	_hoverDisabled = true;
+	_opacity = 1.0f;
+	update();
+}
+
+void ProgressThumbnail::enableHover()
+{
+	_hoverDisabled = false;
+	_opacity = 0.5f;
+	update();
+}
+
+ProductThumbnail::ProductThumbnail(QWidget* parent, const QPixmap& pixmap)
+	: QWidget(parent)
+{
+	setAttribute(Qt::WA_Hover);
+	auto layout = new QVBoxLayout(this);
+	layout->setContentsMargins(0, 0, 0, 0);
+	_thumbnail = new ProgressThumbnail(0.1f, false, this);
+	_thumbnail->setCustomPixmap(pixmap);
+	_thumbnail->setProgress(1.0);
+
+	_downloadButton = new QPushButton(this);
+	
+	_downloadButton->hide();
+	connect(_downloadButton, &QPushButton::clicked, this, [this]() {
+		if (!_downloading) {
+			setDownloading(true);
+			emit downloadClicked();
+		} else {
+			setDownloading(false);
+			emit cancelDownloadClicked();
+		}
+		updateButton_();
+	});
+
+	updateButton_();
+	layout->addWidget(_thumbnail);
+}
+
+void ProductThumbnail::updateButton_()
+{
+	std::string imageBaseDir = GetDataPath();
+	imageBaseDir += "/images/";
+	if (!_downloading) {
+		std::string iconPath = imageBaseDir + "button-download.svg";
+		QPixmap iconPixmap(iconPath.c_str());
+		QIcon downloadIcon(iconPixmap);
+		_downloadButton->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Fixed);
+		_downloadButton->setFixedHeight(32);
+		_downloadButton->setMinimumSize(QSize(0, 0));
+		_downloadButton->setMaximumSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX);
+		_downloadButton->setIcon(downloadIcon);
+		_downloadButton->setIconSize(iconPixmap.rect().size());
+		_downloadButton->setStyleSheet(EBlankSlateButtonStyle);
+		_downloadButton->setText("Install");
+	} else {
+		std::string stopIconPath = imageBaseDir + "button-stop-download.svg";
+		QPixmap stopIconPixmap(stopIconPath.c_str());
+		QIcon stopDownloadIcon(stopIconPixmap);
+		_downloadButton->setText("");
+		_downloadButton->setMinimumSize(32, 32);
+		_downloadButton->setMaximumSize(32, 32);
+		_downloadButton->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+		_downloadButton->setIcon(stopDownloadIcon);
+		_downloadButton->setIconSize(stopIconPixmap.rect().size());
+		_downloadButton->setStyleSheet(EStopDownloadButtonStyle);
+	}
+	_downloadButton->adjustSize();
+	_downloadButton->updateGeometry();
+	QSize thumbSize = _thumbnail->size();
+	QSize buttonSize = _downloadButton->size();
+	int offsetX = (thumbSize.width() - buttonSize.width()) / 2;
+	int offsetY = (thumbSize.height() - buttonSize.height()) / 2;
+	_downloadButton->setGeometry(offsetX, offsetY, buttonSize.width(), buttonSize.height());
+	layout()->activate();
+}
+
+void ProductThumbnail::setPixmap(const QPixmap& pixmap)
+{
+	_thumbnail->setCustomPixmap(pixmap);
+}
+
+bool ProductThumbnail::event(QEvent* e)
+{
+	//auto buttonSize = _downloadButton->size();
+	if (!_downloading && _disable) {
+		return QWidget::event(e);
+	}
+	QSize thumbSize;
+	QSize buttonSize;
+	int offsetX, offsetY;
+	switch (e->type()) {
+	case QEvent::HoverEnter:
+		thumbSize = _thumbnail->size();
+		buttonSize = _downloadButton->size();
+		offsetX = (thumbSize.width() - buttonSize.width()) / 2;
+		offsetY = (thumbSize.height() - buttonSize.height()) / 2;
+		if (!_downloading) {
+			_thumbnail->onHoverEnter(static_cast<QHoverEvent*>(e));
+		}
+		_downloadButton->setGeometry(offsetX, offsetY, buttonSize.width(), buttonSize.height());
+		_downloadButton->show();
+		return true;
+	case QEvent::HoverLeave:
+		if (!_downloading) {
+			_thumbnail->onHoverLeave(static_cast<QHoverEvent*>(e));
+		}
+		_downloadButton->hide();
+		return true;
+	default:
+		break;
+	}
+	return QWidget::event(e);
+}
+
+void ProductThumbnail::resizeEvent(QResizeEvent* event)
+{
+	QWidget::resizeEvent(event);
+}
+
+QSize ProductThumbnail::sizeHint() const
+{
+	return _thumbnail ? _thumbnail->sizeHint() : QWidget::sizeHint();
+}
+
+void ProductThumbnail::disable(bool disable)
+{
+	_disable = disable;
+	_thumbnail->setDisabled(disable);
+	update();
+}
+
+void ProductThumbnail::enable(bool enable)
+{
+	_disable = !enable;
+	_thumbnail->setDisabled(_disable);
+	update();
+}
+
+void ProductThumbnail::setDownloading(bool downloading)
+{
+	_thumbnail->setDownloading(downloading);
+	update();
+	_downloading = downloading;
+}
+
+ProductThumbnail::~ProductThumbnail()
+{
+	//if (_downloading) {
+	//	emit cancelDownloadClicked();
+	//}
+}
+
 ElgatoProductItem::ElgatoProductItem(QWidget *parent, ElgatoProduct *product)
 	: QWidget(parent),
 	  _product(product)
 {
-	setFixedWidth(270);
-	//setStyleSheet("QWidget { border: 1px solid #FFF; }");
+	setFixedWidth(220);
 	std::string imageBaseDir = GetDataPath();
 	imageBaseDir += "/images/";
 
@@ -695,59 +985,67 @@ ElgatoProductItem::ElgatoProductItem(QWidget *parent, ElgatoProduct *product)
 
 	product->SetProductItem(this);
 
-	QPixmap previewImage = _setupImage(imagePath);
+	QPixmap previewImage(imagePath.c_str());
 
 	auto titleLayout = new QVBoxLayout();
 	titleLayout->setSpacing(0);
-	std::string name = _product->name.size() > 24
-				   ? _product->name.substr(0, 24) + "..."
+	std::string name = _product->name.size() > 25
+				   ? _product->name.substr(0, 23) + "..."
 				   : _product->name;
 	QLabel *label = new QLabel(name.c_str(), this);
 	label->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
 	label->setMinimumWidth(150);
-	label->setStyleSheet("QLabel {font-size: 11pt;}");
+	label->setStyleSheet("QLabel {font-size: 13px; font-weight: 600; }");
 
 	titleLayout->addWidget(label);
 	auto subTitle = new QLabel("Scene Collection", this);
-	subTitle->setStyleSheet("QLabel {font-size: 10pt; color: #7E7E7E; }");
+	subTitle->setStyleSheet("QLabel {font-size: 12px; color: rgba(255, 255, 255, 0.67); }");
 	titleLayout->addWidget(subTitle);
 
-	_downloadButton = new DownloadButton(this);
+	_labelImg = new ProductThumbnail(this, previewImage);
+	_labelImg->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
 
-	connect(_downloadButton, &DownloadButton::downloadClicked, [this]() {
-		auto p = dynamic_cast<ProductGrid *>(parentWidget());
-		p->disableDownload();
+	connect(_labelImg, &ProductThumbnail::downloadClicked, [this]() {
+		auto p = dynamic_cast<ProductGrid*>(parentWidget());
+		p->disableDownload(this);
 		bool success = _product->DownloadProduct();
 		if (!success) {
 			p->enableDownload();
 			resetDownload();
 		}
+		else {
+			p->enableDownload();
+			resetDownload();
+		}
 	});
 
-	auto labelLayout = new QHBoxLayout();
-	labelLayout->addLayout(titleLayout);
-	QWidget *spacer = new QWidget(this);
-	spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-	//spacer->setStyleSheet("QWidget { border: 1px solid #FFFFFF; }");
-	labelLayout->addWidget(spacer);
-	labelLayout->addWidget(_downloadButton);
+	connect(_labelImg, &ProductThumbnail::cancelDownloadClicked, [this]() {
+		_product->StopProductDownload();
+		auto p = dynamic_cast<ProductGrid*>(parentWidget());
+		p->enableDownload();
+		resetDownload();
+	});
 
-	_labelImg = new QLabel(this);
-	_labelImg->setPixmap(previewImage);
-	_labelImg->setSizePolicy(QSizePolicy::Preferred,
-				 QSizePolicy::Preferred);
 	layout->addWidget(_labelImg);
-	layout->addLayout(labelLayout);
+	layout->addLayout(titleLayout);
 
 	setLayout(layout);
 }
 
-ElgatoProductItem::~ElgatoProductItem() {}
+ElgatoProductItem::~ElgatoProductItem() {
+	_product->StopProductDownload();
+}
+
+void ElgatoProductItem::closing() {
+	_product->StopProductDownload();
+}
 
 void ElgatoProductItem::resetDownload()
 {
 	//_labelDownload->setCurrentIndex(0);
-	_downloadButton->resetDownload();
+	setDisabled(false);
+	_labelImg->disable(false);
+	_labelImg->setDownloading(false);
 	auto pw = dynamic_cast<ProductGrid *>(parentWidget());
 	pw->enableDownload();
 }
@@ -755,13 +1053,16 @@ void ElgatoProductItem::resetDownload()
 void ElgatoProductItem::disableDownload()
 {
 	//_downloadButton->setVisible(false);
-	_downloadButton->setDisabled(true);
+	setDisabled(true);
+	//_labelImg->setDisabled(true);
+	_labelImg->disable(true);
 }
 
 void ElgatoProductItem::enableDownload()
 {
 	//_downloadButton->setVisible(true);
-	_downloadButton->setDisabled(false);
+	setDisabled(false);
+	_labelImg->disable(false);
 }
 
 void ElgatoProductItem::updateImage()
@@ -773,6 +1074,7 @@ void ElgatoProductItem::updateImage()
 					: imageBaseDir + "image-loading.svg";
 	QPixmap image = _setupImage(imagePath);
 	_labelImg->setPixmap(image);
+	_labelImg->update();
 }
 
 QPixmap ElgatoProductItem::_setupImage(std::string imagePath)
@@ -801,30 +1103,42 @@ QPixmap ElgatoProductItem::_setupImage(std::string imagePath)
 	painter.setClipPath(path);
 	painter.drawPixmap(0, 0, img.scaledToHeight(targetHeight));
 
+	QColor borderColor(255, 255, 255, 32);
+	QPen pen(borderColor);
+	pen.setWidth(1);
+	painter.setPen(pen);
+	painter.setBrush(Qt::NoBrush);
+
+	QRectF rect(0, 0, targetWidth, targetHeight);
+	painter.drawRoundedRect(rect, 8, 8);
 	return target;
 }
 
 void ElgatoProductItem::UpdateDownload(bool downloading, int progress)
 {
 	if (downloading) {
-		_downloadButton->setValue(progress);
+		_labelImg->updateDownloadProgress((float)progress/100.0f);
 	}
 }
 
 LoginNeeded::LoginNeeded(QWidget *parent) : QWidget(parent)
 {
 	auto layout = new QVBoxLayout(this);
+	auto container = new QWidget(this);
+	container->setStyleSheet(ESlateContainerStyle);
+	setContentsMargins(0, 0, 0, 0);
+	auto containerLayout = new QVBoxLayout(container);
 
 	auto login = new QLabel(this);
 	login->setText(obs_module_text("MarketplaceWindow.LoginNeeded.Title"));
-	login->setStyleSheet("QLabel {font-size: 18pt; }");
+	login->setStyleSheet(EBlankSlateTitleStyle);
 	login->setAlignment(Qt::AlignCenter);
 
 	auto subHLayout = new QHBoxLayout();
 	auto loginSub = new QLabel(this);
 	loginSub->setText(
 		obs_module_text("MarketplaceWindow.LoginNeeded.Subtitle"));
-	loginSub->setStyleSheet("QLabel {font-size: 13pt; }");
+	loginSub->setStyleSheet(EBlankSlateSubTitleStyle);
 	loginSub->setFixedWidth(480);
 	loginSub->setWordWrap(true);
 	loginSub->setAlignment(Qt::AlignCenter);
@@ -836,37 +1150,44 @@ LoginNeeded::LoginNeeded(QWidget *parent) : QWidget(parent)
 	auto loginButton = new QPushButton(this);
 	loginButton->setText(
 		obs_module_text("MarketplaceWindow.LoginButton.LogIn"));
-	loginButton->setStyleSheet(
-		"QPushButton {font-size: 12pt; border-radius: 8px; padding: 16px; background-color: #232323; border: none; } "
-		"QPushButton:hover {background-color: #444444; }");
+	QString loginButtonStyle = EBlankSlateButtonStyle;
+	loginButton->setStyleSheet(loginButtonStyle);
 	connect(loginButton, &QPushButton::clicked, this,
 		[this]() { elgatoCloud->StartLogin(); });
 	hLayout->addStretch();
 	hLayout->addWidget(loginButton);
 	hLayout->addStretch();
 
-	layout->addStretch();
-	layout->addWidget(login);
-	layout->addLayout(subHLayout);
-	layout->addLayout(hLayout);
-	layout->addStretch();
-	layout->setSpacing(16);
+	containerLayout->addStretch();
+	containerLayout->addWidget(login);
+	containerLayout->addLayout(subHLayout);
+	containerLayout->addLayout(hLayout);
+	containerLayout->addStretch();
+	containerLayout->setSpacing(8);
+
+	layout->addWidget(container);
 }
 
 LoggingIn::LoggingIn(QWidget* parent) : QWidget(parent)
 {
 	auto layout = new QVBoxLayout(this);
+	auto container = new QWidget(this);
+	container->setStyleSheet(ESlateContainerStyle);
+	setContentsMargins(0, 0, 0, 0);
+	auto containerLayout = new QVBoxLayout(container);
+
+	auto spinner = new SmallSpinner(this);
 
 	auto login = new QLabel(this);
 	login->setText(obs_module_text("MarketplaceWindow.LoggingIn.Title"));
-	login->setStyleSheet("QLabel {font-size: 18pt; }");
+	login->setStyleSheet(EBlankSlateTitleStyle);
 	login->setAlignment(Qt::AlignCenter);
 
 	auto subHLayout = new QHBoxLayout();
 	auto loginSub = new QLabel(this);
 	loginSub->setText(
 		obs_module_text("MarketplaceWindow.LoggingIn.Subtitle"));
-	loginSub->setStyleSheet("QLabel {font-size: 13pt; }");
+	loginSub->setStyleSheet(EBlankSlateSubTitleStyle);
 	loginSub->setFixedWidth(480);
 	loginSub->setWordWrap(true);
 	loginSub->setAlignment(Qt::AlignCenter);
@@ -878,20 +1199,21 @@ LoggingIn::LoggingIn(QWidget* parent) : QWidget(parent)
 	auto loginButton = new QPushButton(this);
 	loginButton->setText(
 		obs_module_text("MarketplaceWindow.LoggingIn.TryAgain"));
-	loginButton->setStyleSheet(
-		"QPushButton {font-size: 12pt; border-radius: 8px; padding: 16px; background-color: #232323; border: none; } "
-		"QPushButton:hover {background-color: #444444; }");
+	loginButton->setStyleSheet(EBlankSlateQuietButtonStyle);
 	connect(loginButton, &QPushButton::clicked, this,
 		[this]() { elgatoCloud->StartLogin(); });
 	hLayout->addStretch();
 	hLayout->addWidget(loginButton);
 	hLayout->addStretch();
-	layout->addStretch();
-	layout->addWidget(login);
-	layout->addLayout(subHLayout);
-	layout->addLayout(hLayout);
-	layout->addStretch();
-	layout->setSpacing(16);
+	containerLayout->addStretch();
+	containerLayout->addWidget(spinner);
+	containerLayout->addWidget(login);
+	containerLayout->addLayout(subHLayout);
+	containerLayout->addLayout(hLayout);
+	containerLayout->addStretch();
+	containerLayout->setSpacing(8);
+
+	layout->addWidget(container);
 }
 
 LoginError::LoginError(QWidget *parent) : QWidget(parent)
@@ -971,16 +1293,27 @@ LoadingWidget::LoadingWidget(QWidget *parent) : QWidget(parent)
 	auto layout = new QVBoxLayout(this);
 	auto loading = new QLabel(this);
 	loading->setText(obs_module_text("MarketplaceWindow.Loading.Title"));
-	loading->setStyleSheet("QLabel {font-size: 18pt;}");
+	loading->setStyleSheet(EBlankSlateTitleStyle);
+	loading->setFixedWidth(360);
+	loading->setWordWrap(true);
 	loading->setAlignment(Qt::AlignCenter);
+	auto loadingLayout = new QHBoxLayout();
+	loadingLayout->addStretch();
+	loadingLayout->addWidget(loading);
+	loadingLayout->addStretch();
 
 	//auto spinner = new ProgressSpinner(this);
-	auto spinner = new SpinnerPanel(this, "", "", true);
-	spinner->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+	//auto spinner = new SpinnerPanel(this, "", "", true);
+	auto spinner = new SmallSpinner(this);
+	spinner->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+	auto spinnerLayout = new QHBoxLayout();
 
 	layout->addStretch();
-	layout->addWidget(spinner);
-	layout->addWidget(loading);
+	spinnerLayout->addStretch();
+	spinnerLayout->addWidget(spinner);
+	spinnerLayout->addStretch();
+	layout->addLayout(spinnerLayout);
+	layout->addLayout(loadingLayout);
 	layout->addStretch();
 	layout->setSpacing(16);
 }

@@ -25,7 +25,7 @@ with this program.If not, see < https://www.gnu.org/licenses/>
 #include <obs-frontend-api.h>
 #include <util/config-file.h>
 #include <obs.hpp>
-#include <obs-module.h>
+#include <obs.h>
 
 #include <QDialog>
 #include <QWidget>
@@ -34,16 +34,55 @@ with this program.If not, see < https://www.gnu.org/licenses/>
 #include <QStackedWidget>
 #include <QMovie>
 #include <QTConcurrent>
+#include <QStyledItemDelegate>
+#include <QFontMetrics>
 
 #include "scene-bundle.hpp"
+#include "elgato-widgets.hpp"
+
 
 namespace elgatocloud {
+
+class ExportStepsSideBar : public QWidget {
+	Q_OBJECT
+public:
+	ExportStepsSideBar(std::string name, QWidget* parent);
+	void setStep(int step);
+	void incrementStep();
+	void decrementStep();
+
+private:
+	Stepper* _stepper;
+};
+
+class StartExport : public QWidget {
+	Q_OBJECT
+public:
+	StartExport(std::string name, QWidget* parent);
+signals:
+	void continuePressed();
+};
+
+
+class SceneCollectionFilesDelegate : public QStyledItemDelegate {
+	Q_OBJECT
+public:
+	explicit SceneCollectionFilesDelegate(QObject* parent = nullptr);
+
+	QString elideMiddlePath(const QString& fullPath, const QFontMetrics& metrics, int maxWidth) const;
+
+	void paint(QPainter* painter, const QStyleOptionViewItem& option,
+		const QModelIndex& index) const override;
+
+	QSize sizeHint(const QStyleOptionViewItem& option, const QModelIndex& index) const override;
+};
+
 
 class FileCollectionCheck : public QWidget {
 	Q_OBJECT
 
 public:
-	FileCollectionCheck(QWidget *parent, std::vector<std::string> files);
+	FileCollectionCheck(std::string name, std::vector<std::string> files, QWidget* parent);
 
 signals:
 	void continuePressed();
@@ -54,11 +93,27 @@ private:
 	bool _SubFiles(std::vector<std::string>& files, std::string curDir);
 };
 
+class SelectOutputScenes : public QWidget {
+	Q_OBJECT
+
+public:
+	SelectOutputScenes(std::string name, QWidget* parent = nullptr);
+	std::vector<SceneInfo> OutputScenes() const;
+	static bool AddScene(void* data, obs_source_t* scene);
+
+signals:
+	void continuePressed();
+	void backPressed();
+
+private:
+	std::vector<SceneInfo> _scenes;
+};
+
 class VideoSourceLabels : public QWidget {
 	Q_OBJECT
 public:
-	VideoSourceLabels(QWidget *parent,
-			  std::map<std::string, std::string> devices);
+	VideoSourceLabels(std::string name,
+			  std::map<std::string, std::string> devices, QWidget* parent);
 	inline std::map<std::string, std::string> Labels() { return _labels; }
 signals:
 	void continuePressed();
@@ -71,8 +126,8 @@ private:
 class RequiredPlugins : public QWidget {
 	Q_OBJECT
 public:
-	RequiredPlugins(QWidget *parent,
-			std::vector<obs_module_t *> installedPlugins);
+	RequiredPlugins(std::string name,
+			std::vector<obs_module_t *> installedPlugins, QWidget* parent);
 	std::vector<std::string> RequiredPluginList();
 signals:
 	void continuePressed();
@@ -82,10 +137,43 @@ private:
 	std::map<std::string, std::pair<bool, std::string>> _pluginStatus;
 };
 
+class ThirdPartyRequirements : public QWidget {
+	Q_OBJECT
+public:
+	ThirdPartyRequirements(std::string name, QWidget* parent);
+	std::vector<std::pair<std::string, std::string>> getRequirements() const;
+
+signals:
+	void continuePressed();
+	void backPressed();
+
+private slots:
+	void onTextChanged();
+	void onDeleteClicked();
+
+private:
+	struct InputRow {
+		QWidget* rowWidget;
+		QLineEdit* titleEdit;
+		QLineEdit* urlEdit;
+		QPushButton* deleteButton;
+	};
+
+	QVBoxLayout* _formLayout;
+	QVector<InputRow> _inputRows;
+
+	void addInputRow();
+	void removeInputRow(QWidget* rowWidget);
+	bool isLastRow(const InputRow& row) const;
+	bool isRowFilled(const InputRow& row) const;
+};
+
+static bool isValidHttpUrl(const QString& urlStr);
+
 class Exporting : public QWidget {
 	Q_OBJECT
 public:
-	Exporting(QWidget *parent);
+	Exporting(std::string name, QWidget *parent);
 	~Exporting();
 
 private:
@@ -96,7 +184,7 @@ class ExportComplete : public QWidget {
 	Q_OBJECT
 
 public:
-	ExportComplete(QWidget *parent);
+	ExportComplete(std::string name, QWidget *parent);
 
 signals:
 	void closePressed();

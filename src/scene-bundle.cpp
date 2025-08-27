@@ -24,9 +24,11 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <util/config-file.h>
 #include <QDialog>
 #include <QApplication>
+#include <QMessageBox>
 #include <QThread>
 #include <QMetaObject>
 #include <vector>
+#include <set>
 #include <string>
 #include <filesystem>
 #include <stdio.h>
@@ -38,6 +40,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include "util.h"
 #include "obs-utils.hpp"
 #include "setup-wizard.hpp"
+#include "api.hpp"
 
 const std::map<std::string, std::string> extensionMap{
 	{".jpg", "/images/"},     {".jpeg", "/images/"},
@@ -45,7 +48,7 @@ const std::map<std::string, std::string> extensionMap{
 	{".bmp", "/images/"},     {".webm", "/video/"},
 	{".mov", "/video/"},      {".mp4", "/video/"},
 	{".mkv", "/video/"},      {".mp3", "/audio/"},
-	{".wav", "/aduio/"},      {".effect", "/shaders/"},
+	{".wav", "/audio/"},      {".effect", "/shaders/"},
 	{".shader", "/shaders/"}, {".hlsl", "/shaders/"},
 	{".lua", "/scripts/"},    {".py", "/scripts/"},
 	{".html", "/browser-sources/"},
@@ -122,7 +125,8 @@ bool SceneBundle::FromElgatoCloudFile(std::string filePath,
 std::string SceneBundle::ExtractBundleInfo(std::string filePath)
 {
 	miniz_cpp::zip_file file(filePath);
-	return file.read("bundle_info.json");
+	auto result = file.read("bundle_info.json");
+	return result;
 }
 
 void SceneBundle::SceneCollectionCreated(enum obs_frontend_event event,
@@ -146,51 +150,270 @@ void SceneBundle::SceneCollectionChanged(enum obs_frontend_event event,
 		}
 	}
 }
+bool SceneBundle::MergeCollection(std::string collection_name,
+	std::vector<std::string> scenes,
+	std::map<std::string, std::string> videoSettings,
+	std::string audioSettings, std::string id)
+{
+	const auto userConf = GetUserConfig();
+	_backupCurrentCollection();
+	auto curCollectionPath = _currentCollectionPath();
+	char* collection_str = os_quick_read_utf8_file(curCollectionPath.c_str());
+	nlohmann::json currentCollectionJson = nlohmann::json::parse(collection_str);
+	bfree(collection_str);
+	
+	std::vector<std::string> cColSourceNames;
+	std::vector<std::string> cColUuids;
+	std::vector<std::string> cColGroupNames;
+	std::map<std::string, nlohmann::json> cVideoCaptureSources;
+
+	// Grab all source names and UUIDs in the existing collection so that
+	// we can make sure there are no name/id clashes.  UUIDs might clash
+	// if the same scene collection is merged twice.
+	if (currentCollectionJson.contains("sources")) {
+		for (auto source : currentCollectionJson["sources"]) {
+			cColSourceNames.push_back(source["name"]);
+			cColUuids.push_back(source["uuid"]);
+			if (source.contains("filters")) {
+				for (auto filter : source["filters"]) {
+					cColUuids.push_back(filter["uuid"]);
+				}
+			}
+
+			// TODO: Mac Compatibility
+			if (source["id"] == "dshow_input") {
+				std::string vdi = source["settings"]["video_device_id"];
+				cVideoCaptureSources[vdi] = source;
+			}
+		}
+	}
+
+	if (currentCollectionJson.contains("groups")) {
+		for (auto group : currentCollectionJson["groups"]) {
+			cColSourceNames.push_back(group["name"]);
+			cColUuids.push_back(group["uuid"]);
+			if (group.contains("filters")) {
+				for (auto filter : group["filters"]) {
+					cColUuids.push_back(filter["uuid"]);
+				}
+			}
+		}
+	}
+
+	if (currentCollectionJson.contains("transitions")) {
+		for (auto transition : currentCollectionJson["transitions"]) {
+			cColSourceNames.push_back(transition["name"]);
+		}
+	}
+
+	std::string collection_file_path = _packPath + "/collection.json";
+	char* ecollection_str =
+		os_quick_read_utf8_file(collection_file_path.c_str());
+	std::string collectionData = ecollection_str;
+	bfree(ecollection_str);
+
+	std::string bundle_info_path = _packPath + "/bundle_info.json";
+	char* bundle_info_str = os_quick_read_utf8_file(bundle_info_path.c_str());
+	std::string bundleInfoData = bundle_info_str;
+	bfree(bundle_info_str);
+
+	// replace all uuid clashses with a new uuid
+	for (auto uuid : cColUuids) {
+		auto newUuid = gen_uuid();
+		replace_all(collectionData, uuid, newUuid);
+	}
+
+	// Replace all name clashes in the new scene collection (names that
+	// exist in the current collection)
+	for (auto name : cColSourceNames) {
+		int i = 2;
+		std::string newName = name + "_" + std::to_string(i);
+		while (
+			std::find(cColSourceNames.begin(), cColSourceNames.end(), newName) != cColSourceNames.end()
+			|| collectionData.find(std::string("\"" + newName + "\"")) != std::string::npos
+			) {
+			i += 1;
+			newName = name + "_" + std::to_string(i);
+		}
+		for (auto& sceneName : scenes) {
+			if (sceneName == name) {
+				sceneName = newName;
+			}
+		}
+		replace_all(collectionData, "\"" + name + "\"", "\"" + newName + "\"");
+	}
+
+	std::string needle = "{FILE}:";
+	std::string word = _packPath + "/";
+	replace_all(collectionData, needle, word);
+
+	for (auto const& [sourceName, settings] : videoSettings) {
+		needle = "\"{" + sourceName + "}\"";
+		replace_all(collectionData, needle, settings);
+	}
+
+	needle = "\"{AUDIO_CAPTURE_SETTINGS}\"";
+	replace_all(collectionData, needle, audioSettings);
+
+	_collection = nlohmann::json::parse(collectionData);
+
+	if (_collection.contains("modules") &&
+		_collection["modules"].contains("elgato_marketplace_connect") &&
+		_collection["modules"]["elgato_marketplace_connect"].contains("id")
+		) { // This was a downloaded collection that has been exported
+		auto api = elgatocloud::MarketplaceApi::getInstance();
+		std::string currentId = api->id();
+		std::string embeddedId = _collection["modules"]["elgato_marketplace_connect"]["id"];
+		if (currentId != embeddedId) {
+			obs_log(LOG_INFO, "Ids don't match");
+			QMessageBox msgBox;
+			msgBox.setWindowTitle("Alert");
+			msgBox.setText("This scene collection file contains portions of a scene collection purchased on the Elgato Marketplace. To install it, you will need to be logged in to the original account that purchased the collection. Please log in through the Elgato Marketplace menu item, and try to install again.");
+			msgBox.setIcon(QMessageBox::Information);
+			msgBox.setStandardButtons(QMessageBox::Close);
+			msgBox.exec();
+			return false;
+		}
+		id = embeddedId;
+	}
+
+	// Code to swap out video capture devices in _collection,
+	// with source clones if needed.
+
+	for (auto& source : _collection["sources"]) {
+		if (source["id"] == "dshow_input") {
+			// If the user did not select a video device for this
+			// source.. continue
+			if (!source["settings"].contains("video_device_id")) {
+				continue;
+			}
+			std::string vdi = source["settings"]["video_device_id"];
+			if (cVideoCaptureSources.find(vdi) != cVideoCaptureSources.end()) {
+				source["id"] = "source-clone";
+				source["versioned_id"] = "source-clone";
+				source["settings"] = {
+					{"clone", cVideoCaptureSources[vdi]["name"]},
+					{"audio", false},
+					{"active_clone", false}
+				};
+			}
+		}
+	}
+
+	std::vector<nlohmann::json> mergeSources = {};
+	std::vector<nlohmann::json> mergeGroups = {};
+	std::vector<nlohmann::json> mergeSceneOrder = {};
+	if (scenes.size() == 0) {
+		for (auto& source : _collection["sources"]) {
+			mergeSources.push_back(source);
+		}
+		for (auto& group : _collection["groups"]) {
+			mergeGroups.push_back(group);
+		}
+		for (auto& so : _collection["scene_order"]) {
+			mergeSceneOrder.push_back(so);
+		}
+	} else {
+		// 1. Get all source names in collection
+		std::map<std::string, nlohmann::json> sourceNames;
+		for (auto& source : _collection["sources"]) {
+			sourceNames[source["name"]] = source;
+		}
+
+		std::map<std::string, nlohmann::json> groupNames;
+		for (auto& group : _collection["groups"]) {
+			groupNames[group["name"]] = group;
+		}
+
+		// 2. Determine names of all required sources
+		std::set<std::string> requiredSources;
+		std::set<std::string> requiredGroups;
+
+		for (auto& sceneName : scenes) {
+			addSources(
+				sceneName,
+				requiredSources,
+				requiredGroups,
+				sourceNames,
+				groupNames
+			);
+		}
+		
+		// 3. Get scene order
+		std::vector<nlohmann::json> colSceneOrder = _collection["scene_order"];
+		std::copy_if(colSceneOrder.begin(), colSceneOrder.end(), std::back_inserter(mergeSceneOrder),
+			[requiredSources](nlohmann::json const& scene) {
+				return requiredSources.find(scene["name"]) != requiredSources.end();
+			});
+
+		// 4. Collect required sources
+		for (auto sourceName : requiredSources) {
+			mergeSources.push_back(sourceNames[sourceName]);
+		}
+
+		for (auto groupName : requiredGroups) {
+			mergeGroups.push_back(groupNames[groupName]);
+		}
+	}
+
+	for (auto& source : mergeSources) {
+		currentCollectionJson["sources"].push_back(source);
+	}
+
+	for (auto& group : mergeGroups) {
+		currentCollectionJson["groups"].push_back(group);
+	}
+
+	for (auto& transition : _collection["transitions"]) {
+		currentCollectionJson["transitions"].push_back(transition);
+	}
+
+	currentCollectionJson["current_transition"] = _collection["current_transition"];
+	currentCollectionJson["transition_duration"] = _collection["transition_duration"];
+	
+	for (auto& so : currentCollectionJson["scene_order"]) {
+		mergeSceneOrder.push_back(so);
+	}
+
+	currentCollectionJson["scene_order"] = mergeSceneOrder;
+
+	_bundleInfo = nlohmann::json::parse(bundleInfoData);
+
+	nlohmann::json module_info = {
+		{"first_run", true}
+	};
+
+	if (_bundleInfo.contains("third_party")) {
+		module_info["third_party"] = _bundleInfo["third_party"];
+	}
+
+	if (!id.empty()) {
+		module_info["id"] = id;
+	}
+
+	_collection = currentCollectionJson;
+
+	_collection["modules"]["elgato_marketplace_connect"] = module_info;
+	
+	return _createSceneCollection(collection_name);
+}
 
 bool SceneBundle::ToCollection(std::string collection_name,
 			       std::map<std::string, std::string> videoSettings,
-			       std::string audioSettings)
+			       std::string audioSettings, std::string id)
 {
 	const auto userConf = GetUserConfig();
+	_backupCurrentCollection();
 
-	std::string curCollectionName =
-		config_get_string(userConf, "Basic", "SceneCollection");
-	std::string curCollectionFileName =
-		get_current_scene_collection_filename();
-	curCollectionFileName =
-		get_scene_collections_path() + curCollectionFileName;
-
-	char *ccpath = os_get_abs_path_ptr(curCollectionFileName.c_str());
-	std::string curCollectionPath = std::string(ccpath);
-
-	size_t pos = 0;
-	std::string from = "\\";
-	std::string to = "/";
-	while ((pos = curCollectionPath.find(from, pos)) != std::string::npos) {
-		curCollectionPath.replace(pos, from.length(), to);
-		pos += to.length();
-	}
-
-	bfree(ccpath);
-
-	std::string savePath = QDir::homePath().toStdString();
-	savePath += "/AppData/Local/Elgato/MarketplaceConnect/SCBackups/";
-	os_mkdirs(savePath.c_str());
-
-	std::string backupFilename = get_current_scene_collection_filename();
-	savePath += backupFilename;
-
-	if (os_file_exists(savePath.c_str())) {
-		os_unlink(savePath.c_str());
-	}
-	os_copyfile(curCollectionPath.c_str(), savePath.c_str());
-
-	char *current_collection = obs_frontend_get_current_scene_collection();
 	std::string collection_file_path = _packPath + "/collection.json";
+	std::string bundle_info_path = _packPath + "/bundle_info.json";
 	char *collection_str =
 		os_quick_read_utf8_file(collection_file_path.c_str());
+	char* bundle_info_str = os_quick_read_utf8_file(bundle_info_path.c_str());
 	std::string collectionData = collection_str;
+	std::string bundleInfoData = bundle_info_str;
 	bfree(collection_str);
+	bfree(bundle_info_str);
 
 	std::string needle = "{FILE}:";
 	std::string word = _packPath + "/";
@@ -205,14 +428,54 @@ bool SceneBundle::ToCollection(std::string collection_name,
 	replace_all(collectionData, needle, audioSettings);
 
 	_collection = nlohmann::json::parse(collectionData);
-	_collection["name"] = collection_name;
+	_bundleInfo = nlohmann::json::parse(bundleInfoData);
 
-	// TODO: Replacements for OS-specific interfaces, or make built-in OBS
-	//       importers work. Built-in OBS importers would require json11
+	if (_collection.contains("modules") &&
+		_collection["modules"].contains("elgato_marketplace_connect") &&
+		_collection["modules"]["elgato_marketplace_connect"].contains("id")
+	) { // This was a downloaded collection that has been exported
+		auto api = elgatocloud::MarketplaceApi::getInstance();
+		std::string currentId = api->id();
+		std::string embeddedId = _collection["modules"]["elgato_marketplace_connect"]["id"];
+		if (currentId != embeddedId) {
+			obs_log(LOG_INFO, "Ids don't match");
+			QMessageBox msgBox;
+			msgBox.setWindowTitle("Alert");
+			msgBox.setText("This scene collection file contains portions of a scene collection purchased on the Elgato Marketplace. To install it, you will need to be logged in to the original account that purchased the collection. Please log in through the Elgato Marketplace menu item, and try to install again.");
+			msgBox.setIcon(QMessageBox::Information);
+			msgBox.setStandardButtons(QMessageBox::Close);
+			msgBox.exec();
+			return false;
+		}
+		id = embeddedId;
+	}
+
+	nlohmann::json module_info = {
+		{"first_run", true}
+	};
+	
+	if (_bundleInfo.contains("third_party")) {
+		module_info["third_party"] = _bundleInfo["third_party"];
+	}
+
+	if (!id.empty()) {
+		module_info["id"] = id;
+	}
+
+	_collection["modules"]["elgato_marketplace_connect"] = module_info;
+
+	return _createSceneCollection(collection_name);
+}
+
+bool SceneBundle::_createSceneCollection(std::string collection_name)
+{
+	char* current_collection = obs_frontend_get_current_scene_collection();
+	const auto userConf = GetUserConfig();
+	_collection["name"] = collection_name;
 
 	// 1. Add callback listener for scene collection list changed event
 	obs_frontend_add_event_callback(SceneBundle::SceneCollectionCreated,
-					this);
+		this);
 
 	// 2. Set waiting to true, to block execution until scene collection created.
 	_waiting = true;
@@ -225,7 +488,7 @@ bool SceneBundle::ToCollection(std::string collection_name,
 
 	// 5. Remove the callback
 	obs_frontend_remove_event_callback(SceneBundle::SceneCollectionCreated,
-					   this);
+		this);
 
 	// 6. Get new collection name and filename
 	std::string newCollectionName =
@@ -243,7 +506,7 @@ bool SceneBundle::ToCollection(std::string collection_name,
 
 	// 8. Add a callback for scene collection change
 	obs_frontend_add_event_callback(SceneBundle::SceneCollectionChanged,
-					this);
+		this);
 
 	// 9. Switch back to old scene collection so we can manually write the new
 	//    collection json file
@@ -254,7 +517,7 @@ bool SceneBundle::ToCollection(std::string collection_name,
 		; // do nothing
 
 	// 11. Replace newCollectionFileName with imported json data
-	obs_data_t *data =
+	obs_data_t* data =
 		obs_data_create_from_json(_collection.dump().c_str());
 	bool success = obs_data_save_json_safe(
 		data, newCollectionFileName.c_str(), "tmp", "bak");
@@ -284,8 +547,53 @@ bool SceneBundle::ToCollection(std::string collection_name,
 	return true;
 }
 
+void SceneBundle::_backupCurrentCollection()
+{
+	auto curCollectionPath = _currentCollectionPath();
+
+	std::string savePath = QDir::homePath().toStdString();
+	savePath += "/AppData/Local/Elgato/MarketplaceConnect/SCBackups/";
+	os_mkdirs(savePath.c_str());
+
+	std::string backupFilename = get_current_scene_collection_filename();
+	savePath += backupFilename;
+
+	if (os_file_exists(savePath.c_str())) {
+		os_unlink(savePath.c_str());
+	}
+	os_copyfile(curCollectionPath.c_str(), savePath.c_str());
+}
+
+std::string SceneBundle::_currentCollectionPath()
+{
+	const auto userConf = GetUserConfig();
+
+	std::string curCollectionName =
+		config_get_string(userConf, "Basic", "SceneCollection");
+	std::string curCollectionFileName =
+		get_current_scene_collection_filename();
+	curCollectionFileName =
+		get_scene_collections_path() + curCollectionFileName;
+
+	char* ccpath = os_get_abs_path_ptr(curCollectionFileName.c_str());
+	std::string curCollectionPath = std::string(ccpath);
+
+	size_t pos = 0;
+	std::string from = "\\";
+	std::string to = "/";
+	while ((pos = curCollectionPath.find(from, pos)) != std::string::npos) {
+		curCollectionPath.replace(pos, from.length(), to);
+		pos += to.length();
+	}
+
+	bfree(ccpath);
+	return curCollectionPath;
+}
+
 SceneBundleStatus SceneBundle::ToElgatoCloudFile(
 	std::string file_path, std::vector<std::string> plugins,
+	std::vector<std::pair<std::string, std::string>> thirdParty,
+	std::vector<SceneInfo> outputScenes,
 	std::map<std::string, std::string> videoDeviceDescriptions)
 {
 	_interrupt = false;
@@ -296,6 +604,24 @@ SceneBundleStatus SceneBundle::ToElgatoCloudFile(
 	struct obs_video_info ovi = {};
 	obs_get_video_info(&ovi);
 
+	std::vector<std::map<std::string, std::string>> oScenes;
+	for (auto const& scene : outputScenes) {
+		std::map<std::string, std::string> s = {
+			{"id", scene.id },
+			{"name", scene.name }
+		};
+		oScenes.push_back(s);
+	}
+
+	std::vector<std::map<std::string, std::string>> thirdPartyReqs;
+	for (auto const& req : thirdParty) {
+		std::map<std::string, std::string> r = {
+			{"name", req.first},
+			{"url", req.second}
+		};
+		thirdPartyReqs.push_back(r);
+	}
+
 	nlohmann::json bundleInfo;
 	bundleInfo["canvas"]["width"] = ovi.base_width;
 	bundleInfo["canvas"]["height"] = ovi.base_height;
@@ -303,7 +629,9 @@ SceneBundleStatus SceneBundle::ToElgatoCloudFile(
 	bundleInfo["ec_version"] = "1.0";
 	bundleInfo["id"] = gen_uuid();
 	bundleInfo["plugins_required"] = plugins;
+	bundleInfo["third_party"] = thirdPartyReqs;
 	bundleInfo["video_devices"] = videoDeviceDescriptions;
+	bundleInfo["output_scenes"] = oScenes;
 
 	// Write the scene collection json file to zip archive.
 	std::string collection_json = _collection.dump(2);
@@ -658,4 +986,48 @@ void SceneBundle::_reset()
 	_fileMap.clear();
 	_skippedFilters.clear();
 	_videoCaptureDevices.clear();
+}
+
+
+void addSources(
+	std::string sourceName,
+	std::set<std::string>& requiredSources,
+	std::set<std::string>& requiredGroups,
+	std::map<std::string, nlohmann::json>& sourceNames,
+	std::map<std::string, nlohmann::json>& groupNames
+)
+{
+	bool isSource = sourceNames.find(sourceName) != sourceNames.end();
+	bool isGroup = groupNames.find(sourceName) != groupNames.end();
+
+	// Return if the source isn't in the json file.  This should
+	// actually throw an error.
+	if (!isSource && !isGroup) {
+		return;
+	}
+
+	// Return if we've already added this source.
+	if (isSource && requiredSources.find(sourceName) != requiredSources.end()) {
+		return;
+	}
+	
+	if (isGroup && requiredGroups.find(sourceName) != requiredGroups.end()) {
+		return;
+	}
+
+	if (isSource)
+		requiredSources.insert(sourceName);
+	else
+		requiredGroups.insert(sourceName);
+
+	auto source = isSource ? sourceNames[sourceName].flatten() : groupNames[sourceName].flatten();
+
+	for (auto field : source) {
+		if (
+			field.is_string() && 
+			(sourceNames.find(field) != sourceNames.end() || groupNames.find(field) != groupNames.end())
+		) {
+			addSources(field, requiredSources, requiredGroups, sourceNames, groupNames);
+		}
+	}
 }

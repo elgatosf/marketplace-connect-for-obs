@@ -72,11 +72,13 @@ public:
 	inline std::string authUrl() const { return _authUrl; }
 	inline std::string firstName() const { return _firstName; }
 	inline std::string lastName() const { return _lastName; }
+	inline std::string id() const { return _id; }
 	inline std::string avatarColor() const { return _avatarColor; }
 	inline bool hasAvatar() const { return _hasAvatar; }
 	inline std::string avatarUrl() const { return _avatarUrl; }
 	inline bool avatarReady() const { return _avatarReady; }
 	inline std::string avatarPath() const { return _avatarPath; }
+	inline bool loggedIn() const { return _loggedIn; }
 	static void AvatarProgress(void* ptr, bool finished,
 		bool downloading, uint64_t fileSize,
 		uint64_t chunkSize, uint64_t downloaded);
@@ -84,6 +86,7 @@ public:
 	void setUserDetails(nlohmann::json &data);
 	void logOut();
 	void OpenStoreInBrowser() const;
+	void OpenAccountInBrowser() const;
 	std::string getAuthUrl(std::vector<std::string> const& segments, std::map<std::string, std::string> const& queryParams);
 	std::string getGatewayUrl(
 		std::vector<std::string> const& segments,
@@ -92,6 +95,7 @@ public:
 
 signals:
 	void AvatarDownloaded();
+	void UserDetailsUpdated();
 
 private:
 	MarketplaceApi();
@@ -111,6 +115,7 @@ private:
 	std::string _avatarColor;
 	std::string _avatarUrl;
 	std::string _avatarPath;
+	std::string _id;
 
 	static MarketplaceApi *_api;
 	static std::mutex _mtx;
