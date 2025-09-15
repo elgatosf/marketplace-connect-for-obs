@@ -18,6 +18,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 
 #include "elgato-cloud-window.hpp"
 #include "elgato-styles.hpp"
+#include "scene-collection-info.hpp"
 
 #include <curl/curl.h>
 #include <obs-frontend-api.h>
@@ -438,6 +439,94 @@ void ProductGrid::closing() {
 	}
 }
 
+CurrentCollection::CurrentCollection(std::string scName, nlohmann::json data, QWidget *parent) 
+	: QWidget(parent)
+{
+	std::string imageBaseDir = GetDataPath();
+	imageBaseDir += "/images/";
+	auto layout = new QHBoxLayout(this);
+	layout->setContentsMargins(8, 8, 8, 8);
+	setAttribute(Qt::WA_StyledBackground, true);
+	setObjectName("CurrentCollection");
+	setStyleSheet("#CurrentCollection { background-color: #151515; border-radius: 16px;}");
+	setContentsMargins(0, 0, 0, 0);
+	setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+	setFixedWidth(236);
+	
+	auto leftLayout = new QVBoxLayout();
+	leftLayout->setSpacing(0);
+	leftLayout->setContentsMargins(0, 0, 0, 0);
+
+	auto activeLabel = new QLabel("Active", this);
+	activeLabel->setStyleSheet("QLabel {font-size: 12px; color: #A8A8A8; background: none;}");
+	activeLabel->setMargin(0);
+	activeLabel->setContentsMargins(0, 0, 0, 0);
+	activeLabel->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+	activeLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+	activeLabel->adjustSize();
+	
+	auto name = new QLabel(scName.c_str(), this);
+	name->setStyleSheet("QLabel {font-size: 14px; color: #FFFFFF; background: none;}");
+	name->setMargin(0);
+	name->setContentsMargins(0, 0, 0, 0);
+	name->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+	name->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+	name->adjustSize();
+
+	auto scLabel = new QLabel("Scene collection");
+	scLabel->setStyleSheet("QLabel {font-size: 12px; color: #A8A8A8; background: none;}");
+	scLabel->setMargin(0);
+	scLabel->setContentsMargins(0, 0, 0, 0);
+	scLabel->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+	scLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+	scLabel->adjustSize();
+
+	leftLayout->addWidget(activeLabel);
+	leftLayout->addWidget(name);
+	leftLayout->addWidget(scLabel);
+
+	auto rightLayout = new QVBoxLayout();
+
+	auto configButton = new QPushButton(this);
+	std::string configIconPath =
+		imageBaseDir + "IconProperties.svg";
+	QString settingsButtonStyle = EIconOnlySmButtonStyle;
+	settingsButtonStyle.replace("${img}", configIconPath.c_str());
+	configButton->setFixedSize(24, 24);
+	configButton->setMaximumHeight(24);
+	configButton->setStyleSheet(settingsButtonStyle);
+	configButton->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+
+	bool hasSdActions = data.contains("stream_deck_actions") &&
+			    data["stream_deck_actions"].size() > 0;
+	bool hasSdProfiles = data.contains("stream_deck_profiles") &&
+			     data["stream_deck_profiles"].size() > 0;
+	bool hasThirdParty = data.contains("third_party") &&
+			     data["third_party"].size() > 0;
+	bool canConfigure = (hasSdActions || hasSdProfiles || hasThirdParty);
+	configButton->setDisabled(!canConfigure);
+	if (canConfigure)
+		configButton->setToolTip(obs_module_text("MarketplaceWindow.SceneCollectionSettings.Tooltip"));
+	else
+		configButton->setToolTip(obs_module_text("MarketplaceWindow.SceneCollectionSettings.NoConfigTooltip"));
+
+	connect(configButton, &QPushButton::pressed, this, [this, data]() {
+		const auto mainWindow = static_cast<QMainWindow *>(
+			obs_frontend_get_main_window());
+		SceneCollectionConfig *dialog = nullptr;
+		dialog = new SceneCollectionConfig(data, mainWindow);
+		dialog->setAttribute(Qt::WA_DeleteOnClose);
+		dialog->show();
+	});
+
+	rightLayout->addWidget(configButton);
+	rightLayout->addStretch();
+
+	layout->addLayout(leftLayout);
+	layout->addStretch();
+	layout->addLayout(rightLayout);
+}
+
 OwnedProducts::OwnedProducts(QWidget *parent) : QWidget(parent)
 {
 	auto api = MarketplaceApi::getInstance();
@@ -445,8 +534,8 @@ OwnedProducts::OwnedProducts(QWidget *parent) : QWidget(parent)
 	std::string imageBaseDir = GetDataPath();
 	imageBaseDir += "/images/";
 	std::string iconPath = imageBaseDir + "your-library-icon.svg";
-
 	_layout = new QHBoxLayout(this);
+	auto sideLayout = new QVBoxLayout();
 	_sideMenu = new QListWidget(this);
 	QIcon icon(iconPath.c_str());
 	auto yourLibrary = new QListWidgetItem(icon, obs_module_text("MarketplaceWindow.PurchasedTab"));
@@ -476,6 +565,22 @@ OwnedProducts::OwnedProducts(QWidget *parent) : QWidget(parent)
 			refreshProducts();
 		}
 	});
+	
+	bool activeElgatoCollection = (elgatoCloud != nullptr) && elgatoCloud->GetElgatoCollectionActive();
+	sideLayout->addWidget(_sideMenu);
+
+	if (activeElgatoCollection) {
+		char *csc = obs_frontend_get_current_scene_collection();
+		std::string currentSceneCollection(csc);
+		bfree(csc);
+
+		auto data = elgatoCloud->GetScData();
+
+		auto currentCollection =
+			new CurrentCollection(currentSceneCollection, data, this);
+		sideLayout->addStretch();
+		sideLayout->addWidget(currentCollection);
+	}
 
 	_content = new QStackedWidget(this);
 	_installed = new Placeholder(this, "Installed, not yet implemented...");
@@ -528,7 +633,7 @@ OwnedProducts::OwnedProducts(QWidget *parent) : QWidget(parent)
 	_content->addWidget(scroll);
 	_content->addWidget(_installed);
 	_content->addWidget(noProducts);
-	_layout->addWidget(_sideMenu);
+	_layout->addLayout(sideLayout);
 	_layout->addWidget(_content);
 	setLayout(_layout);
 }

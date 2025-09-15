@@ -54,6 +54,10 @@ public:
 	void LogOut();
 	void LoadPurchasedProducts();
 	void CheckUpdates(bool forceCheck);
+	inline void SetScData(nlohmann::json data) { _scData = data; }
+	inline nlohmann::json GetScData() { return _scData; }
+	inline void SetElgatoCollectionActive(bool active) { _elgatoCollectionActive = active; }
+	inline nlohmann::json GetElgatoCollectionActive() { return _elgatoCollectionActive; }
 	obs_data_t *GetConfig();
 	void SetSkipVersion(std::string version);
 	void SaveConfig();
@@ -100,6 +104,8 @@ private:
 	bool _makerToolsOnStart;
 	bool _openOnLaunch;
 	bool _obsReady;
+	nlohmann::json _scData;
+	bool _elgatoCollectionActive;
 };
 
 class ElgatoCloudThread : public QThread {

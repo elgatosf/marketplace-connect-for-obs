@@ -104,30 +104,63 @@ void ElgatoCloud::FrontEndSaveLoadHandler(obs_data_t* save_data, bool saving, vo
 	if (!saving) { // We are loading
 		auto settings = obs_data_get_obj(save_data, "elgato_marketplace_connect");
 		if (!settings) { // Not an elgato mp installed scene collection
+			ec->SetElgatoCollectionActive(false);
 			return;
 		}
-		bool firstRun = obs_data_get_bool(settings, "first_run");
-		auto  thirdParty = obs_data_get_array(settings, "third_party");
-		size_t tpSize = thirdParty ? obs_data_array_count(thirdParty) : 0;
-		if (firstRun && tpSize > 0) {
-			std::vector<SceneCollectionLineItem> rows;
-			for (size_t i = 0; i < tpSize; i++) {
-				obs_data_t* item = obs_data_array_item(thirdParty, i);
-				std::string name = obs_data_get_string(item, "name");
-				std::string url = obs_data_get_string(item, "url");
-				rows.push_back({ name, url });
-				obs_data_release(item);
+		std::string jsonStr = obs_data_get_json(save_data);
+		try {
+			nlohmann::json modulesJson = nlohmann::json::parse(jsonStr);
+			auto settingsJson = modulesJson["elgato_marketplace_connect"];
+			ec->SetScData(settingsJson);
+			ec->SetElgatoCollectionActive(true);
+			bool firstRun = settingsJson.contains("first_run") && settingsJson["first_run"];
+			bool hasSdActions =
+				settingsJson.contains("stream_deck_actions") &&
+				settingsJson["stream_deck_actions"].size() > 0;
+			bool hasSdProfiles =
+				settingsJson.contains("stream_deck_profiles") &&
+				settingsJson["stream_deck_profiles"].size() > 0;
+			bool hasThirdParty =
+				settingsJson.contains("third_party") &&
+				settingsJson["third_party"].size() > 0;
+			bool shouldOpen = (hasSdActions || hasSdProfiles ||
+					   hasThirdParty);
+			if (shouldOpen) {
+				const auto mainWindow = static_cast<QMainWindow*>(obs_frontend_get_main_window());
+				SceneCollectionInfo* dialog = nullptr;
+				dialog = new SceneCollectionInfo(settingsJson, mainWindow);
+				dialog->setAttribute(Qt::WA_DeleteOnClose);
+				dialog->show();
 			}
-
-			const auto mainWindow = static_cast<QMainWindow*>(obs_frontend_get_main_window());
-			SceneCollectionInfo* dialog = nullptr;
-			dialog = new SceneCollectionInfo(rows, mainWindow);
-			dialog->setAttribute(Qt::WA_DeleteOnClose);
-			dialog->show();
+		} catch (...) {
+		
 		}
+		
+
+
+		//bool firstRun = obs_data_get_bool(settings, "first_run");
+
+		//auto  thirdParty = obs_data_get_array(settings, "third_party");
+		//size_t tpSize = thirdParty ? obs_data_array_count(thirdParty) : 0;
+		//if (firstRun && tpSize > 0) {
+		//	std::vector<SceneCollectionLineItem> rows;
+		//	for (size_t i = 0; i < tpSize; i++) {
+		//		obs_data_t* item = obs_data_array_item(thirdParty, i);
+		//		std::string name = obs_data_get_string(item, "name");
+		//		std::string url = obs_data_get_string(item, "url");
+		//		rows.push_back({ name, url });
+		//		obs_data_release(item);
+		//	}
+
+		//	const auto mainWindow = static_cast<QMainWindow*>(obs_frontend_get_main_window());
+		//	SceneCollectionInfo* dialog = nullptr;
+		//	dialog = new SceneCollectionInfo(rows, mainWindow);
+		//	dialog->setAttribute(Qt::WA_DeleteOnClose);
+		//	dialog->show();
+		//}
 		obs_data_release(settings);
-		if(thirdParty)
-			obs_data_array_release(thirdParty);
+		//if(thirdParty)
+		//	obs_data_array_release(thirdParty);
 	} else {
 		auto settings = obs_data_get_obj(save_data, "elgato_marketplace_connect");
 		if (!settings) { // Not an elgato mp installed scene collection

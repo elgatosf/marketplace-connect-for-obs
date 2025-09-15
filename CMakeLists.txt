@@ -77,6 +77,8 @@ target_sources(
           src/elgato-cloud-config.hpp
           src/elgato-cloud-window.cpp
           src/elgato-cloud-window.hpp
+          src/elgato-stream-deck-widgets.cpp
+          src/elgato-stream-deck-widgets.hpp
           src/elgato-update-modal.cpp
           src/elgato-update-modal.hpp
           src/elgato-widgets.cpp

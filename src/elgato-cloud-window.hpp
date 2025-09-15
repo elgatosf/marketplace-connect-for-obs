@@ -223,6 +223,12 @@ private:
 	QVBoxLayout *_layout;
 };
 
+class CurrentCollection : public QWidget {
+	Q_OBJECT
+public:
+	CurrentCollection(std::string scName, nlohmann::json data, QWidget *parent = nullptr);
+};
+
 class OwnedProducts : public QWidget {
 	Q_OBJECT
 public:

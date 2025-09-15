@@ -32,6 +32,8 @@ class StreamPackageSetupWizard;
 class ElgatoProduct {
 public:
 	std::string name;
+	std::string id;
+	std::string slug;
 	std::string thumbnailUrl;
 	std::vector<unsigned char> thumbnail;
 	std::string thumbnailPath;

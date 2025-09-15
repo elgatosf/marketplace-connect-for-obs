@@ -43,6 +43,9 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include "qt-display.hpp"
 #include "plugins.hpp"
 
+struct SceneCollectionInfo;
+struct SDFileDetails;
+
 namespace elgatocloud {
 
 class ElgatoProduct;
@@ -195,7 +198,6 @@ signals:
 	void backPressed();
 };
 
-
 class MergeSelectScenes : public QWidget {
 	Q_OBJECT
 public:
@@ -237,10 +239,20 @@ private:
 	void _buildBaseUI();
 	void _buildMissingPluginsUI(std::vector<PluginDetails> &missing);
 	void
-	_buildSetupUI(std::map<std::string, std::string> &videoSourceLabels, std::vector<OutputScene> &outputScenes);
-	void _buildNewCollectionUI(std::map<std::string, std::string>& videoSourceLabels);
+	_buildSetupUI(
+		std::map<std::string, std::string> &videoSourceLabels,
+		std::vector<OutputScene> &outputScenes,
+		std::vector<SDFileDetails> &streamDeckActions,
+		std::vector<SDFileDetails> &streamDeckProfiles
+	);
+	void _buildNewCollectionUI(
+		std::map<std::string, std::string> &videoSourceLabels,
+		std::vector<SDFileDetails> &streamDeckActions,
+		std::vector<SDFileDetails> &streamDeckProfiles);
 	void _buildMergeCollectionUI(std::map<std::string, std::string>& videoSourceLabels, std::vector<OutputScene>& outputScenes);
 	std::string _productName;
+	std::string _productId;
+	std::string _productSlug;
 	std::string _thumbnailPath;
 	std::string _filename;
 	std::string _curCollectionFileName;
@@ -254,17 +266,20 @@ private:
 	VideoSetup *_vSetup;
 	VideoSetup* _vSetupMerge;
 	VideoSetup* _vSetupSubMerge;
-
+	std::string sdFilesPath_;
 	QFuture<void> _future;
 };
 
-void installStreamPackage(Setup setup, std::string filename, bool deleteOnClose, std::vector<std::string> toEnable);
+void installStreamPackage(Setup setup, std::string filename, bool deleteOnClose,
+			  std::vector<std::string> toEnable,
+			  std::string productName, std::string productId,
+			  std::string productSlug);
 void mergeStreamPackage(Setup setup, std::string filename, bool deleteOnClose, std::vector<std::string> toEnable);
 
 bool EnableVideoCaptureSourcesActive(void* data, obs_source_t* source);
 void EnableVideoCaptureSourcesJson(std::vector<std::string> sourceIds, std::string curFileName);
 
 StreamPackageSetupWizard *GetSetupWizard();
-std::string GetBundleInfo(std::string filename);
+SceneCollectionInfo GetBundleInfo(std::string filename);
 
 } // namespace elgatocloud

@@ -35,7 +35,12 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <QPainter>
 #include <QApplication>
 #include <QMap>
+#include <QRegularExpression>
+#include <QRegularExpressionValidator>
 
+#include <QDragEnterEvent>
+
+#include "elgato-stream-deck-widgets.hpp"
 #include "obs-utils.hpp"
 #include "util.h"
 
@@ -47,12 +52,18 @@ SceneBundleStatus createBundle(std::string filename,
 			       std::vector<std::string> plugins,
 				   std::vector<std::pair<std::string, std::string>> thirdParty,
 				   std::vector<SceneInfo> outputScenes,
-			       std::map<std::string, std::string> vidDevLabels)
+			       std::map<std::string, std::string> vidDevLabels, 
+				   std::vector<SdaFileInfo> sdaFiles,
+				   std::vector<SdaFileInfo> sdProfileFiles,
+				   std::string version)
 {
 	if (!bundle) {
 		return SceneBundleStatus::InvalidBundle;
 	}
-	return bundle->ToElgatoCloudFile(filename, plugins, thirdParty, outputScenes, vidDevLabels);
+	return bundle->ToElgatoCloudFile(
+		filename, plugins, thirdParty,
+		outputScenes, vidDevLabels, sdaFiles,
+		sdProfileFiles, version);
 }
 
 // TODO: For MacOS the filename sigatures will be different
@@ -91,11 +102,18 @@ ExportStepsSideBar::ExportStepsSideBar(std::string name, QWidget* parent)
 	: QWidget(parent)
 {
 	QVBoxLayout* layout = new QVBoxLayout(this);
-	//auto header = new StreamPackageHeader(this, name, thumbnailPath);
 	setFixedWidth(240);
 
-	// TODO- translations for steps
-	std::vector<std::string> steps = { "Get started", "Collect media files", "Select Output Scenes", "Bundle required plugins", "3rd Party Requirements", "Rename video sources"};
+	std::vector<std::string> steps = {
+		obs_module_text("ExportWizard.Steps.GetStarted"),
+		obs_module_text("ExportWizard.Steps.CollectMediaFiles"),
+		obs_module_text("ExportWizard.Steps.SelectOutputScenes"),
+		obs_module_text("ExportWizard.Steps.BundleRequiredPlugins"),
+		obs_module_text("ExportWizard.Steps.ThirdPartyRequirements"),
+		obs_module_text("ExportWizard.Steps.RenameVideoSources"),
+		obs_module_text("ExportWizard.Steps.StreamDeckIntegration"),
+		obs_module_text("ExportWizard.Steps.VersionNumber")
+	};
 
 	std::string titleString = obs_module_text("ExportWizard.Export");
 	titleString += " " + name;
@@ -981,6 +999,162 @@ void ThirdPartyRequirements::onDeleteClicked()
 	}
 }
 
+Version::Version(std::string name, QWidget *parent) : QWidget(parent)
+{
+	QVBoxLayout *layout = new QVBoxLayout(this);
+	layout->setContentsMargins(0, 0, 0, 0);
+	auto main = new QHBoxLayout();
+	main->setAlignment(Qt::AlignTop);
+	main->setContentsMargins(0, 0, 0, 0);
+	auto sideBar = new ExportStepsSideBar(name, this);
+	sideBar->setContentsMargins(0, 0, 0, 0);
+	sideBar->setFixedWidth(240);
+	sideBar->setStep(7);
+
+	auto formLayout = new QVBoxLayout();
+
+	auto title = new QLabel(
+		obs_module_text("ExportWizard.Version.Title"), this);
+	title->setStyleSheet(EWizardStepTitle);
+
+	auto subTitle = new QLabel(this);
+	subTitle->setText(
+		obs_module_text("ExportWizard.Version.Subtitle"));
+	subTitle->setStyleSheet(EWizardStepSubTitle);
+
+	auto label = new QLabel(obs_module_text("ExportWizard.Version.Label"), this);
+
+	_lineEdit = new QLineEdit(this);
+
+	// Regex: Matches 1 to 4 dot-separated integers
+	QRegularExpression versionRegex(R"(^\d+(\.\d+){0,3}$)");
+	QValidator *validator =
+		new QRegularExpressionValidator(versionRegex, this);
+	_lineEdit->setValidator(validator);
+
+	formLayout->addWidget(title);
+	formLayout->addWidget(subTitle);
+	formLayout->addWidget(label);
+	formLayout->addWidget(_lineEdit);
+	formLayout->addStretch();
+
+	// Buttons
+	_backButton = new QPushButton("Back", this);
+	_backButton->setStyleSheet(EWizardQuietButtonStyle);
+	_nextButton = new QPushButton("Next", this);
+	_nextButton->setEnabled(false); // Initially disabled
+	_nextButton->setStyleSheet(EWizardButtonStyle);
+
+	auto buttons = new QHBoxLayout();
+	buttons->addStretch();
+	buttons->addWidget(_backButton);
+	buttons->addWidget(_nextButton);
+
+	main->addWidget(sideBar);
+	main->addLayout(formLayout);
+	layout->addLayout(main);
+	layout->addLayout(buttons);
+
+	// Connections
+	connect(_lineEdit, &QLineEdit::textChanged, this,
+		&Version::validateInput);
+	connect(_backButton, &QPushButton::clicked, this,
+		&Version::handleBackPressed);
+	connect(_nextButton, &QPushButton::clicked, this,
+		&Version::handleNextPressed);
+}
+
+void Version::validateInput()
+{
+	QString text = _lineEdit->text();
+	int pos = 0;
+	if (_lineEdit->validator()->validate(text, pos) ==
+	    QValidator::Acceptable) {
+		_nextButton->setEnabled(true);
+	} else {
+		_nextButton->setEnabled(false);
+	}
+}
+
+void Version::handleBackPressed()
+{
+	emit backPressed();
+}
+
+void Version::handleNextPressed()
+{
+	emit nextPressed(_lineEdit->text());
+}
+
+
+StreamDeckButtons::StreamDeckButtons(std::string name, QWidget *parent)
+	: QWidget(parent)
+{
+	QVBoxLayout *layout = new QVBoxLayout(this);
+	layout->setContentsMargins(0, 0, 0, 0);
+	auto main = new QHBoxLayout();
+	main->setAlignment(Qt::AlignTop);
+	main->setContentsMargins(0, 0, 0, 0);
+	auto sideBar = new ExportStepsSideBar(name, this);
+	sideBar->setContentsMargins(0, 0, 0, 0);
+	sideBar->setFixedWidth(240);
+	sideBar->setStep(6);
+	setAcceptDrops(false);
+	auto formLayout = new QVBoxLayout();
+
+	auto title =
+		new QLabel(obs_module_text("ExportWizard.StreamDeckButtons.Title"), this);
+	title->setStyleSheet(EWizardStepTitle);
+
+	auto subTitle = new QLabel(this);
+	subTitle->setText(obs_module_text("ExportWizard.StreamDeckButtons.Subtitle"));
+	subTitle->setStyleSheet(EWizardStepSubTitle);
+	subTitle->setWordWrap(true);
+
+	//_sdaList = new SdaListWidget(this);
+	_sdaList = new StreamDeckFilesDropContainer(this);
+	_sdaList->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+
+	formLayout->addWidget(title);
+	formLayout->addWidget(subTitle);
+	formLayout->addWidget(_sdaList);
+	//formLayout->addWidget(_label);
+	
+
+	//formLayout->addStretch();
+
+	// Buttons
+	_backButton = new QPushButton("Back", this);
+	_backButton->setStyleSheet(EWizardQuietButtonStyle);
+	_nextButton = new QPushButton("Next", this);
+	_nextButton->setStyleSheet(EWizardButtonStyle);
+
+	auto buttons = new QHBoxLayout();
+	buttons->addStretch();
+	buttons->addWidget(_backButton);
+	buttons->addWidget(_nextButton);
+
+	main->addWidget(sideBar);
+	main->addLayout(formLayout);
+	layout->addLayout(main);
+	layout->addLayout(buttons);
+
+	// Connections
+	connect(_backButton, &QPushButton::clicked, this,
+		&StreamDeckButtons::handleBackPressed);
+	connect(_nextButton, &QPushButton::clicked, this,
+		&StreamDeckButtons::handleNextPressed);
+}
+
+void StreamDeckButtons::handleBackPressed()
+{
+	emit backPressed();
+}
+
+void StreamDeckButtons::handleNextPressed()
+{
+	emit nextPressed();
+}
 
 
 ExportComplete::ExportComplete(std::string name, QWidget *parent) : QWidget(parent)
@@ -1111,7 +1285,6 @@ StreamPackageExportWizard::StreamPackageExportWizard(QWidget *parent)
 {
 	// Save the current scene collection to ensure our output is the latest
 	obs_frontend_save();
-
 	// Since scene collection save is threaded as a Queued connection
 	// queue the SetupUI to execute *after* the frontend is completely saved.
 	QMetaObject::invokeMethod(this, "SetupUI", Qt::QueuedConnection);
@@ -1184,61 +1357,84 @@ void StreamPackageExportWizard::SetupUI()
 	// Step 6- Add labels for each video capture device source (step index: 5)
 	auto videoLabels = new VideoSourceLabels(collectionName, vidDevs, this);
 	connect(videoLabels, &VideoSourceLabels::continuePressed, this,
-		[this, videoLabels, reqPlugins, thirdPartyReqs, outputScenes]() {
-			
-			auto vidDevLabels = videoLabels->Labels();
-			auto plugins = reqPlugins->RequiredPluginList();
-			auto oScenes = outputScenes->OutputScenes();
-			auto thirdParty = thirdPartyReqs->getRequirements();
-
-			QWidget* window = (QWidget*)obs_frontend_get_main_window();
-			QString filename = QFileDialog::getSaveFileName(
-				window, "Save As...", QString(), "*.elgatoscene");
-			if (filename == "") {
-				_steps->setCurrentIndex(5);
-				return;
-			}
-			if (!filename.endsWith(".elgatoscene")) {
-				filename += ".elgatoscene";
-			}
-			_steps->setCurrentIndex(6);
-			std::string filename_utf8 = filename.toUtf8().constData();
-			// This is a bit of threading hell.
-			// Find a better way to set this up, perhaps in an
-			// installer handler thread handling object.
-			_future =
-				QtConcurrent::run(createBundle, filename_utf8, plugins, thirdParty, oScenes,
-					vidDevLabels)
-				.then([this](SceneBundleStatus status) {
-				// We are now in a different thread, so we need to execute this
-				// back in the gui thread.  See, threading hell.
-				QMetaObject::invokeMethod(
-					QCoreApplication::instance()
-					->thread(), // main GUI thread
-					[this, status]() {
-						if (status ==
-							SceneBundleStatus::
-							Success) {
-							_steps->setCurrentIndex(7);
-						}
-						else if (
-							status ==
-							SceneBundleStatus::
-							Cancelled) {
-							_steps->setCurrentIndex(5);
-						}
-					});
-					})
-				.onCanceled([]() {
-
-				});
-		});
-
+		[this]() { _steps->setCurrentIndex(6); });
 
 	connect(videoLabels, &VideoSourceLabels::backPressed, this,
 		[this]() { _steps->setCurrentIndex(4); });
 	_steps->addWidget(videoLabels);
 
+	// Step 7- Add stream deck buttons (step index: 6)
+	auto sdaButtons = new StreamDeckButtons(collectionName, this);
+	connect(sdaButtons, &StreamDeckButtons::nextPressed, this,
+		[this]() { _steps->setCurrentIndex(7); });
+
+	connect(sdaButtons, &StreamDeckButtons::backPressed, this,
+		[this]() { _steps->setCurrentIndex(5); });
+	_steps->addWidget(sdaButtons);
+
+	// Step 8- Set export version (step index: 7)
+	auto version = new Version(collectionName, this);
+	_steps->addWidget(version);
+
+	connect(version, &Version::nextPressed, this,
+		[this, videoLabels, reqPlugins, thirdPartyReqs, outputScenes, sdaButtons](const QString& version) {
+			auto vidDevLabels = videoLabels->Labels();
+			auto plugins = reqPlugins->RequiredPluginList();
+			auto oScenes = outputScenes->OutputScenes();
+			auto thirdParty = thirdPartyReqs->getRequirements();
+			auto sdaFiles = sdaButtons->sdaFiles();
+			auto sdProfileFiles = sdaButtons->sdProfileFiles();
+
+			QWidget *window =
+				(QWidget *)obs_frontend_get_main_window();
+			QString filename = QFileDialog::getSaveFileName(
+				window, "Save As...", QString(),
+				"*.elgatoscene");
+			if (filename == "") {
+				_steps->setCurrentIndex(6);
+				return;
+			}
+			if (!filename.endsWith(".elgatoscene")) {
+				filename += ".elgatoscene";
+			}
+			_steps->setCurrentIndex(8);
+			std::string filename_utf8 =
+				filename.toUtf8().constData();
+			// This is a bit of threading hell.
+			// Find a better way to set this up, perhaps in an
+			// installer handler thread handling object.
+			_future =
+				QtConcurrent::run(createBundle, filename_utf8,
+						  plugins, thirdParty, oScenes,
+						  vidDevLabels, sdaFiles, sdProfileFiles, version.toStdString())
+					.then([this](SceneBundleStatus status) {
+						// We are now in a different thread, so we need to execute this
+						// back in the gui thread.  See, threading hell.
+						QMetaObject::invokeMethod(
+							QCoreApplication::instance()
+								->thread(), // main GUI thread
+							[this, status]() {
+								if (status ==
+								    SceneBundleStatus::
+									    Success) {
+									_steps->setCurrentIndex(
+										9);
+								} else if (
+									status ==
+									SceneBundleStatus::
+										Cancelled) {
+									_steps->setCurrentIndex(
+										7);
+								}
+							});
+					})
+					.onCanceled([]() {
+
+					});
+		});
+
+	connect(version, &Version::backPressed, this,
+		[this]() { _steps->setCurrentIndex(6); });
 
 	auto exporting = new Exporting(collectionName, this);
 	_steps->addWidget(exporting);

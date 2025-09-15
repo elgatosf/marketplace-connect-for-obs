@@ -41,6 +41,8 @@ enum class SceneBundleStatus {
 	Error
 };
 
+struct SdaFileInfo;
+
 struct SceneInfo {
 	std::string name;
 	std::string id;
@@ -50,6 +52,11 @@ struct SceneInfo {
 struct ThirdPartyRequirement {
 	std::string name;
 	std::string url;
+};
+
+struct SceneCollectionInfo {
+	std::string bundleInfo;
+	std::string streamDeckPath;
 };
 
 class SceneBundle {
@@ -75,7 +82,9 @@ public:
 				 std::string destination);
 	bool ToCollection(std::string collection_name,
 			  std::map<std::string, std::string> videoSettings,
-			  std::string audioSettings, std::string id);
+			  std::string audioSettings, std::string id,
+			  std::string productName, std::string productId,
+			  std::string productSlug);
 	bool MergeCollection(std::string collection_name,
 			  std::vector<std::string> scenes,
 			  std::map<std::string, std::string> videoSettings,
@@ -84,7 +93,10 @@ public:
 		std::string file_path, std::vector<std::string> plugins,
 		std::vector<std::pair<std::string, std::string>> thirdParty,
 		std::vector<SceneInfo> outputScenes,
-		std::map<std::string, std::string> videoDeviceDescriptions);
+		std::map<std::string, std::string> videoDeviceDescriptions,
+		std::vector<SdaFileInfo> sdaFiles,
+		std::vector<SdaFileInfo> sdProfileFiles,
+		std::string version);
 
 	bool FileCheckDialog();
 
@@ -94,7 +106,7 @@ public:
 		_interrupt = true;
 	}
 
-	std::string ExtractBundleInfo(std::string filePath);
+	SceneCollectionInfo ExtractBundleInfo(std::string filePath);
 
 	std::vector<std::string> FileList();
 	std::map<std::string, std::string> VideoCaptureDevices();
@@ -135,22 +147,18 @@ struct SdaState {
 	QByteArray imageBytes;
 	bool hasImage;
 	bool hasTitle;
+	QString path;
 };
 
-/// Parses and manages an SDA file (.sda = zipped profile).
 class SdaFile
 {
 public:
-	/// Construct from file path
 	explicit SdaFile(const QString& path);
 
-	/// True if the file was parsed successfully
 	bool isValid() const { return valid_; }
 
-	/// Get the original path
 	QString originalPath() const { return originalPath_; }
 
-	/// Return the first parsed state (if any)
 	std::optional<SdaState> firstState() const;
 
 private:
@@ -159,6 +167,30 @@ private:
 	QString originalPath_;
 	bool valid_{ false };
 	std::optional<SdaState> state_;
+};
+
+struct SdProfileState {
+	QString name;
+	QString model;
+	QString path;
+};
+
+class SdProfileFile
+{
+public:
+	explicit SdProfileFile(const QString &path);
+	bool isValid() const { return valid_; }
+	QString originalPath() const { return originalPath_; }
+	SdProfileState state() const { return state_; }
+
+private:
+	void parse_();
+
+	QString originalPath_;
+	bool valid_{false};
+
+	std::string errorMsg_;
+	SdProfileState state_;
 };
 
 #endif // SCENEBUNDLE_H
