@@ -668,3 +668,26 @@ std::string getImagesPath()
 	path += "/images/";
 	return path;
 }
+
+
+bool isProtocolHandlerRegistered(const std::wstring &protocol)
+{
+	HKEY hKey;
+	std::wstring keyPath = protocol; // e.g. L"streamdeck"
+
+	// Try open HKEY_CLASSES_ROOT\<protocol>
+	LONG result = RegOpenKeyExW(HKEY_CLASSES_ROOT, keyPath.c_str(), 0,
+				    KEY_READ, &hKey);
+	if (result != ERROR_SUCCESS) {
+		return false; // Key not found
+	}
+
+	// Check the "URL Protocol" value inside the key
+	DWORD type = 0;
+	DWORD dataSize = 0;
+	result = RegQueryValueExW(hKey, L"URL Protocol", nullptr, &type,
+				  nullptr, &dataSize);
+	RegCloseKey(hKey);
+
+	return (result == ERROR_SUCCESS && type == REG_SZ);
+}

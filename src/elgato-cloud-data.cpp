@@ -124,7 +124,7 @@ void ElgatoCloud::FrontEndSaveLoadHandler(obs_data_t* save_data, bool saving, vo
 				settingsJson.contains("third_party") &&
 				settingsJson["third_party"].size() > 0;
 			bool shouldOpen = (hasSdActions || hasSdProfiles ||
-					   hasThirdParty);
+					   hasThirdParty) && firstRun;
 			if (shouldOpen) {
 				const auto mainWindow = static_cast<QMainWindow*>(obs_frontend_get_main_window());
 				SceneCollectionInfo* dialog = nullptr;

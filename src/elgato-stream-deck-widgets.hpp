@@ -252,6 +252,7 @@ private:
 	int padding_ = 16;  // logical space between cells
 
 	QPoint dragStartPos_;
+	bool dragStarted_ = false;
 
 	int indexAtPos(const QPoint &pos) const;
 	int columnCount() const;

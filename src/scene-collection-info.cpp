@@ -19,6 +19,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include "scene-collection-info.hpp"
 #include "elgato-styles.hpp"
 #include "elgato-stream-deck-widgets.hpp"
+#include "util.h"
 #include <obs-module.h>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -152,7 +153,9 @@ SceneCollectionInfo::SceneCollectionInfo(nlohmann::json scData, QWidget *parent)
 	bool hasThirdParty = scData.contains("third_party") &&
 			     scData["third_party"].size() > 0;
 
-	bool hasSd = hasSdActions || hasSdProfiles;
+	bool sdInstalled = isProtocolHandlerRegistered(L"streamdeck");
+
+	bool hasSd = (hasSdActions || hasSdProfiles) && sdInstalled;
 	steps_ = 0;
 	if (hasSd) {
 		steps_++;
@@ -238,7 +241,9 @@ SceneCollectionConfig::SceneCollectionConfig(nlohmann::json scData,
 	bool hasThirdParty = scData.contains("third_party") &&
 			     scData["third_party"].size() > 0;
 
-	bool hasSd = hasSdActions || hasSdProfiles;
+	bool sdInstalled = isProtocolHandlerRegistered(L"streamdeck");
+
+	bool hasSd = (hasSdActions || hasSdProfiles) && sdInstalled;
 
 	setWindowTitle(obs_module_text("SceneCollectionConfig.WindowTitle"));
 	setStyleSheet("background-color: #151515;");

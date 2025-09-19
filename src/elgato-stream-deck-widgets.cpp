@@ -164,133 +164,6 @@ QPixmap createIconPixmap(SdaState const &state, int size = 64, int cornerRadius 
 	return pix;
 }
 
-//QPixmap createIconPixmap(SdaState const &state, int size = 64)
-//{
-//	constexpr int padding = 4;               // padding on all sides
-//	constexpr double lineHeightScale = 0.85; // shrink line height to 85%
-//	constexpr int cornerRadius = 8;          // rounded corners
-//
-//	QString title = state.hasTitle ? state.title : "";
-//	SdaIconVerticalAlign align = state.titleAlign;
-//
-//	QByteArray imageData = state.hasImage ? state.imageBytes : QByteArray();
-//
-//	// Get device pixel ratio
-//	qreal dpr = QGuiApplication::primaryScreen()->devicePixelRatio();
-//
-//	int scaledSize = static_cast<int>(size * dpr);
-//	int scaledPadding = static_cast<int>(padding * dpr);
-//	int scaledCorner = static_cast<int>(cornerRadius * dpr);
-//
-//	QPixmap pix(scaledSize, scaledSize);
-//	pix.setDevicePixelRatio(dpr); // Important for HiDPI
-//	pix.fill(Qt::transparent);
-//
-//	QPainter painter(&pix);
-//	painter.setRenderHint(QPainter::Antialiasing);
-//	painter.setRenderHint(QPainter::TextAntialiasing);
-//
-//	// Apply rounded clipping
-//	QPainterPath path;
-//	path.addRoundedRect(0, 0, scaledSize, scaledSize, scaledCorner,
-//			    scaledCorner);
-//	painter.setClipPath(path);
-//
-//	// Draw image if available
-//	if (!imageData.isEmpty()) {
-//		QPixmap img;
-//		img.loadFromData(imageData);
-//		if (!img.isNull()) {
-//			img = img.scaled(scaledSize, scaledSize,
-//					 Qt::KeepAspectRatioByExpanding,
-//					 Qt::SmoothTransformation);
-//
-//			QRect target(0, 0, scaledSize, scaledSize);
-//			painter.drawPixmap(target, img);
-//		}
-//	}
-//
-//	// Draw title over image
-//	if (!title.isEmpty()) {
-//		QFont font = painter.font();
-//		font.setBold(true);
-//
-//		QStringList lines = title.split('\n');
-//
-//		// Shrink font to fit width
-//		QFontMetrics fm(font);
-//		int maxLineWidth = 0;
-//		int availableWidth = scaledSize - 2 * scaledPadding;
-//		for (const QString &line : lines)
-//			maxLineWidth = std::max(maxLineWidth,
-//						fm.horizontalAdvance(line));
-//
-//		while (maxLineWidth > availableWidth && font.pointSize() > 1) {
-//			font.setPointSize(font.pointSize() - 1);
-//			painter.setFont(font);
-//			fm = QFontMetrics(font);
-//			maxLineWidth = 0;
-//			for (const QString &line : lines)
-//				maxLineWidth =
-//					std::max(maxLineWidth,
-//						 fm.horizontalAdvance(line));
-//		}
-//
-//		painter.setFont(font);
-//
-//		int lineHeight =
-//			static_cast<int>(fm.height() * lineHeightScale);
-//		int totalHeight = lineHeight * lines.size();
-//		int availableHeight = scaledSize - 2 * scaledPadding;
-//
-//		int yOffset = 0;
-//		switch (align) {
-//		case SdaIconVerticalAlign::Top:
-//			yOffset = scaledPadding;
-//			break;
-//		case SdaIconVerticalAlign::Middle:
-//			yOffset = scaledPadding +
-//				  (availableHeight - totalHeight) / 2;
-//			break;
-//		case SdaIconVerticalAlign::Bottom:
-//			yOffset = scaledSize - scaledPadding - totalHeight;
-//			break;
-//		}
-//
-//		// Draw each line with outline
-//		for (int i = 0; i < lines.size(); ++i) {
-//			QRect lineRect(scaledPadding, yOffset + i * lineHeight,
-//				       scaledSize - 2 * scaledPadding,
-//				       lineHeight);
-//
-//			// Outline
-//			painter.setPen(Qt::black);
-//			for (int dx = -1; dx <= 1; ++dx) {
-//				for (int dy = -1; dy <= 1; ++dy) {
-//					if (dx == 0 && dy == 0)
-//						continue;
-//					QRect offsetRect =
-//						lineRect.translated(dx, dy);
-//					painter.drawText(
-//						offsetRect,
-//						Qt::AlignHCenter |
-//							Qt::AlignVCenter,
-//						lines[i]);
-//				}
-//			}
-//
-//			// Main text
-//			painter.setPen(Qt::white);
-//			painter.drawText(lineRect,
-//					 Qt::AlignHCenter | Qt::AlignVCenter,
-//					 lines[i]);
-//		}
-//	}
-//
-//	painter.end();
-//	return pix;
-//}
-
 SdaListItemWidget::SdaListItemWidget(SdaState const &state, QWidget *parent)
 	: QWidget(parent), state_(state)
 {
@@ -1113,8 +986,10 @@ void SdaGridWidget::setStates(std::vector<SDFileDetails> const &sdaFiles)
 	states_.clear();
 	for (auto const &sdaDat : sdaFiles) {
 		SdaFile sda(sdaDat.path.c_str());
-		auto state = sda.firstState().value();
-		states_.push_back({state, sdaDat.label});
+		if (sda.firstState()) {
+			auto state = sda.firstState().value();
+			states_.push_back({state, sdaDat.label});
+		}
 	}
 
 	update();
@@ -1123,8 +998,7 @@ void SdaGridWidget::setStates(std::vector<SDFileDetails> const &sdaFiles)
 int SdaGridWidget::columnCount() const
 {
 	// Estimate columns based on maximum logical pixmap width plus padding
-	int maxWidth =
-		iconSize_; // or you could calculate the largest pixmap dynamically
+	int maxWidth = iconSize_;
 	int cols = width() / (maxWidth + padding_);
 	return std::max(1, cols);
 }
@@ -1188,6 +1062,7 @@ void SdaGridWidget::mousePressEvent(QMouseEvent *event)
 {
 	if (event->button() == Qt::LeftButton) {
 		dragStartPos_ = event->pos();
+		dragStarted_ = true;
 	}
 	QWidget::mousePressEvent(event);
 }
@@ -1218,9 +1093,12 @@ void SdaGridWidget::mouseMoveEvent(QMouseEvent *event)
 
 	QPixmap pixmap = createIconPixmap(state, iconSize_);
 	drag->setPixmap(pixmap);
-
+	if (dragStarted_) {
+		QDesktopServices::openUrl(QUrl("streamdeck://open/mainwindow"));
+		dragStarted_ = false;
+	}
+	
 	drag->exec(Qt::CopyAction);
-	QDesktopServices::openUrl(QUrl("streamdeck://open/mainwindow"));
 }
 
 SdaGridScrollArea::SdaGridScrollArea(std::vector<SDFileDetails> const &sdaFiles,

@@ -323,38 +323,4 @@ void ElgatoCloudWindowSetEnabled(bool enable);
 void CheckForUpdates(bool forceCheck);
 void CheckForUpdatesOnLaunch(enum obs_frontend_event event, void* private_data);
 
-
-void OpenElgatoDDTestWindow();
-
-class DraggableListWidget : public QListWidget
-{
-	Q_OBJECT
-public:
-	using QListWidget::QListWidget;
-
-protected:
-	void startDrag(Qt::DropActions supportedActions) override;
-};
-
-
-class ElgatoDDTest : public QDialog {
-	Q_OBJECT
-
-public:
-	explicit ElgatoDDTest(QWidget* parent = nullptr);
-	~ElgatoDDTest();
-
-protected:
-	void dragEnterEvent(QDragEnterEvent* event) override;
-	void dragMoveEvent(QDragMoveEvent* event) override;
-	void dropEvent(QDropEvent* event) override;
-	void closeEvent(QCloseEvent* event) override;  // cleanup hook
-
-private:
-	QListWidget* fileList_;
-	QLabel* hint_;
-
-	void cleanupTempFiles();
-};
-
 } // namespace elgatocloud

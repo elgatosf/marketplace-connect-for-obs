@@ -41,9 +41,6 @@ extern void InitElgatoCloud(obs_module_t *);
 extern obs_data_t *GetElgatoCloudConfig();
 extern void OpenExportWizard();
 extern void ShutDown();
-
-extern void OpenElgatoDDTestWindow();
-
 } // namespace elgatocloud
 
 void save_pack()
@@ -54,11 +51,6 @@ void save_pack()
 void export_collection(void *)
 {
 	save_pack();
-}
-
-void test_window(void *)
-{
-	elgatocloud::OpenElgatoDDTestWindow();
 }
 
 void import_collection(void *)
@@ -94,9 +86,6 @@ bool obs_module_load(void)
 		obs_frontend_add_tools_menu_item("Import Maker Scene Collection",
 						 import_collection, NULL);
 	}
-
-	obs_frontend_add_tools_menu_item("Drag Drop Test",
-		test_window, NULL);
 	
 	return true;
 }

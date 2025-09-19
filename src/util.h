@@ -93,3 +93,4 @@ std::string releaseType();
 std::string encryptString(std::string input);
 std::string decryptString(std::string input);
 std::string getImagesPath();
+bool isProtocolHandlerRegistered(const std::wstring &protocol);
