@@ -862,6 +862,7 @@ void ProgressThumbnail::setDisabled(bool disabled)
 void ProgressThumbnail::setDownloading(bool downloading)
 {
 	_downloading = downloading;
+	//_downloading = true;
 	if (!downloading) {
 		setProgress(1.0);
 	}
@@ -1078,8 +1079,10 @@ void ProductThumbnail::enable(bool enable)
 void ProductThumbnail::setDownloading(bool downloading)
 {
 	_thumbnail->setDownloading(downloading);
-	update();
 	_downloading = downloading;
+	updateButton_();
+	update();
+	
 }
 
 ProductThumbnail::~ProductThumbnail()
@@ -1133,10 +1136,10 @@ ElgatoProductItem::ElgatoProductItem(QWidget *parent, ElgatoProduct *product)
 			p->enableDownload();
 			resetDownload();
 		}
-		else {
-			p->enableDownload();
-			resetDownload();
-		}
+		//else {
+		//	p->enableDownload();
+		//	resetDownload();
+		//}
 	});
 
 	connect(_labelImg, &ProductThumbnail::cancelDownloadClicked, [this]() {
@@ -1166,6 +1169,7 @@ void ElgatoProductItem::resetDownload()
 	setDisabled(false);
 	_labelImg->disable(false);
 	_labelImg->setDownloading(false);
+	_labelImg->update();
 	auto pw = dynamic_cast<ProductGrid *>(parentWidget());
 	pw->enableDownload();
 }
