@@ -178,6 +178,7 @@ public:
 	explicit StreamDeckProfilesInstallListItem(
 		const SdProfileState &state,
 		std::string label,
+		bool disabled,
 		QWidget *parent = nullptr);
 
 signals:
@@ -196,6 +197,7 @@ class StreamDeckProfilesInstallListContainer : public QScrollArea
 public:
 	explicit StreamDeckProfilesInstallListContainer(
 		std::vector<SDFileDetails> const &profileFiles,
+		bool disabled,
 		QWidget *parent = nullptr);
 
 private:
@@ -208,48 +210,30 @@ struct LabeledSdaState {
 	std::string label;
 };
 
-//class SdaGridWidget : public QWidget {
-//	Q_OBJECT
-//public:
-//	explicit SdaGridWidget(QWidget *parent = nullptr);
-//
-//	void setStates(std::vector<SDFileDetails> const &sdaFiles);
-//
-//protected:
-//	void mousePressEvent(QMouseEvent *event) override;
-//	void mouseMoveEvent(QMouseEvent *event) override;
-//	void paintEvent(QPaintEvent *event) override;
-//	QSize sizeHint() const override { return QSize(400, 300); }
-//
-//private:
-//	std::vector<LabeledSdaState> states_;
-//	int iconSize_ = 64; // icon size
-//	int padding_ = 16;  // space between cells
-//
-//	QPoint dragStartPos_;
-//
-//	int indexAtPos(const QPoint &pos) const;
-//	int columnCount() const;
-//};
-
 class SdaGridWidget : public QWidget {
 	Q_OBJECT
 public:
-	explicit SdaGridWidget(QWidget *parent = nullptr);
-
+	explicit SdaGridWidget(bool disabled, QWidget *parent = nullptr);
 	void setStates(std::vector<SDFileDetails> const &sdaFiles);
+	int heightForWidth(int width) const;
+
+	QSize sizeHint() const override;
+	QSize minimumSizeHint() const override;
 
 protected:
 	void mousePressEvent(QMouseEvent *event) override;
 	void mouseMoveEvent(QMouseEvent *event) override;
 	void paintEvent(QPaintEvent *event) override;
-	QSize sizeHint() const override { return QSize(400, 300); }
+	void resizeEvent(QResizeEvent *ev) override;
 
 private:
 	std::vector<LabeledSdaState> states_;
-	int iconSize_ = 96; // base logical icon size
-	int iconCornerRadius_ = 16;
-	int padding_ = 16;  // logical space between cells
+	int iconSize_ = 64;
+	int minIconSize_ = 56;
+	int maxIconSize_ = 80;
+	int iconCornerRadius_ = 12;
+	int padding_ = 12;
+	bool disabled_;
 
 	QPoint dragStartPos_;
 	bool dragStarted_ = false;
@@ -262,10 +246,13 @@ class SdaGridScrollArea : public QScrollArea {
 	Q_OBJECT
 public:
 	explicit SdaGridScrollArea(
-		std::vector<SDFileDetails> const &sdaFiles, QWidget *parent =
-			nullptr);
+		std::vector<SDFileDetails> const &sdaFiles, 
+		bool disabled,
+		QWidget *parent = nullptr);
 
 	void setStates(std::vector<SDFileDetails> const &sdaFiles);
+
+	void resizeEvent(QResizeEvent *ev) override;
 
 private:
 	SdaGridWidget *gridWidget_;
@@ -278,5 +265,6 @@ public:
 	explicit StreamDeckSetupWidget(
 		std::vector<SDFileDetails> const &sdaFiles,
 		std::vector<SDFileDetails> const &profileFiles,
+		bool disabled,
 		QWidget *parent = nullptr);
 };

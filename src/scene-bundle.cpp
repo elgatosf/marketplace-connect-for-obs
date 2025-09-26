@@ -522,6 +522,12 @@ bool SceneBundle::ToCollection(std::string collection_name,
 		module_info["version"] = "1.0";
 	}
 
+	if (_bundleInfo.contains("exported_with_plugin_version")) {
+		module_info["exported_with_plugin_version"] = _bundleInfo["exported_with_plugin_version"];
+	} else {
+		module_info["exported_with_plugin_version"] = "1.0.0.0";
+	}
+
 	if (_bundleInfo.contains("stream_deck_actions")) {
 		module_info["stream_deck_actions"] =
 			_bundleInfo["stream_deck_actions"];
@@ -744,6 +750,8 @@ SceneBundleStatus SceneBundle::ToElgatoCloudFile(
 	bundleInfo["output_scenes"] = oScenes;
 	bundleInfo["stream_deck_actions"] = zipSdaFiles;
 	bundleInfo["stream_deck_profiles"] = zipSdProfileFiles;
+	std::string pluginVersion = PLUGIN_VERSION;
+	bundleInfo["exported_with_plugin_version"] = pluginVersion;
 
 	// Write the scene collection json file to zip archive.
 	std::string collection_json = _collection.dump(2);
@@ -1188,6 +1196,9 @@ SdaFile::SdaFile(const QString& path)
 
 void SdaFile::parse_()
 {
+	std::string imageBaseDir = GetDataPath();
+	imageBaseDir += "/images/stream-deck-default-icons/";
+
 	try {
 		miniz_cpp::zip_file zip(originalPath_.toStdString());
 
@@ -1237,6 +1248,7 @@ void SdaFile::parse_()
 			auto& stateJson = action["States"][0];
 			bool hasImage = stateJson.contains("Image");
 			bool hasTitle = stateJson.contains("Title");
+			std::string actionId = action.contains("UUID") ? action["UUID"] : "";
 
 			std::string relImagePath = hasImage ? stateJson["Image"] : "";
 			std::string title = hasTitle ? stateJson["Title"] : "";
@@ -1262,6 +1274,18 @@ void SdaFile::parse_()
 			if (hasImage && zip.has_file(imagePath)) {
 				std::string imgBytes = zip.read(imagePath);
 				s.imageBytes = QByteArray(imgBytes.data(), static_cast<int>(imgBytes.size()));
+			} else if (actionId != "") {
+				std::string iconPath = imageBaseDir + actionId + ".png";
+				if (std::filesystem::exists(iconPath) &&
+					std::filesystem::is_regular_file(iconPath)) {
+					QFile file(iconPath.c_str());
+					if (file.open(QIODevice::ReadOnly)) {
+						QByteArray data = file.readAll();
+						s.imageBytes = data;
+						s.hasImage = true;
+						file.close();
+					}
+				}
 			}
 
 			state_ = std::move(s);

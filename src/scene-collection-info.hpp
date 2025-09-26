@@ -45,7 +45,8 @@ public:
 class StreamDeckInstallWidget : public QWidget {
 	Q_OBJECT
 public:
-	StreamDeckInstallWidget(nlohmann::json scData, QWidget *parent = nullptr);
+	StreamDeckInstallWidget(nlohmann::json scData, bool disabled,
+				QWidget *parent = nullptr);
 };
 
 class SceneCollectionInfo : public QDialog {

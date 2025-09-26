@@ -91,7 +91,8 @@ ThirdPartyWidget::ThirdPartyWidget(nlohmann::json tpData, QWidget *parent)
 	layout->addStretch();
 }
 
-StreamDeckInstallWidget::StreamDeckInstallWidget(nlohmann::json scData, QWidget* parent)
+StreamDeckInstallWidget::StreamDeckInstallWidget(nlohmann::json scData,
+						 bool disabled, QWidget *parent)
 	: QWidget(parent)
 {
 	QVBoxLayout *layout = new QVBoxLayout(this);
@@ -101,8 +102,14 @@ StreamDeckInstallWidget::StreamDeckInstallWidget(nlohmann::json scData, QWidget*
 	layout->addWidget(title);
 
 	QLabel *subTitle = new QLabel(this);
-	subTitle->setText(
-		obs_module_text("SceneCollectionInfo.StreamDeck.Text"));
+	if (!disabled) {
+		subTitle->setText(
+			obs_module_text("SceneCollectionInfo.StreamDeck.Text"));
+	} else {
+		subTitle->setText(
+			obs_module_text("SceneCollectionInfo.StreamDeck.StreamDeckRequired"));
+	}
+
 	subTitle->setWordWrap(true);
 	subTitle->setStyleSheet(EWizardStepSubTitle);
 	layout->addWidget(subTitle);
@@ -136,8 +143,9 @@ StreamDeckInstallWidget::StreamDeckInstallWidget(nlohmann::json scData, QWidget*
 	} catch (...) {
 	
 	}
-	StreamDeckSetupWidget *widget = new StreamDeckSetupWidget( sdaFiles, sdProfileFiles, this);
-	widget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+	StreamDeckSetupWidget *widget = new StreamDeckSetupWidget(sdaFiles, sdProfileFiles, disabled, this);
+	widget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+	widget->setFixedHeight(400);
 	layout->addWidget(widget);
 
 }
@@ -155,7 +163,7 @@ SceneCollectionInfo::SceneCollectionInfo(nlohmann::json scData, QWidget *parent)
 
 	bool sdInstalled = isProtocolHandlerRegistered(L"streamdeck");
 
-	bool hasSd = (hasSdActions || hasSdProfiles) && sdInstalled;
+	bool hasSd = (hasSdActions || hasSdProfiles);
 	steps_ = 0;
 	if (hasSd) {
 		steps_++;
@@ -179,7 +187,7 @@ SceneCollectionInfo::SceneCollectionInfo(nlohmann::json scData, QWidget *parent)
 	}
 
 	if (hasSd) {
-		auto sd = new StreamDeckInstallWidget(scData);
+		auto sd = new StreamDeckInstallWidget(scData, !sdInstalled);
 		content_->addWidget(sd);
 	}
 
@@ -241,9 +249,7 @@ SceneCollectionConfig::SceneCollectionConfig(nlohmann::json scData,
 	bool hasThirdParty = scData.contains("third_party") &&
 			     scData["third_party"].size() > 0;
 
-	bool sdInstalled = isProtocolHandlerRegistered(L"streamdeck");
-
-	bool hasSd = (hasSdActions || hasSdProfiles) && sdInstalled;
+	bool hasSd = (hasSdActions || hasSdProfiles);
 
 	setWindowTitle(obs_module_text("SceneCollectionConfig.WindowTitle"));
 	setStyleSheet("background-color: #151515;");
@@ -265,13 +271,16 @@ SceneCollectionConfig::SceneCollectionConfig(nlohmann::json scData,
 		thirdPartyWidget = new ThirdPartyWidget(scData["third_party"], this);
 		stack->addWidget(thirdPartyWidget);
 	}
+	
 
 	if (hasSd) {
+		bool sdInstalled = isProtocolHandlerRegistered(L"streamdeck");
+		bool disableSd = !sdInstalled;
+
 		auto streamDeck = new QListWidgetItem(obs_module_text(
 			"SceneCollectionConfig.StreamDeckIntegration"));
 		sideMenu->addItem(streamDeck);
-
-		streamDeckWidget = new StreamDeckInstallWidget(scData, this);
+		streamDeckWidget = new StreamDeckInstallWidget(scData, disableSd, this);
 		stack->addWidget(streamDeckWidget);
 	}
 	

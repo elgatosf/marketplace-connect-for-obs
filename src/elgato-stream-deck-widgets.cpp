@@ -19,6 +19,9 @@
 #include <QButtonGroup>
 #include <QImage>
 #include <QSvgRenderer>
+#include <algorithm>
+#include <QResizeEvent>
+#include <QGraphicsOpacityEffect>
 
 #include "plugin-support.h"
 #include "obs-utils.hpp"
@@ -48,7 +51,7 @@ const std::map<std::string, std::string> modelMap{
 
 QPixmap createIconPixmap(SdaState const &state, int size = 64, int cornerRadius = 4)
 {
-	constexpr int padding = 0;               // padding on all sides
+	constexpr int padding = 4;               // padding on all sides
 	constexpr double lineHeightScale = 0.85; // shrink line height to 85%
 
 	QString title = state.hasTitle ? state.title : "";
@@ -361,6 +364,7 @@ SdaDropListItem::SdaDropListItem(const SdaState& state, QWidget* parent)
 
 	edit_ = new QLineEdit(this);
 	edit_->setText(state.hasTitle ? state.title : "");
+	edit_->setAcceptDrops(false);
 	layout->addWidget(edit_, 1);
 
     // --- Delete button ---
@@ -872,7 +876,7 @@ void StreamDeckFilesDropContainer::dropEvent(QDropEvent *event)
 }
 
 StreamDeckProfilesInstallListItem::StreamDeckProfilesInstallListItem(
-	const SdProfileState &state, std::string label, QWidget* parent)
+	const SdProfileState &state, std::string label, bool disabled, QWidget* parent)
 	: QWidget(parent), state_(state)
 {
 	std::string imageBaseDir = GetDataPath();
@@ -916,14 +920,32 @@ StreamDeckProfilesInstallListItem::StreamDeckProfilesInstallListItem(
 	iconLabel_->setScaledContents(false);
 	iconLabel_->setStyleSheet(
 		"QLabel { background: none; }");
+	if (disabled) {
+		auto opacityEffect = new QGraphicsOpacityEffect;
+		opacityEffect->setOpacity(0.5);
+		iconLabel_->setGraphicsEffect(opacityEffect);
+	}
+
 	layout->addWidget(iconLabel_);
 
 	label_ = new QLabel(label.c_str(), this);
 	label_->setStyleSheet("QLabel { background: none; }");
+	if (disabled) {
+		auto opacityEffect = new QGraphicsOpacityEffect;
+		opacityEffect->setOpacity(0.5);
+		label_->setGraphicsEffect(opacityEffect);
+	}
+
 	layout->addWidget(label_, 1);
 
 	installButton_ = new QPushButton(obs_module_text("SceneCollectionInfo.StreamDeck.AddToStreamDeckButton"), this);
 	installButton_->setStyleSheet(elgatocloud::EWizardQuietButtonStyle);
+	installButton_->setDisabled(disabled);
+	if (disabled) {
+		auto opacityEffect = new QGraphicsOpacityEffect;
+		opacityEffect->setOpacity(0.5);
+		installButton_->setGraphicsEffect(opacityEffect);
+	}
 	
 	connect(installButton_, &QPushButton::clicked, this,
 		[this, state]() { 
@@ -935,7 +957,8 @@ StreamDeckProfilesInstallListItem::StreamDeckProfilesInstallListItem(
 }
 
 StreamDeckProfilesInstallListContainer::StreamDeckProfilesInstallListContainer(
-	std::vector<SDFileDetails> const& profileFiles, QWidget* parent)
+	std::vector<SDFileDetails> const &profileFiles, bool disabled,
+	QWidget *parent)
 	: QScrollArea(parent)
 {
 	setWidgetResizable(true);
@@ -951,11 +974,12 @@ StreamDeckProfilesInstallListContainer::StreamDeckProfilesInstallListContainer(
 
 	setObjectName("StreamDeckProfilesInstallListContainer");
 	setStyleSheet("#StreamDeckProfilesInstallListContainer { border: none; }");
+	setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
 
 	for (auto const &profile : profileFiles) {
 		SdProfileFile sdp(profile.path.c_str());
 		auto state = sdp.state();
-		auto *row = new StreamDeckProfilesInstallListItem(state, profile.label, this);
+		auto *row = new StreamDeckProfilesInstallListItem(state, profile.label, disabled, this);
 
 		connect(row, &StreamDeckProfilesInstallListItem::requestInstall,
 			this,
@@ -963,24 +987,24 @@ StreamDeckProfilesInstallListContainer::StreamDeckProfilesInstallListContainer(
 				QDesktopServices::openUrl(
 					QUrl("streamdeck://open/mainwindow"));
 				QUrl fileUrl = QUrl::fromLocalFile(path.c_str());
-				if (QDesktopServices::openUrl(fileUrl)) {
-					
-				} else {
+				if (!QDesktopServices::openUrl(fileUrl)) {
 					// Warning
 				}
 			});
-
-		// insert before the stretch item
 		layout_->insertWidget(layout_->count() - 1, row);
 	}
 }
 
-SdaGridWidget::SdaGridWidget(QWidget *parent) : QWidget(parent)
+SdaGridWidget::SdaGridWidget(bool disabled, QWidget *parent)
+	: QWidget(parent),
+	  disabled_(disabled)
 {
 	setAcceptDrops(false); // only drag OUT
 	setMouseTracking(true);
+	setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
 }
 
+// setStates: notify geometry/layout
 void SdaGridWidget::setStates(std::vector<SDFileDetails> const &sdaFiles)
 {
 	states_.clear();
@@ -992,14 +1016,24 @@ void SdaGridWidget::setStates(std::vector<SDFileDetails> const &sdaFiles)
 		}
 	}
 
+	// Tell layouts/parents that our preferred size changed
+	updateGeometry();
 	update();
 }
 
 int SdaGridWidget::columnCount() const
 {
-	// Estimate columns based on maximum logical pixmap width plus padding
-	int maxWidth = iconSize_;
-	int cols = width() / (maxWidth + padding_);
+	int avail = width();
+	// If width is not set yet (asked too early), use a fallback to avoid cols=0.
+	if (avail <= 0)
+		return 1;
+
+	// usable width takes padding into account (we use padding_/2 margins)
+	int usable = std::max(1, avail - padding_);
+	int cell = iconSize_ + padding_;
+	if (cell <= 0)
+		return 1;
+	int cols = usable / cell;
 	return std::max(1, cols);
 }
 
@@ -1010,30 +1044,49 @@ void SdaGridWidget::paintEvent(QPaintEvent *)
 	painter.setRenderHint(QPainter::TextAntialiasing);
 	painter.setRenderHint(QPainter::SmoothPixmapTransform);
 
-	int cols = columnCount();
-	int x0 = padding_ / 2;
-	int y0 = padding_ / 2;
+	int W = width();
+	int N = std::max(1, (W - padding_) /
+				    (maxIconSize_ +
+				     padding_)); // initial column estimate
+
+	iconSize_ = (W - padding_ * (N + 1)) / N;
+	iconSize_ = std::clamp(iconSize_, minIconSize_, maxIconSize_);
+	N = std::max(1,
+		     (W - padding_) / (iconSize_ + padding_)); // recalc columns
+	iconSize_ = (W - padding_ * (N + 1)) / N; // final icon size to fill row
+
+	int x0 = padding_;
+	int y0 = padding_;
 
 	for (int i = 0; i < static_cast<int>(states_.size()); ++i) {
-		const auto &state = states_[i].state;
-
-		int row = i / cols;
-		int col = i % cols;
+		int row = i / N;
+		int col = i % N;
 
 		int x = x0 + col * (iconSize_ + padding_);
 		int y = y0 + row * (iconSize_ + padding_);
 
-		QPixmap pixmap = createIconPixmap(state, iconSize_, iconCornerRadius_);
-
-		// Logical size for layout (prevents clipping)
+		QPixmap pixmap = createIconPixmap(states_[i].state, iconSize_,
+						  iconCornerRadius_);
 		QSize logicalSize = pixmap.size() / pixmap.devicePixelRatio();
 
+		// Save painter state
+		painter.save();
+
+		if (disabled_)
+			painter.setOpacity(0.5);
+		else
+			painter.setOpacity(1.0);
+
+		// Draw pixmap
 		painter.drawPixmap(x, y, logicalSize.width(),
 				   logicalSize.height(), pixmap);
+
+		// Restore painter state (resets opacity)
+		painter.restore();
 	}
 }
 
-// Map mouse position to index, accounting for HiDPI
+// Map mouse position to index
 int SdaGridWidget::indexAtPos(const QPoint &pos) const
 {
 	int cols = columnCount();
@@ -1060,7 +1113,7 @@ int SdaGridWidget::indexAtPos(const QPoint &pos) const
 
 void SdaGridWidget::mousePressEvent(QMouseEvent *event)
 {
-	if (event->button() == Qt::LeftButton) {
+	if (event->button() == Qt::LeftButton && !disabled_) {
 		dragStartPos_ = event->pos();
 		dragStarted_ = true;
 	}
@@ -1069,21 +1122,20 @@ void SdaGridWidget::mousePressEvent(QMouseEvent *event)
 
 void SdaGridWidget::mouseMoveEvent(QMouseEvent *event)
 {
-	if (!(event->buttons() & Qt::LeftButton))
+	if (!(event->buttons() & Qt::LeftButton) || disabled_)
 		return;
 
 	if ((event->pos() - dragStartPos_).manhattanLength() <
 	    QApplication::startDragDistance())
 		return;
-	
+
 	int idx = indexAtPos(dragStartPos_);
-	if (idx < 0 || idx >= (int)states_.size())
+	if (idx < 0 || idx >= static_cast<int>(states_.size()))
 		return;
 
 	const auto &state = states_[idx].state;
 	if (state.path.isEmpty())
 		return;
-
 
 	auto *drag = new QDrag(this);
 	auto *mime = new QMimeData();
@@ -1091,38 +1143,113 @@ void SdaGridWidget::mouseMoveEvent(QMouseEvent *event)
 	mime->setUrls({QUrl::fromLocalFile(state.path)});
 	drag->setMimeData(mime);
 
-	QPixmap pixmap = createIconPixmap(state, iconSize_);
+	QPixmap pixmap = createIconPixmap(state, iconSize_, iconCornerRadius_);
 	drag->setPixmap(pixmap);
 	if (dragStarted_) {
 		QDesktopServices::openUrl(QUrl("streamdeck://open/mainwindow"));
 		dragStarted_ = false;
 	}
-	
+
 	drag->exec(Qt::CopyAction);
 }
 
-SdaGridScrollArea::SdaGridScrollArea(std::vector<SDFileDetails> const &sdaFiles,
-				     QWidget *parent)
-	: QScrollArea(parent),
-	  gridWidget_(new SdaGridWidget(this))
+QSize SdaGridWidget::sizeHint() const
 {
-	setWidget(gridWidget_);
-	setWidgetResizable(true);
+	if (states_.empty()) {
+		return QSize(iconSize_ + padding_, iconSize_ + padding_);
+	}
+
+	// Width should follow the viewport (so no horizontal scrollbar).
+	int availableWidth = 0;
+	if (parentWidget()) {
+		availableWidth = parentWidget()->width(); // the viewport width
+	}
+	if (availableWidth <= 0)
+		availableWidth = 400; // fallback
+
+	// Calculate how many columns fit in the available width
+	int usable = std::max(1, availableWidth - padding_);
+	int cell = iconSize_ + padding_;
+	int cols = std::max(1, usable / cell);
+
+	// Now calculate rows and total height
+	int rows = (static_cast<int>(states_.size()) + cols - 1) / cols;
+	int h = rows * (iconSize_ + padding_) + padding_ / 2;
+
+	// Width = viewport width (forces it to resize horizontally),
+	// Height = natural required height (allows vertical scrollbar).
+	return QSize(availableWidth, h);
+}
+
+QSize SdaGridWidget::minimumSizeHint() const
+{
+	return QSize(iconSize_ + padding_, iconSize_ + padding_);
+}
+
+// When we are resized (viewport width change) re-evaluate preferred geometry
+void SdaGridWidget::resizeEvent(QResizeEvent *ev)
+{
+	QWidget::resizeEvent(ev);
+	updateGeometry();
+	update();
+}
+
+int SdaGridWidget::heightForWidth(int width) const
+{
+	if (states_.empty())
+		return minIconSize_ + padding_;
+
+	int N = std::max(1, (width - padding_) / (maxIconSize_ + padding_));
+	int iconSize = (width - padding_ * (N + 1)) / N;
+	iconSize = std::clamp(iconSize, minIconSize_, maxIconSize_);
+	N = std::max(1, (width - padding_) / (iconSize + padding_));
+	iconSize = (width - padding_ * (N + 1)) / N;
+
+	int rows = (static_cast<int>(states_.size()) + N - 1) / N;
+	return rows * (iconSize + padding_) + padding_;
+}
+
+SdaGridScrollArea::SdaGridScrollArea(std::vector<SDFileDetails> const &sdaFiles, bool disabled,
+				     QWidget *parent)
+	: QScrollArea(parent)
+{
+	setWidgetResizable(false);
 	setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+	setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+	setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+	gridWidget_ = new SdaGridWidget(disabled, this);
 	setStates(sdaFiles);
-	
+
+	setWidget(gridWidget_);
+
+	setFrameShape(QFrame::NoFrame);
 	setObjectName("SdaGridScrollArea");
-	setStyleSheet("#SdaGridScrollArea { border: none; }");
+	setStyleSheet("#SdaGridScrollArea { border: none; background-color: #aaaaaa; }");
+	viewport()->setStyleSheet("border: none;");
 }
 
 void SdaGridScrollArea::setStates(std::vector<SDFileDetails> const &sdaFiles)
 {
 	gridWidget_->setStates(sdaFiles);
+	gridWidget_->updateGeometry();
+}
+
+void SdaGridScrollArea::resizeEvent(QResizeEvent* ev)
+{
+	QScrollArea::resizeEvent(ev);
+
+    if (gridWidget_) {
+		int w = viewport()->width();
+		int h = gridWidget_->heightForWidth(w);
+		gridWidget_->setFixedSize(w, h);
+	}
 }
 
 StreamDeckSetupWidget::StreamDeckSetupWidget(
 	std::vector<SDFileDetails> const& sdaFiles,
-	std::vector<SDFileDetails> const& profileFiles, QWidget* parent)
+	std::vector<SDFileDetails> const& profileFiles, 
+	bool disabled,
+	QWidget* parent)
 	: QWidget(parent)
 {
 	auto layout = new QVBoxLayout(this);
@@ -1132,20 +1259,52 @@ StreamDeckSetupWidget::StreamDeckSetupWidget(
 		obs_module_text("SceneCollectionInfo.StreamDeck.ProfilesTitle"),
 		this);
 	profilesLabel->setStyleSheet(
-		"QLabel { font-size: 14px; margin-top: 16px; }");
-	auto *profiles = new StreamDeckProfilesInstallListContainer(profileFiles, this);
-	profiles->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+		"QLabel { font-size: 14px; margin-top: 16px; font-weight: bold; }");
+	if (disabled) {
+		auto opacityEffect = new QGraphicsOpacityEffect;
+		opacityEffect->setOpacity(0.5);
+		profilesLabel->setGraphicsEffect(opacityEffect);
+	}
+
+	layout->addWidget(profilesLabel);
+
+	if (profileFiles.size() > 0) {
+		auto *profiles = new StreamDeckProfilesInstallListContainer(
+			profileFiles, disabled, this);
+		layout->addWidget(profiles, 1);
+	} else {
+		auto *profiles = new QLabel(
+			obs_module_text("SceneCollectionInfo.StreamDeck.ProfilesNone"),
+			this);
+		profiles->setStyleSheet(elgatocloud::EWizardStepSubTitle);
+		profiles->setAlignment(Qt::AlignCenter);
+		layout->addWidget(profiles);
+	}
+
 
 	auto sdasLabel = new QLabel(
 		obs_module_text("SceneCollectionInfo.StreamDeck.ActionsTitle"),
 		this);
 	sdasLabel->setStyleSheet(
-		"QLabel { font-size: 14px; margin-top: 16px; }");
-	auto *sdas = new SdaGridScrollArea(sdaFiles, this);
-	sdas->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+		"QLabel { font-size: 14px; margin-top: 16px; font-weight: bold; }");
+	if (disabled) {
+		auto opacityEffect = new QGraphicsOpacityEffect;
+		opacityEffect->setOpacity(0.5);
+		sdasLabel->setGraphicsEffect(opacityEffect);
+	}
 
-	layout->addWidget(profilesLabel);
-	layout->addWidget(profiles);
 	layout->addWidget(sdasLabel);
-	layout->addWidget(sdas);
+	
+	if (sdaFiles.size() > 0) {
+		auto *sdas = new SdaGridScrollArea(sdaFiles, disabled, this);
+		layout->addWidget(sdas, 1);
+	} else {
+		auto *sdas = new QLabel(
+			obs_module_text("SceneCollectionInfo.StreamDeck.ActionsNone"),
+			this);
+		sdas->setStyleSheet(elgatocloud::EWizardStepSubTitle);
+		sdas->setAlignment(Qt::AlignCenter);
+		layout->addWidget(sdas);
+	}
+
 }
