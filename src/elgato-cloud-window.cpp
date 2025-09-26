@@ -1247,10 +1247,44 @@ void ElgatoProductItem::UpdateDownload(bool downloading, int progress)
 
 LoginNeeded::LoginNeeded(QWidget *parent) : QWidget(parent)
 {
-	auto layout = new QVBoxLayout(this);
+	std::string imageBaseDir = GetDataPath();
+	imageBaseDir += "/images/";
+	std::string iconPath = imageBaseDir + "your-library-icon.svg";
+	auto layout = new QHBoxLayout(this);
+	auto sideLayout = new QVBoxLayout();
+	auto sideMenu = new QListWidget(this);
+	QIcon icon(iconPath.c_str());
+	auto yourLibrary = new QListWidgetItem(
+		icon, obs_module_text("MarketplaceWindow.PurchasedTab"));
+	sideMenu->setIconSize(QSize(20, 20));
+	sideMenu->addItem(yourLibrary);
+	sideMenu->setSizePolicy(QSizePolicy::Preferred,
+				 QSizePolicy::Expanding);
+	sideMenu->setStyleSheet(ELeftNavListStyle);
+	sideMenu->setCurrentRow(0);
+	sideMenu->setFixedWidth(240);
+
+	bool activeElgatoCollection = (elgatoCloud != nullptr) &&
+				      elgatoCloud->GetElgatoCollectionActive();
+	sideLayout->addWidget(sideMenu);
+
+	if (activeElgatoCollection) {
+		char *csc = obs_frontend_get_current_scene_collection();
+		std::string currentSceneCollection(csc);
+		bfree(csc);
+
+		auto data = elgatoCloud->GetScData();
+
+		auto currentCollection = new CurrentCollection(
+			currentSceneCollection, data, this);
+		sideLayout->addStretch();
+		sideLayout->addWidget(currentCollection);
+	}
+
+	//auto mainlayout = new QVBoxLayout(this);
 	auto container = new QWidget(this);
 	container->setStyleSheet(ESlateContainerStyle);
-	setContentsMargins(0, 0, 0, 0);
+	//setContentsMargins(0, 0, 0, 0);
 	auto containerLayout = new QVBoxLayout(container);
 
 	auto login = new QLabel(this);
@@ -1289,18 +1323,50 @@ LoginNeeded::LoginNeeded(QWidget *parent) : QWidget(parent)
 	containerLayout->addStretch();
 	containerLayout->setSpacing(8);
 
+	layout->addLayout(sideLayout);
 	layout->addWidget(container);
 }
 
 LoggingIn::LoggingIn(QWidget* parent) : QWidget(parent)
 {
-	auto layout = new QVBoxLayout(this);
+	std::string imageBaseDir = GetDataPath();
+	imageBaseDir += "/images/";
+	std::string iconPath = imageBaseDir + "your-library-icon.svg";
+	auto layout = new QHBoxLayout(this);
+	auto sideLayout = new QVBoxLayout();
+	auto sideMenu = new QListWidget(this);
+	QIcon icon(iconPath.c_str());
+	auto yourLibrary = new QListWidgetItem(
+		icon, obs_module_text("MarketplaceWindow.PurchasedTab"));
+	sideMenu->setIconSize(QSize(20, 20));
+	sideMenu->addItem(yourLibrary);
+	sideMenu->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
+	sideMenu->setStyleSheet(ELeftNavListStyle);
+	sideMenu->setCurrentRow(0);
+	sideMenu->setFixedWidth(240);
+
+	bool activeElgatoCollection = (elgatoCloud != nullptr) &&
+				      elgatoCloud->GetElgatoCollectionActive();
+	sideLayout->addWidget(sideMenu);
+
+	if (activeElgatoCollection) {
+		char *csc = obs_frontend_get_current_scene_collection();
+		std::string currentSceneCollection(csc);
+		bfree(csc);
+
+		auto data = elgatoCloud->GetScData();
+
+		auto currentCollection = new CurrentCollection(
+			currentSceneCollection, data, this);
+		sideLayout->addStretch();
+		sideLayout->addWidget(currentCollection);
+	}
+
+	//auto mainlayout = new QVBoxLayout(this);
 	auto container = new QWidget(this);
 	container->setStyleSheet(ESlateContainerStyle);
-	setContentsMargins(0, 0, 0, 0);
+	//setContentsMargins(0, 0, 0, 0);
 	auto containerLayout = new QVBoxLayout(container);
-
-	auto spinner = new SmallSpinner(this);
 
 	auto login = new QLabel(this);
 	login->setText(obs_module_text("MarketplaceWindow.LoggingIn.Title"));
@@ -1323,20 +1389,22 @@ LoggingIn::LoggingIn(QWidget* parent) : QWidget(parent)
 	auto loginButton = new QPushButton(this);
 	loginButton->setText(
 		obs_module_text("MarketplaceWindow.LoggingIn.TryAgain"));
-	loginButton->setStyleSheet(EBlankSlateQuietButtonStyle);
+	QString loginButtonStyle = EBlankSlateButtonStyle;
+	loginButton->setStyleSheet(loginButtonStyle);
 	connect(loginButton, &QPushButton::clicked, this,
 		[this]() { elgatoCloud->StartLogin(); });
 	hLayout->addStretch();
 	hLayout->addWidget(loginButton);
 	hLayout->addStretch();
+
 	containerLayout->addStretch();
-	containerLayout->addWidget(spinner);
 	containerLayout->addWidget(login);
 	containerLayout->addLayout(subHLayout);
 	containerLayout->addLayout(hLayout);
 	containerLayout->addStretch();
 	containerLayout->setSpacing(8);
 
+	layout->addLayout(sideLayout);
 	layout->addWidget(container);
 }
 
