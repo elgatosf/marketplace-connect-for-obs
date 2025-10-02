@@ -22,6 +22,7 @@
 #include <algorithm>
 #include <QResizeEvent>
 #include <QGraphicsOpacityEffect>
+#include <QToolTip>
 
 #include "plugin-support.h"
 #include "obs-utils.hpp"
@@ -1146,11 +1147,58 @@ void SdaGridWidget::mouseMoveEvent(QMouseEvent *event)
 	QPixmap pixmap = createIconPixmap(state, iconSize_, iconCornerRadius_);
 	drag->setPixmap(pixmap);
 	if (dragStarted_) {
-		QDesktopServices::openUrl(QUrl("streamdeck://open/mainwindow"));
+		if (!QDesktopServices::openUrl(QUrl("streamdeck://open/mainwindow")))
+		{
+			obs_log(LOG_WARNING,
+				"streamdeck:// call did not work.");
+		}
 		dragStarted_ = false;
 	}
 
 	drag->exec(Qt::CopyAction);
+}
+
+void SdaGridWidget::mouseDoubleClickEvent(QMouseEvent* event)
+{
+	if (event->button() == Qt::LeftButton) {
+		QPoint pos = event->pos();
+		int idx = indexAtPos(dragStartPos_);
+		if (idx < 0 || idx >= static_cast<int>(states_.size())) {
+			QWidget::mouseDoubleClickEvent(event);
+			return;
+		}
+		const auto &state = states_[idx].state;
+		if (state.path.isEmpty()) {
+			QWidget::mouseDoubleClickEvent(event);
+			return;
+		}
+		if (!QDesktopServices::openUrl(
+			    QUrl::fromLocalFile(state.path))) {
+			obs_log(LOG_WARNING,
+				"Could not open action button in Stream Deck, %s", state.path.toStdString().c_str());
+		}
+	}
+	QWidget::mouseDoubleClickEvent(event);
+}
+
+bool SdaGridWidget::event(QEvent *e)
+{
+	//if (e->type() == QEvent::ToolTip) {
+	//	auto *helpEvent = static_cast<QHelpEvent *>(e);
+
+	//	// Decide tooltip text based on position:
+	//	QString text;
+	//	QPoint pos = helpEvent->pos();
+	//	int idx = indexAtPos(pos);
+	//	if (idx < 0 || idx >= static_cast<int>(states_.size()))
+	//		return QWidget::event(e);
+
+	//	const auto &state = states_[idx].state;
+	//	text = "Tool Tip";
+	//	QToolTip::showText(helpEvent->globalPos(), text, this);
+	//	return true; // we handled it
+	//}
+	return QWidget::event(e);
 }
 
 QSize SdaGridWidget::sizeHint() const

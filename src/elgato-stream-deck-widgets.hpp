@@ -223,8 +223,10 @@ public:
 protected:
 	void mousePressEvent(QMouseEvent *event) override;
 	void mouseMoveEvent(QMouseEvent *event) override;
+	void mouseDoubleClickEvent(QMouseEvent *event) override;
 	void paintEvent(QPaintEvent *event) override;
 	void resizeEvent(QResizeEvent *ev) override;
+	bool event(QEvent *e) override;
 
 private:
 	std::vector<LabeledSdaState> states_;
