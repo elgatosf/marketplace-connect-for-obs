@@ -245,11 +245,13 @@ UserMenu::UserMenu(QWidget* parent) : QWidget(parent)
 	});
 
 	connect(_plainAvatar, &Avatar::clicked, [this]() {
-		_showModalMenu();
+		if (!_disabled)
+			_showModalMenu();
 	});
 
 	connect(_imgAvatar, &AvatarImage::clicked, [this]() {
-		_showModalMenu();
+		if (!_disabled)
+			_showModalMenu();
 	});
 
 	connect(viewAccount, &QAction::triggered, [api]() {
@@ -264,6 +266,11 @@ UserMenu::UserMenu(QWidget* parent) : QWidget(parent)
 	QMenu::item:disabled {
 		background-color: transparent;
 	})");
+}
+
+void UserMenu::disable(bool setDisable)
+{
+	_disabled = setDisable;
 }
 
 void UserMenu::_showModalMenu()
@@ -353,7 +360,7 @@ WindowToolBar::~WindowToolBar() {}
 
 void WindowToolBar::disableLogout(bool disabled)
 {
-//	_logOutButton->setDisabled(disabled);
+	_userMenu->disable(disabled);
 }
 
 void WindowToolBar::updateState()

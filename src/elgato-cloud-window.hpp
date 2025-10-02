@@ -80,6 +80,7 @@ class UserMenu : public QWidget {
 	Q_OBJECT
 public:
 	UserMenu(QWidget* parent);
+	void disable(bool setDisable);
 
 signals:
 	void viewAccountClicked();
@@ -91,6 +92,7 @@ private:
 	Avatar* _plainAvatar;
 	AvatarImage* _imgAvatar;
 	QAction* _accountTitle;
+	bool _disabled;
 
 private slots:
 	void _showModalMenu();

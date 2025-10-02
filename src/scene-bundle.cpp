@@ -1276,11 +1276,23 @@ void SdaFile::parse_()
 				s.imageBytes = QByteArray(imgBytes.data(), static_cast<int>(imgBytes.size()));
 			} else if (actionId != "") {
 				std::string iconPath = imageBaseDir + actionId + ".png";
+				std::string defaultIconPath = imageBaseDir + "default.png";
 				if (std::filesystem::exists(iconPath) &&
 					std::filesystem::is_regular_file(iconPath)) {
 					QFile file(iconPath.c_str());
 					if (file.open(QIODevice::ReadOnly)) {
 						QByteArray data = file.readAll();
+						s.imageBytes = data;
+						s.hasImage = true;
+						file.close();
+					}
+				} else if (std::filesystem::exists(defaultIconPath) &&
+					std::filesystem::is_regular_file(
+					defaultIconPath)) {
+					QFile file(defaultIconPath.c_str());
+					if (file.open(QIODevice::ReadOnly)) {
+						QByteArray data =
+							file.readAll();
 						s.imageBytes = data;
 						s.hasImage = true;
 						file.close();
