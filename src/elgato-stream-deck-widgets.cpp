@@ -1183,22 +1183,47 @@ void SdaGridWidget::mouseDoubleClickEvent(QMouseEvent* event)
 
 bool SdaGridWidget::event(QEvent *e)
 {
-	//if (e->type() == QEvent::ToolTip) {
-	//	auto *helpEvent = static_cast<QHelpEvent *>(e);
+	if (e->type() == QEvent::ToolTip) {
+		auto *helpEvent = static_cast<QHelpEvent *>(e);
 
-	//	// Decide tooltip text based on position:
-	//	QString text;
-	//	QPoint pos = helpEvent->pos();
-	//	int idx = indexAtPos(pos);
-	//	if (idx < 0 || idx >= static_cast<int>(states_.size()))
-	//		return QWidget::event(e);
+		// Decide tooltip text based on position:
+		QString newToolTip;
 
-	//	const auto &state = states_[idx].state;
-	//	text = "Tool Tip";
-	//	QToolTip::showText(helpEvent->globalPos(), text, this);
-	//	return true; // we handled it
-	//}
+		QPoint pos = helpEvent->pos();
+		int idx = indexAtPos(pos);
+		if (idx >= 0 && idx < static_cast<int>(states_.size())) {
+			const auto &state = states_[idx].state;
+			QString label = states_[idx].label.c_str();
+			newToolTip = label;
+		}
+
+		if (newToolTip.isEmpty()) {
+			if (!lastToolTip_.isEmpty()) {
+				QToolTip::hideText();
+				lastToolTip_.clear();
+			}
+			
+			e->ignore();
+			return true;
+		}
+
+		if (newToolTip != lastToolTip_) {
+			QToolTip::showText(helpEvent->globalPos(), newToolTip, this);
+			lastToolTip_ = newToolTip;
+		}
+		
+		return true;
+	}
 	return QWidget::event(e);
+}
+
+void SdaGridWidget::leaveEvent(QEvent *event)
+{
+	if (!lastToolTip_.isEmpty()) {
+		QToolTip::hideText();
+		lastToolTip_.clear();
+	}
+	QWidget::leaveEvent(event);
 }
 
 QSize SdaGridWidget::sizeHint() const

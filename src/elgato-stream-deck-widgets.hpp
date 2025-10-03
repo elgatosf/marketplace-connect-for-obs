@@ -226,6 +226,7 @@ protected:
 	void mouseDoubleClickEvent(QMouseEvent *event) override;
 	void paintEvent(QPaintEvent *event) override;
 	void resizeEvent(QResizeEvent *ev) override;
+	void leaveEvent(QEvent *event) override;
 	bool event(QEvent *e) override;
 
 private:
@@ -236,6 +237,7 @@ private:
 	int iconCornerRadius_ = 12;
 	int padding_ = 12;
 	bool disabled_;
+	QString lastToolTip_;
 
 	QPoint dragStartPos_;
 	bool dragStarted_ = false;
