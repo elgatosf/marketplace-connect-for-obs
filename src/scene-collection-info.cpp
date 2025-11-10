@@ -19,6 +19,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include "scene-collection-info.hpp"
 #include "elgato-styles.hpp"
 #include "elgato-stream-deck-widgets.hpp"
+#include "elgato-cloud-data.hpp"
 #include "util.h"
 #include <obs-module.h>
 #include <QVBoxLayout>
@@ -102,30 +103,21 @@ StreamDeckInstallWidget::StreamDeckInstallWidget(nlohmann::json scData,
 	layout->addWidget(title);
 
 	QLabel *subTitle = new QLabel(this);
-	if (!disabled) {
-		subTitle->setText(
-			obs_module_text("SceneCollectionInfo.StreamDeck.Text"));
-	} else {
-		subTitle->setText(
-			obs_module_text("SceneCollectionInfo.StreamDeck.StreamDeckRequired"));
-	}
-
-	subTitle->setWordWrap(true);
-	subTitle->setStyleSheet(EWizardStepSubTitle);
-	layout->addWidget(subTitle);
-
 	std::vector<SDFileDetails> sdaFiles;
 	std::vector<SDFileDetails> sdProfileFiles;
 	try {
-		std::string basePath = scData["pack_path"].get<std::string>() + "/";
+		std::string basePath =
+			scData["pack_path"].get<std::string>() + "/";
 		if (scData.contains("stream_deck_actions")) {
-			std::string sdaBasePath = basePath + "Assets/stream-deck/stream-deck-actions/";
+			std::string sdaBasePath =
+				basePath +
+				"Assets/stream-deck/stream-deck-actions/";
 			for (auto &sdaFile : scData["stream_deck_actions"]) {
-				std::string filename = sdaBasePath + sdaFile["filename"].get<std::string>();
-				sdaFiles.push_back({
-					filename,
-					sdaFile["label"]
-				});
+				std::string filename =
+					sdaBasePath +
+					sdaFile["filename"].get<std::string>();
+				sdaFiles.push_back(
+					{filename, sdaFile["label"]});
 			}
 		}
 		if (scData.contains("stream_deck_profiles")) {
@@ -141,8 +133,44 @@ StreamDeckInstallWidget::StreamDeckInstallWidget(nlohmann::json scData,
 			}
 		}
 	} catch (...) {
-	
 	}
+
+	bool legacy = true;
+	auto ec = GetElgatoCloud();
+	auto sdi = ec->GetStreamDeckInfo();
+	bool requiresLegacy = compareVersions(sdi.version, "7.1") < 0;
+
+	for (auto& sda : sdaFiles) {
+		SdaFile sdaf(sda.path.c_str());
+		if (sdaf.fileVersion() == SdFileVersion::Current) {
+			legacy = false;
+		}
+	}
+
+	for (auto &sdp : sdProfileFiles) {
+		SdProfileFile sdpf(sdp.path.c_str());
+		if (sdpf.fileVersion() == SdFileVersion::Current) {
+			legacy = false;
+		}
+	}
+
+	if (disabled) {
+		subTitle->setText(obs_module_text(
+			"SceneCollectionInfo.StreamDeck.StreamDeckRequired"));
+	} else if (!legacy && requiresLegacy) {
+		disabled = true;
+		subTitle->setText(obs_module_text(
+			"SceneCollectionInfo.StreamDeck.StreamDeckUpdateRequired"));
+	} else {
+		subTitle->setText(
+			obs_module_text("SceneCollectionInfo.StreamDeck.Text"));
+	}
+
+	subTitle->setWordWrap(true);
+	subTitle->setStyleSheet(EWizardStepSubTitle);
+	layout->addWidget(subTitle);
+
+
 	StreamDeckSetupWidget *widget = new StreamDeckSetupWidget(sdaFiles, sdProfileFiles, disabled, this);
 	widget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
 	widget->setFixedHeight(400);

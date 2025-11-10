@@ -960,7 +960,8 @@ StreamDeckProfilesInstallListItem::StreamDeckProfilesInstallListItem(
 StreamDeckProfilesInstallListContainer::StreamDeckProfilesInstallListContainer(
 	std::vector<SDFileDetails> const &profileFiles, bool disabled,
 	QWidget *parent)
-	: QScrollArea(parent)
+	: QScrollArea(parent),
+	  legacy_(true)
 {
 	setWidgetResizable(true);
 
@@ -980,6 +981,10 @@ StreamDeckProfilesInstallListContainer::StreamDeckProfilesInstallListContainer(
 	for (auto const &profile : profileFiles) {
 		SdProfileFile sdp(profile.path.c_str());
 		auto state = sdp.state();
+		SdFileVersion version = sdp.fileVersion();
+		if (version == SdFileVersion::Current) {
+			legacy_ = true;
+		}
 		auto *row = new StreamDeckProfilesInstallListItem(state, profile.label, disabled, this);
 
 		connect(row, &StreamDeckProfilesInstallListItem::requestInstall,
@@ -1011,6 +1016,10 @@ void SdaGridWidget::setStates(std::vector<SDFileDetails> const &sdaFiles)
 	states_.clear();
 	for (auto const &sdaDat : sdaFiles) {
 		SdaFile sda(sdaDat.path.c_str());
+		SdFileVersion version = sda.fileVersion();
+		if (version == SdFileVersion::Current) {
+			legacy_ = true;
+		}
 		if (sda.firstState()) {
 			auto state = sda.firstState().value();
 			states_.push_back({state, sdaDat.label});

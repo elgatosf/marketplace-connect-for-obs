@@ -1202,6 +1202,12 @@ void SdaFile::parse_()
 	try {
 		miniz_cpp::zip_file zip(originalPath_.toStdString());
 
+		// Check if this is a new or legacy file
+		std::string packageJsonPath = "package.json";
+		version_ = zip.has_file(packageJsonPath)
+				   ? SdFileVersion::Current
+				   : SdFileVersion::Legacy;
+
 		// Find the correct manifest.json under Profiles/*
 		std::string chosenManifestPath;
 		nlohmann::json manifest;
@@ -1323,6 +1329,12 @@ void SdProfileFile::parse_()
 {
 	try {
 		miniz_cpp::zip_file zip(originalPath_.toStdString());
+
+		// Check if this is a new or legacy file
+		std::string packageJsonPath = "package.json";
+		version_ = zip.has_file(packageJsonPath)
+				   ? SdFileVersion::Current
+				   : SdFileVersion::Legacy;
 
 		// Find the correct manifest.json under Profiles/*
 		nlohmann::json manifest;

@@ -175,13 +175,23 @@ std::string fetch_string_from_get(std::string url, std::string token)
 	curl_easy_setopt(curl_instance, CURLOPT_CONNECTTIMEOUT, 3);
 	curl_easy_setopt(curl_instance, CURLOPT_TIMEOUT, 5);
 	CURLcode res = curl_easy_perform(curl_instance);
-
 	curl_easy_cleanup(curl_instance);
 	if (res == CURLE_OK) {
 		return result;
 	} else if (res == CURLE_OPERATION_TIMEDOUT) {
+		obs_log(LOG_WARNING, "Error in fetching GET value - Timed out");
+		obs_log(LOG_WARNING, "   url: %s", url.c_str());
+		obs_log(LOG_WARNING, "   code: %i", res);
+		obs_log(LOG_WARNING, "   response: %s", result.c_str());
 		return "{\"error\": \"Connection Timed Out\"}";
 	}
+	long http_code = 0;
+	curl_easy_getinfo(curl_instance, CURLINFO_RESPONSE_CODE, &http_code);
+	obs_log(LOG_WARNING, "Error in fetching GET value");
+	obs_log(LOG_WARNING, "   url: %s", url.c_str());
+	obs_log(LOG_WARNING, "   curl code: %i", res);
+	obs_log(LOG_WARNING, "   http code: %i", http_code);
+	obs_log(LOG_WARNING, "   response: %s", result.c_str());
 	return "{\"error\": \"Unspecified Error\"}";
 }
 
@@ -234,6 +244,14 @@ std::string fetch_string_from_post(std::string url, std::string postdata, std::s
 	if (res == CURLE_OK) {
 		return result;
 	}
+
+	long http_code = 0;
+	curl_easy_getinfo(curl_instance, CURLINFO_RESPONSE_CODE, &http_code);
+	obs_log(LOG_WARNING, "Error in fetching POST value");
+	obs_log(LOG_WARNING, "   url: %s", url.c_str());
+	obs_log(LOG_WARNING, "   curl code: %i", res);
+	obs_log(LOG_WARNING, "   http code: %i", http_code);
+	obs_log(LOG_WARNING, "   response: %s", result.c_str());
 	return "{\"error\": \"Unspecified Error\"}";
 }
 
@@ -690,4 +708,102 @@ bool isProtocolHandlerRegistered(const std::wstring &protocol)
 	RegCloseKey(hKey);
 
 	return (result == ERROR_SUCCESS && type == REG_SZ);
+}
+
+StreamDeckInfo getStreamDeckInfo()
+{
+	StreamDeckInfo info{false, ""};
+
+	HKEY hKey;
+	const std::string uninstallPath =
+		"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall";
+	const std::string targetName = "Elgato Stream Deck";
+
+	if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, uninstallPath.c_str(), 0,
+			  KEY_READ | KEY_WOW64_64KEY, &hKey) != ERROR_SUCCESS) {
+		return info; // not installed
+	}
+
+	DWORD index = 0;
+	char subKeyName[256];
+
+	while (true) {
+		DWORD subKeySize = sizeof(subKeyName);
+		LONG result = RegEnumKeyExA(hKey, index, subKeyName,
+					    &subKeySize, nullptr, nullptr,
+					    nullptr, nullptr);
+
+		if (result == ERROR_NO_MORE_ITEMS)
+			break;
+
+		if (result == ERROR_SUCCESS) {
+			HKEY hSubKey;
+			if (RegOpenKeyExA(hKey, subKeyName, 0, KEY_READ,
+					  &hSubKey) == ERROR_SUCCESS) {
+				char displayName[256] = {};
+				DWORD bufferSize = sizeof(displayName);
+				DWORD type = 0;
+
+				if (RegQueryValueExA(
+					    hSubKey, "DisplayName", nullptr,
+					    &type, (LPBYTE)displayName,
+					    &bufferSize) == ERROR_SUCCESS &&
+				    type == REG_SZ) {
+					if (targetName == displayName) {
+						char displayVersion[256] = {};
+						bufferSize =
+							sizeof(displayVersion);
+
+						if (RegQueryValueExA(
+							    hSubKey,
+							    "DisplayVersion",
+							    nullptr, &type,
+							    (LPBYTE)displayVersion,
+							    &bufferSize) ==
+							    ERROR_SUCCESS &&
+						    type == REG_SZ) {
+							info.installed = true;
+							info.version =
+								displayVersion;
+						}
+
+						RegCloseKey(hSubKey);
+						RegCloseKey(hKey);
+						return info;
+					}
+				}
+
+				RegCloseKey(hSubKey);
+			}
+		}
+
+		++index;
+	}
+
+	RegCloseKey(hKey);
+	return info; // not installed
+}
+
+int compareVersions(const std::string &v1, const std::string &v2)
+{
+	std::istringstream s1(v1);
+	std::istringstream s2(v2);
+
+	std::string token1, token2;
+
+	while (true) {
+		bool ok1 = bool(std::getline(s1, token1, '.'));
+		bool ok2 = bool(std::getline(s2, token2, '.'));
+
+		if (!ok1 && !ok2)
+			return 0; // equal length and all matched
+
+		int num1 = ok1 ? std::stoi(token1) : 0;
+		int num2 = ok2 ? std::stoi(token2) : 0;
+
+		if (num1 < num2)
+			return -1;
+		if (num1 > num2)
+			return 1;
+	}
 }

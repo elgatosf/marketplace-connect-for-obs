@@ -199,10 +199,12 @@ public:
 		std::vector<SDFileDetails> const &profileFiles,
 		bool disabled,
 		QWidget *parent = nullptr);
+	bool isLegacy() const { return legacy_; }
 
 private:
 	QWidget *innerWidget_;
 	QVBoxLayout *layout_;
+	bool legacy_;
 };
 
 struct LabeledSdaState {
@@ -219,6 +221,7 @@ public:
 
 	QSize sizeHint() const override;
 	QSize minimumSizeHint() const override;
+	bool isLegacy() const { return legacy_; }
 
 protected:
 	void mousePressEvent(QMouseEvent *event) override;
@@ -237,6 +240,7 @@ private:
 	int iconCornerRadius_ = 12;
 	int padding_ = 12;
 	bool disabled_;
+	bool legacy_;
 	QString lastToolTip_;
 
 	QPoint dragStartPos_;

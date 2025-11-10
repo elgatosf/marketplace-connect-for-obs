@@ -135,32 +135,8 @@ void ElgatoCloud::FrontEndSaveLoadHandler(obs_data_t* save_data, bool saving, vo
 		} catch (...) {
 		
 		}
-		
 
-
-		//bool firstRun = obs_data_get_bool(settings, "first_run");
-
-		//auto  thirdParty = obs_data_get_array(settings, "third_party");
-		//size_t tpSize = thirdParty ? obs_data_array_count(thirdParty) : 0;
-		//if (firstRun && tpSize > 0) {
-		//	std::vector<SceneCollectionLineItem> rows;
-		//	for (size_t i = 0; i < tpSize; i++) {
-		//		obs_data_t* item = obs_data_array_item(thirdParty, i);
-		//		std::string name = obs_data_get_string(item, "name");
-		//		std::string url = obs_data_get_string(item, "url");
-		//		rows.push_back({ name, url });
-		//		obs_data_release(item);
-		//	}
-
-		//	const auto mainWindow = static_cast<QMainWindow*>(obs_frontend_get_main_window());
-		//	SceneCollectionInfo* dialog = nullptr;
-		//	dialog = new SceneCollectionInfo(rows, mainWindow);
-		//	dialog->setAttribute(Qt::WA_DeleteOnClose);
-		//	dialog->show();
-		//}
 		obs_data_release(settings);
-		//if(thirdParty)
-		//	obs_data_array_release(thirdParty);
 	} else {
 		auto settings = obs_data_get_obj(save_data, "elgato_marketplace_connect");
 		if (!settings) { // Not an elgato mp installed scene collection
@@ -382,7 +358,14 @@ void ElgatoCloud::_Initialize()
 	_config = get_module_config();
 	bool makerTools = obs_data_get_bool(_config, "MakerTools");
 	_makerToolsOnStart = makerTools;
-
+	_streamDeckInfo = getStreamDeckInfo();
+	if (_streamDeckInfo.installed) {
+		obs_log(LOG_INFO, "Stream Deck version %s found",
+			_streamDeckInfo.version.c_str());
+	} else {
+		obs_log(LOG_INFO, "Stream Deck not found");
+	}
+	
 	_GetSavedState();
 
 	const auto now = std::chrono::system_clock::now();
@@ -494,11 +477,10 @@ void ElgatoCloud::SetSkipVersion(std::string version)
 
 void ElgatoCloud::LoadPurchasedProducts()
 {
-	if (!loggedIn) {
+	if (!loggedIn || !mainWindowOpen || !window) {
 		return;
 	}
 	loading = true;
-	// Todo- only refresh token if it needs refreshing
 	_TokenRefresh(false);
 
 	if (mainWindowOpen && window) {
@@ -508,9 +490,7 @@ void ElgatoCloud::LoadPurchasedProducts()
 	}
 
 	auto api = MarketplaceApi::getInstance();
-	//std::string api_url = api->gatewayUrl();
-	//api_url +=
-	//	"/my-products?extension=scene-collections&offset=0&limit=100";
+
 	std::vector<std::string> segments = { "my-products" };
 	std::map<std::string, std::string> queryParams = {
 		{"extension", "scene-collections"},

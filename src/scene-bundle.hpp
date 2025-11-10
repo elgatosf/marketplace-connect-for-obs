@@ -43,6 +43,11 @@ enum class SceneBundleStatus {
 
 struct SdaFileInfo;
 
+enum class SdFileVersion {
+	Legacy,
+	Current
+};
+
 struct SceneInfo {
 	std::string name;
 	std::string id;
@@ -160,6 +165,7 @@ public:
 	QString originalPath() const { return originalPath_; }
 
 	std::optional<SdaState> firstState() const;
+	SdFileVersion fileVersion() const { return version_; }
 
 private:
 	void parse_();
@@ -167,6 +173,7 @@ private:
 	QString originalPath_;
 	bool valid_{ false };
 	std::optional<SdaState> state_;
+	SdFileVersion version_;
 };
 
 struct SdProfileState {
@@ -182,6 +189,7 @@ public:
 	bool isValid() const { return valid_; }
 	QString originalPath() const { return originalPath_; }
 	SdProfileState state() const { return state_; }
+	SdFileVersion fileVersion() const { return version_; }
 
 private:
 	void parse_();
@@ -191,6 +199,9 @@ private:
 
 	std::string errorMsg_;
 	SdProfileState state_;
+	SdFileVersion version_;
 };
+
+
 
 #endif // SCENEBUNDLE_H
