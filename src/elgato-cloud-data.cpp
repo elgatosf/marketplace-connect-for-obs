@@ -583,12 +583,14 @@ void ElgatoCloud::_ProcessLogin(nlohmann::json &loginData, bool loadData)
 			refreshExpiresIn + seconds.count() - 10;
 
 		_SaveState();
-
 		loggedIn = true;
 		loading = true;
 	} catch (const nlohmann::json::out_of_range &e) {
 		obs_log(LOG_INFO, "Bad Login, %i not found", e.id);
-		connectionError = true;
+		loggedIn = false;
+		loading = false;
+		connectionError = false;
+		//connectionError = true;
 		return;
 	} catch (...) {
 		obs_log(LOG_INFO, "Some other issue occurred");
