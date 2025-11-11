@@ -66,6 +66,7 @@ public:
 	std::string GetRefreshToken();
 	nlohmann::json GetPurchaseDownloadLink(std::string variantId);
 	StreamDeckInfo GetStreamDeckInfo() const { return _streamDeckInfo; }
+	std::string GetErrorCode() const { return _error; }
 
 	obs_module_t *GetModule();
 	bool loggedIn = false;
@@ -109,6 +110,7 @@ private:
 	nlohmann::json _scData;
 	bool _elgatoCollectionActive;
 	StreamDeckInfo _streamDeckInfo;
+	std::string _error;
 };
 
 class ElgatoCloudThread : public QThread {

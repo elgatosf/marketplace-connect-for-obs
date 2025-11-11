@@ -172,13 +172,16 @@ std::string fetch_string_from_get(std::string url, std::string token)
 		curl_easy_setopt(curl_instance, CURLOPT_HTTPAUTH,
 				 CURLAUTH_BEARER);
 	}
-	curl_easy_setopt(curl_instance, CURLOPT_CONNECTTIMEOUT, 3);
-	curl_easy_setopt(curl_instance, CURLOPT_TIMEOUT, 5);
+	curl_easy_setopt(curl_instance, CURLOPT_CONNECTTIMEOUT, 0);
+	curl_easy_setopt(curl_instance, CURLOPT_TIMEOUT, 0);
 	CURLcode res = curl_easy_perform(curl_instance);
 	curl_easy_cleanup(curl_instance);
-	if (res == CURLE_OK) {
+	if (res == CURLE_OK && result != "") {
+		long http_code = 0;
+		curl_easy_getinfo(curl_instance, CURLINFO_RESPONSE_CODE,
+				  &http_code);
 		return result;
-	} else if (res == CURLE_OPERATION_TIMEDOUT) {
+	} else if (res == CURLE_OPERATION_TIMEDOUT || (res == CURLE_OK && result == "")) {
 		obs_log(LOG_WARNING, "Error in fetching GET value - Timed out");
 		obs_log(LOG_WARNING, "   url: %s", url.c_str());
 		obs_log(LOG_WARNING, "   code: %i", res);
@@ -806,4 +809,22 @@ int compareVersions(const std::string &v1, const std::string &v2)
 		if (num1 > num2)
 			return 1;
 	}
+}
+
+bool endsWith(const std::string &str, const std::string &suffix)
+{
+	if (suffix.size() > str.size())
+		return false;
+	return std::equal(suffix.rbegin(), suffix.rend(), str.rbegin());
+}
+
+std::vector<std::string> splitPath(const std::string &path)
+{
+	std::vector<std::string> parts;
+	std::stringstream ss(path);
+	std::string item;
+	while (std::getline(ss, item, '/')) {
+		parts.push_back(item);
+	}
+	return parts;
 }

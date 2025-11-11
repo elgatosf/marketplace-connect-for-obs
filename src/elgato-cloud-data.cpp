@@ -376,7 +376,7 @@ void ElgatoCloud::_Initialize()
 		loggedIn = false;
 	} else {
 		_TokenRefresh(false);
-		LoadPurchasedProducts();
+		//LoadPurchasedProducts();
 	}
 }
 
@@ -481,7 +481,7 @@ void ElgatoCloud::LoadPurchasedProducts()
 		return;
 	}
 	loading = true;
-	_TokenRefresh(false);
+	_TokenRefresh(false, false);
 
 	if (mainWindowOpen && window) {
 		QMetaObject::invokeMethod(
@@ -495,13 +495,14 @@ void ElgatoCloud::LoadPurchasedProducts()
 	std::map<std::string, std::string> queryParams = {
 		{"extension", "scene-collections"},
 		{"offset", "0"},
-		{"limit", "100"}
+		{"limit", "50"}
 	};
 
 	std::string api_url = api->getGatewayUrl(segments, queryParams);
 
 	auto productsResponse = fetch_string_from_get(api_url, _accessToken);
 	products.clear();
+	_error = "";
 	try {
 		auto productsJson = nlohmann::json::parse(productsResponse);
 		if (productsJson["results"].is_array()) {
@@ -510,19 +511,25 @@ void ElgatoCloud::LoadPurchasedProducts()
 					std::make_unique<ElgatoProduct>(pdat));
 			}
 		}
+		if (productsJson.contains("error")) {
+			connectionError = true;
+			_error = productsJson["error"];
+		}
 		loading = false;
 		if (mainWindowOpen && window) {
 			QMetaObject::invokeMethod(
 				QCoreApplication::instance()->thread(),
 				[this]() {
 					window->setLoggedIn();
-					window->setupOwnedProducts();
+					if (!connectionError) {
+						window->setupOwnedProducts();
+					}
 				});
 		}
-
 	} catch (...) {
 		loading = false;
 		connectionError = true;
+		_error = "General Connection Error"; 
 		if (mainWindowOpen && window) {
 			QMetaObject::invokeMethod(
 				QCoreApplication::instance()->thread(),

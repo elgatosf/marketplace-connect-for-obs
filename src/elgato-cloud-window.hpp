@@ -274,6 +274,12 @@ public:
 	ConnectionError(QWidget *parent);
 };
 
+class ConnectionTimeout : public QWidget {
+	Q_OBJECT
+public:
+	ConnectionTimeout(QWidget *parent);
+};
+
 class LoadingWidget : public QWidget {
 	Q_OBJECT
 public:
@@ -316,6 +322,7 @@ private:
 	QStackedWidget *_stackedContent = nullptr;
 	OwnedProducts *_ownedProducts = nullptr;
 	ElgatoCloudConfig *_config = nullptr;
+	int _retries = 2;
 };
 
 void OpenElgatoCloudWindow();

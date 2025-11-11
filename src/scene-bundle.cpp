@@ -1337,49 +1337,122 @@ void SdProfileFile::parse_()
 				   : SdFileVersion::Legacy;
 
 		// Find the correct manifest.json under Profiles/*
-		nlohmann::json manifest;
-		std::string manifestPath;
-		for (const auto &entry : zip.namelist()) {
-			// We only want "something/manifest.json" (but not Profiles/*)
-			if (entry.find('/') != std::string::npos &&
-			    entry.rfind("manifest.json") ==
-				    entry.size() - std::string("manifest.json")
-							   .size()) {
 
-				// Ensure it's not Profiles/.../manifest.json
-				if (entry.find("Profiles/") ==
-				    std::string::npos) {
+		if (version_ == SdFileVersion::Legacy) {
+			std::string manifestPath;
+			for (const auto &entry : zip.namelist()) {
+				// We only want "something/manifest.json" (but not Profiles/*)
+				if (entry.find('/') != std::string::npos &&
+				    entry.rfind("manifest.json") ==
+					    entry.size() -
+						    std::string("manifest.json")
+							    .size()) {
+
+					// Ensure it's not Profiles/.../manifest.json
+					if (entry.find("Profiles/") ==
+					    std::string::npos) {
+						manifestPath = entry;
+						break;
+					}
+				}
+			}
+
+			if (manifestPath.empty()) {
+				errorMsg_ =
+					"No top-level manifest.json found in " +
+					originalPath_.toStdString();
+				return;
+			}
+
+			std::string jsonStr = zip.read(manifestPath);
+			auto j = nlohmann::json::parse(jsonStr, nullptr, false);
+			if (j.is_discarded()) {
+				errorMsg_ =
+					"Failed to parse manifest.json in " +
+					manifestPath;
+				return;
+			}
+			if (j.contains("Device") &&
+			    j["Device"].contains("Model")) {
+				std::string modelStr = j["Device"]["Model"];
+				state_.model = modelStr.c_str();
+			} else {
+				state_.model = "Unknown Model";
+			}
+
+			if (j.contains("Name")) {
+				std::string nameStr = j["Name"];
+				state_.name = nameStr.c_str();
+			} else {
+				state_.name = "No Name";
+			}
+		} else {
+			std::string packageContents;
+			std::string manifestContents;
+			const std::string packagePath = "package.json";
+			bool packageFound = false;
+			bool hasPackageJson = zip.has_file(packagePath);
+			if (hasPackageJson) {
+				packageFound = true;
+				packageContents =
+					zip.read(packagePath);
+			} else {
+				errorMsg_ =
+					"No top-level package.json found in " +
+					originalPath_.toStdString();
+				return;
+			}
+
+			std::optional<std::string> manifestPath;
+
+			static const std::string profilesPrefix = "Profiles/";
+			static const std::string manifestSuffix = "/manifest.json";
+
+			for (const auto &entry : zip.namelist()) {
+				if (!endsWith(entry, manifestSuffix))
+					continue;
+				auto parts = splitPath(entry);
+				if (parts.size() == 3 &&
+				    parts[0] == "Profiles" &&
+				    parts[2] == "manifest.json") {
 					manifestPath = entry;
 					break;
 				}
 			}
-		}
 
-		if (manifestPath.empty()) {
-			errorMsg_ = "No top-level manifest.json found in " +
-				    originalPath_.toStdString();
-			return;
-		}
+			if (manifestPath) {
+				manifestContents = zip.read(*manifestPath);
+			} else {
+				errorMsg_ =
+					"No manifest.json found in " +
+					originalPath_.toStdString();
+				return;
+			}
 
-		std::string jsonStr = zip.read(manifestPath);
-		auto j = nlohmann::json::parse(jsonStr, nullptr, false);
-		if (j.is_discarded()) {
-			errorMsg_ = "Failed to parse manifest.json in " +
-				    manifestPath;
-			return;
-		}
-		if (j.contains("Device") && j["Device"].contains("Model")) {
-			std::string modelStr = j["Device"]["Model"];
-			state_.model = modelStr.c_str();
-		} else {
-			state_.model = "Unknown Model";
-		}
+			auto package = nlohmann::json::parse(packageContents, nullptr, false);
+			auto manifest = nlohmann::json::parse(manifestContents, nullptr, false);
+			if (package.is_discarded()) {
+				errorMsg_ = "Failed to parse package.json in " + packagePath;
+				return;
+			}
+			if (manifest.is_discarded()) {
+				errorMsg_ = "Failed to parse manifest.json in " +  *manifestPath;
+				return;
+			}
 
-		if (j.contains("Name")) {
-			std::string nameStr = j["Name"];
-			state_.name = nameStr.c_str();
-		} else {
-			state_.name = "No Name";
+			if (package.contains("DeviceModel")) {
+				std::string modelStr = package["DeviceModel"];
+				state_.model = modelStr.c_str();
+			} else {
+				state_.model = "Unknown Model";
+			}
+
+			if (manifest.contains("Name")) {
+				std::string nameStr = manifest["Name"];
+				state_.name = nameStr.c_str();
+			} else {
+				state_.name = "No Name";
+			}
 		}
 
 		state_.path = originalPath_;

@@ -99,7 +99,8 @@ std::string encryptString(std::string input);
 std::string decryptString(std::string input);
 std::string getImagesPath();
 bool isProtocolHandlerRegistered(const std::wstring &protocol);
-
+bool endsWith(const std::string &str, const std::string &suffix);
+std::vector<std::string> splitPath(const std::string &path);
 StreamDeckInfo getStreamDeckInfo();
 
 int compareVersions(const std::string &v1, const std::string &v2);

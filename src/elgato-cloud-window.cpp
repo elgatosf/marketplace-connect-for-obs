@@ -24,6 +24,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <obs-frontend-api.h>
 #include <QMainWindow>
 #include <QAction>
+#include <QTimer>
 #include <QLabel>
 #include <QWidget>
 #include <QHBoxLayout>
@@ -677,9 +678,16 @@ ElgatoCloudWindow::ElgatoCloudWindow(QWidget *parent) : QDialog(parent)
 {
 	elgatoCloud->mainWindowOpen = true;
 	elgatoCloud->window = this;
+	if (elgatoCloud->loggedIn) {
+		loading = true;
+		QFuture<void> future = QtConcurrent::run(
+			[]() { elgatoCloud->LoadPurchasedProducts(); });
+	} else {
+		loading = false;
+	}
 	initialize();
 	setLoggedIn();
-	loading = false;
+	
 }
 
 ElgatoCloudWindow::~ElgatoCloudWindow()
@@ -743,6 +751,9 @@ void ElgatoCloudWindow::initialize()
 	auto loggingInWidget = new LoggingIn(this); // logging in widget, id: 5
 	_stackedContent->addWidget(loggingInWidget);
 
+	auto connectionTimeoutWidget = new ConnectionTimeout(this); // Connection timeout widget, id: 6
+	_stackedContent->addWidget(connectionTimeoutWidget);
+
 	mainLayout->addWidget(_stackedContent);
 	_mainWidget->setLayout(mainLayout);
 
@@ -787,12 +798,24 @@ void ElgatoCloudWindow::on_logOutButton_clicked()
 void ElgatoCloudWindow::setLoggedIn()
 {
 	_toolbar->disableLogout(false);
+	if (!elgatoCloud->connectionError) {
+		_retries = 2;
+	}
+
 	if (elgatoCloud->loginError) {
 		_stackedContent->setCurrentIndex(4);
 	} else if (elgatoCloud->connectionError) {
-		// Connection error shows sign in issue
-		// for now.
-		_stackedContent->setCurrentIndex(4);
+		if (_retries > 0) {
+			_toolbar->disableLogout(true);
+			_stackedContent->setCurrentIndex(3);
+			_retries--;
+			QTimer::singleShot(5000, this, [this]() {
+				elgatoCloud->LoadPurchasedProducts();
+			});
+		} else {
+			_retries = 2;
+			_stackedContent->setCurrentIndex(6);
+		}
 	} else if (elgatoCloud->loggingIn) {
 		_stackedContent->setCurrentIndex(5);
 	} else if (!elgatoCloud->loggedIn) {
@@ -1487,6 +1510,49 @@ ConnectionError::ConnectionError(QWidget *parent) : QWidget(parent)
 	layout->setSpacing(16);
 }
 
+ConnectionTimeout::ConnectionTimeout(QWidget *parent) : QWidget(parent)
+{
+	auto layout = new QVBoxLayout(this);
+
+	auto connectionError = new QLabel(this);
+	connectionError->setText(
+		obs_module_text("MarketplaceWindow.ConnectionTimeout.Title"));
+	connectionError->setStyleSheet("QLabel {font-size: 18pt;}");
+	connectionError->setAlignment(Qt::AlignCenter);
+
+	auto subHLayout = new QHBoxLayout();
+	auto connectionErrorSub = new QLabel(this);
+	connectionErrorSub->setText(
+		obs_module_text("MarketplaceWindow.ConnectionTimeout.Subtitle"));
+	connectionErrorSub->setWordWrap(true);
+	connectionErrorSub->setAlignment(Qt::AlignCenter);
+	connectionErrorSub->setStyleSheet("QLabel {font-size: 13pt; }");
+	connectionErrorSub->setFixedWidth(480);
+	subHLayout->addStretch();
+	subHLayout->addWidget(connectionErrorSub);
+	subHLayout->addStretch();
+
+	auto hLayout = new QHBoxLayout();
+	auto retryButton = new QPushButton(this);
+	retryButton->setText(
+		obs_module_text("MarketplaceWindow.RetryButton"));
+	retryButton->setStyleSheet(
+		"QPushButton {font-size: 12pt; border-radius: 8px; padding: 16px; background-color: #232323; border: none; } "
+		"QPushButton:hover {background-color: #444444; }");
+	connect(retryButton, &QPushButton::clicked, this,
+		[this]() { elgatoCloud->LoadPurchasedProducts(); });
+	hLayout->addStretch();
+	hLayout->addWidget(retryButton);
+	hLayout->addStretch();
+
+	layout->addStretch();
+	layout->addWidget(connectionError);
+	layout->addLayout(subHLayout);
+	layout->addLayout(hLayout);
+	layout->addStretch();
+	layout->setSpacing(16);
+}
+
 LoadingWidget::LoadingWidget(QWidget *parent) : QWidget(parent)
 {
 	auto layout = new QVBoxLayout(this);
@@ -1538,10 +1604,10 @@ void OpenElgatoCloudWindow()
 			hostRect.center() -
 			ElgatoCloudWindow::window->rect().center());
 
-		if (elgatoCloud->loggedIn) {
-			QFuture<void> future = QtConcurrent::run(
-				[]() { elgatoCloud->LoadPurchasedProducts(); });
-		}
+		//if (elgatoCloud->loggedIn) {
+		//	QFuture<void> future = QtConcurrent::run(
+		//		[]() { elgatoCloud->LoadPurchasedProducts(); });
+		//}
 	}
 }
 
