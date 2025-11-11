@@ -200,10 +200,19 @@ SceneCollectionInfo::SceneCollectionInfo(nlohmann::json scData, QWidget *parent)
 		steps_++;
 	}
 
+	setWindowFlags(
+		Qt::Dialog |
+		Qt::MSWindowsFixedSizeDialogHint | // prevents frame recalculation
+		Qt::CustomizeWindowHint | Qt::WindowTitleHint |
+		Qt::WindowCloseButtonHint);
+
+	setFixedSize(800, 448);
+	setMinimumSize(800, 448);
+	setMaximumSize(800, 448);
+
 	setWindowTitle(obs_module_text("SceneCollectionInfo.WindowTitle"));
 	setStyleSheet("background-color: #151515;");
 	setModal(true);
-	setFixedSize(800, 448);
 	QVBoxLayout* layout = new QVBoxLayout(this);
 	content_ = new QStackedWidget(this);
 	content_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
@@ -279,10 +288,19 @@ SceneCollectionConfig::SceneCollectionConfig(nlohmann::json scData,
 
 	bool hasSd = (hasSdActions || hasSdProfiles);
 
+	setWindowFlags(
+		Qt::Dialog |
+		Qt::MSWindowsFixedSizeDialogHint | // prevents frame recalculation
+		Qt::CustomizeWindowHint | Qt::WindowTitleHint |
+		Qt::WindowCloseButtonHint);
+
+	setFixedSize(800, 448);
+	setMinimumSize(800, 448);
+	setMaximumSize(800, 448);
+
 	setWindowTitle(obs_module_text("SceneCollectionConfig.WindowTitle"));
 	setStyleSheet("background-color: #151515;");
 	setModal(true);
-	setFixedSize(800, 448);
 
 	auto sideMenu = new QListWidget(this);
 	
