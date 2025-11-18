@@ -48,6 +48,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include "util.h"
 #include "platform.h"
 #include "api.hpp"
+#include "elgato-stream-deck-widgets.hpp"
 
 namespace elgatocloud {
 
@@ -59,14 +60,15 @@ StreamPackageSetupWizard *GetSetupWizard()
 	return setupWizard;
 }
 
-std::string GetBundleInfo(std::string filename)
+SceneCollectionInfo GetBundleInfo(std::string filename)
 {
 	SceneBundle bundle;
-	std::string data;
+	SceneCollectionInfo data;
+
 	try {
 		data = bundle.ExtractBundleInfo(filename);
 	} catch (...) {
-		data = "{\"Error\": \"Incompatible File\"}";
+		data.bundleInfo = "{\"Error\": \"Incompatible File\"}";
 	}
 	return data;
 }
@@ -968,6 +970,8 @@ StreamPackageSetupWizard::StreamPackageSetupWizard(QWidget *parent,
 	: QDialog(parent),
 	  _thumbnailPath(product->thumbnailPath),
 	  _productName(product->name),
+	  _productId(product->id),
+	  _productSlug(product->slug),
 	  _filename(filename),
 	  _deleteOnClose(deleteOnClose),
 	  _installStarted(false)
@@ -983,6 +987,10 @@ StreamPackageSetupWizard::StreamPackageSetupWizard(QWidget *parent,
 
 StreamPackageSetupWizard::~StreamPackageSetupWizard()
 {
+	if (sdFilesPath_ != "") {
+		QDir dir(sdFilesPath_.c_str());
+		dir.removeRecursively();
+	}
 	if (!_installStarted) { // We've not yet handed control over
 		                    // to install routine.
 		if (_deleteOnClose) {
@@ -1005,19 +1013,20 @@ void StreamPackageSetupWizard::OpenArchive()
 {
 	_future =
 		QtConcurrent::run(GetBundleInfo, _filename)
-			.then([this](std::string bundleInfoStr) {
+			.then([this](SceneCollectionInfo bundleInfoData) {
 				// We are now in a different thread, so we need to execute this
 				// back in the gui thread.  See, threading hell.
 				QMetaObject::invokeMethod(
 					QCoreApplication::instance()
 						->thread(), // main GUI thread
-					[this, bundleInfoStr]() {
+					[this, bundleInfoData]() {
+						sdFilesPath_ = bundleInfoData.streamDeckPath;
 						nlohmann::json bundleInfo;
 						bool error = false;
 						try {
 							bundleInfo = nlohmann::
 								json::parse(
-									bundleInfoStr);
+									bundleInfoData.bundleInfo);
 						} catch (
 							const nlohmann::json::
 								parse_error &e) {
@@ -1038,6 +1047,37 @@ void StreamPackageSetupWizard::OpenArchive()
 								QMessageBox::Ok);
 							close();
 							return;
+						}
+
+						std::vector<SDFileDetails> streamDeckActions;
+						std::vector<SDFileDetails> streamDeckProfiles;
+						std::string actionsDir =
+							sdFilesPath_ +
+							"/Assets/stream-deck/stream-deck-actions/";
+
+						std::string profilesDir =
+								sdFilesPath_ +
+							"/Assets/stream-deck/stream-deck-profiles/";
+
+
+						if (bundleInfo.contains("stream_deck_actions")) {
+							for (auto const &action : bundleInfo["stream_deck_actions"]) {
+								std::string filename = action["filename"];
+								streamDeckActions.push_back({
+										actionsDir + filename,
+										action["label"]
+								});
+							}
+						}
+
+						if (bundleInfo.contains("stream_deck_profiles")) {
+							for (auto const &action : bundleInfo["stream_deck_profiles"]) {
+								std::string filename = action["filename"];
+								streamDeckProfiles.push_back({
+										profilesDir + filename,
+										action["label"]
+								});
+							}
 						}
 
 						std::map<std::string,
@@ -1086,7 +1126,7 @@ void StreamPackageSetupWizard::OpenArchive()
 								missing);
 						} else {
 							_buildSetupUI(
-								videoSourceLabels, outputScenes);
+								videoSourceLabels, outputScenes, streamDeckActions, streamDeckProfiles);
 						}
 					});
 			})
@@ -1171,7 +1211,10 @@ void StreamPackageSetupWizard::_buildBaseUI()
 }
 
 void StreamPackageSetupWizard::_buildSetupUI(
-	std::map<std::string, std::string> &videoSourceLabels, std::vector<OutputScene>& outputScenes)
+	std::map<std::string, std::string> &videoSourceLabels,
+	std::vector<OutputScene>& outputScenes,
+	std::vector<SDFileDetails>& streamDeckActions,
+	std::vector<SDFileDetails>& streamDeckProfiles)
 {
 	setFixedSize(640, 448);
 
@@ -1189,13 +1232,16 @@ void StreamPackageSetupWizard::_buildSetupUI(
 		});
 	_container->addWidget(startInstall);
 
-	_buildNewCollectionUI(videoSourceLabels);
+	_buildNewCollectionUI(videoSourceLabels, streamDeckActions, streamDeckProfiles);
 	_buildMergeCollectionUI(videoSourceLabels, outputScenes);
 
 	_container->setCurrentIndex(1);
 }
 
-void StreamPackageSetupWizard::_buildNewCollectionUI(std::map<std::string, std::string>& videoSourceLabels)
+void StreamPackageSetupWizard::_buildNewCollectionUI(
+	std::map<std::string, std::string> &videoSourceLabels,
+	std::vector<SDFileDetails>& streamDeckActions,
+	std::vector<SDFileDetails>& streamDeckProfiles)
 {
 	std::vector<std::string> steps = {
 		obs_module_text("SetupWizard.NewCollectionSteps.GetStarted"),
@@ -1203,7 +1249,7 @@ void StreamPackageSetupWizard::_buildNewCollectionUI(std::map<std::string, std::
 		obs_module_text("SetupWizard.NewCollectionSteps.SetUpCameras"),
 		obs_module_text("SetupWizard.NewCollectionSteps.ChooseMicrophone")
 	};
-	
+
 	_newCollectionSteps = new QStackedWidget(this);
 	// Step 1- Provide a name for the new collection (step index: 0)
 	auto *newName =
@@ -1251,7 +1297,10 @@ void StreamPackageSetupWizard::_buildNewCollectionUI(std::map<std::string, std::
 			_setup.audioSettings = settings;
 			// Nuke the video preview window
 			_installStarted = true;
-			installStreamPackage(_setup, _filename, _deleteOnClose, _toEnable);
+			installStreamPackage(_setup, _filename,
+						    _deleteOnClose, _toEnable,
+							_productName, _productId,
+							_productSlug);
 		});
 	connect(aSetup, &AudioSetup::backPressed, this,
 		[this, videoSourceLabels]() {
@@ -1262,6 +1311,7 @@ void StreamPackageSetupWizard::_buildNewCollectionUI(std::map<std::string, std::
 				_newCollectionSteps->setCurrentIndex(0);
 			}
 		});
+
 	_newCollectionSteps->setCurrentIndex(0);
 	_container->addWidget(_newCollectionSteps);
 }
@@ -1422,7 +1472,9 @@ void mergeStreamPackage(Setup setup, std::string filename, bool deleteOnClose, s
 	}
 }
 
-void installStreamPackage(Setup setup, std::string filename, bool deleteOnClose, std::vector<std::string> toEnable)
+void installStreamPackage(Setup setup, std::string filename, bool deleteOnClose, 
+	std::vector<std::string> toEnable, std::string productName, std::string productId,
+	std::string productSlug)
 {
 	// TODO: Clean up this mess of setting up the pack install path.
 	obs_data_t *config = elgatoCloud->GetConfig();
@@ -1456,7 +1508,10 @@ void installStreamPackage(Setup setup, std::string filename, bool deleteOnClose,
 			    setup.collectionName,
 				setup.videoSettings,
 			    setup.audioSettings,
-				id);
+				id,
+				productName,
+				productId,
+				productSlug);
 
 	if (deleteOnClose) {
 		// Delete the scene collection file

@@ -250,6 +250,25 @@ namespace elgatocloud {
 		"background: rgba(255, 255, 255, 0.3);"
 		"}";
 
+inline const QString EIconOnlySmButtonStyle =
+		"QPushButton {"
+		"   background: transparent;"
+		"   border: none;"
+		"   border-radius: 4px;"
+		"   padding: 0px;"
+		"   margin: 0px;"
+		"   width: 24px;"
+		"   height: 24px;"
+		"   qproperty-icon: url('${img}');"
+		"   qproperty-iconSize: 20px 20px;" // scale svg properly
+		"}"
+		"QPushButton:hover {"
+		"   background: rgba(255, 255, 255, 0.2);"
+		"}"
+		"QPushButton:pressed {"
+		"   background: rgba(255, 255, 255, 0.3);"
+		"}";
+
 	inline const QString EBlankSlateButtonStyle =
 		"QPushButton {"
 		"background: #204CFE;"

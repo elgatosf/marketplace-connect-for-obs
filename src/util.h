@@ -15,7 +15,7 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along
 with this program. If not, see <https://www.gnu.org/licenses/>
 */
-
+#pragma once
 #include <vector>
 #include <string>
 #include <functional>
@@ -35,6 +35,11 @@ static size_t write_data(void *ptr, size_t size, size_t nmemb, void *userdata)
 	memcpy(&result[end], ptr, size * nmemb);
 
 	return size * nmemb;
+};
+
+struct StreamDeckInfo {
+	bool installed;
+	std::string version;
 };
 
 obs_data_t *get_module_config();
@@ -93,3 +98,9 @@ std::string releaseType();
 std::string encryptString(std::string input);
 std::string decryptString(std::string input);
 std::string getImagesPath();
+bool isProtocolHandlerRegistered(const std::wstring &protocol);
+bool endsWith(const std::string &str, const std::string &suffix);
+std::vector<std::string> splitPath(const std::string &path);
+StreamDeckInfo getStreamDeckInfo();
+
+int compareVersions(const std::string &v1, const std::string &v2);

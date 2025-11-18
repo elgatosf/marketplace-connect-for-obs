@@ -30,6 +30,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <nlohmann/json.hpp>
 
 #include "elgato-product.hpp"
+#include "util.h"
 
 namespace elgatocloud {
 class ElgatoCloudThread;
@@ -54,12 +55,18 @@ public:
 	void LogOut();
 	void LoadPurchasedProducts();
 	void CheckUpdates(bool forceCheck);
+	inline void SetScData(nlohmann::json data) { _scData = data; }
+	inline nlohmann::json GetScData() { return _scData; }
+	inline void SetElgatoCollectionActive(bool active) { _elgatoCollectionActive = active; }
+	inline nlohmann::json GetElgatoCollectionActive() { return _elgatoCollectionActive; }
 	obs_data_t *GetConfig();
 	void SetSkipVersion(std::string version);
 	void SaveConfig();
 	std::string GetAccessToken();
 	std::string GetRefreshToken();
 	nlohmann::json GetPurchaseDownloadLink(std::string variantId);
+	StreamDeckInfo GetStreamDeckInfo() const { return _streamDeckInfo; }
+	std::string GetErrorCode() const { return _error; }
 
 	obs_module_t *GetModule();
 	bool loggedIn = false;
@@ -100,6 +107,10 @@ private:
 	bool _makerToolsOnStart;
 	bool _openOnLaunch;
 	bool _obsReady;
+	nlohmann::json _scData;
+	bool _elgatoCollectionActive;
+	StreamDeckInfo _streamDeckInfo;
+	std::string _error;
 };
 
 class ElgatoCloudThread : public QThread {

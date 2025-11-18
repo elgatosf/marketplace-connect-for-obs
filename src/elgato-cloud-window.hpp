@@ -80,6 +80,7 @@ class UserMenu : public QWidget {
 	Q_OBJECT
 public:
 	UserMenu(QWidget* parent);
+	void disable(bool setDisable);
 
 signals:
 	void viewAccountClicked();
@@ -91,6 +92,7 @@ private:
 	Avatar* _plainAvatar;
 	AvatarImage* _imgAvatar;
 	QAction* _accountTitle;
+	bool _disabled;
 
 private slots:
 	void _showModalMenu();
@@ -223,6 +225,12 @@ private:
 	QVBoxLayout *_layout;
 };
 
+class CurrentCollection : public QWidget {
+	Q_OBJECT
+public:
+	CurrentCollection(std::string scName, nlohmann::json data, QWidget *parent = nullptr);
+};
+
 class OwnedProducts : public QWidget {
 	Q_OBJECT
 public:
@@ -264,6 +272,12 @@ class ConnectionError : public QWidget {
 	Q_OBJECT
 public:
 	ConnectionError(QWidget *parent);
+};
+
+class ConnectionTimeout : public QWidget {
+	Q_OBJECT
+public:
+	ConnectionTimeout(QWidget *parent);
 };
 
 class LoadingWidget : public QWidget {
@@ -308,6 +322,7 @@ private:
 	QStackedWidget *_stackedContent = nullptr;
 	OwnedProducts *_ownedProducts = nullptr;
 	ElgatoCloudConfig *_config = nullptr;
+	int _retries = 2;
 };
 
 void OpenElgatoCloudWindow();

@@ -58,6 +58,8 @@ ElgatoProduct::ElgatoProduct(nlohmann::json &productData) : _fileSize(0)
 	name = productData["name"];
 	thumbnailUrl = productData["thumbnail_cdn"];
 	variantId = productData["variants"][0]["id"];
+	id = productData["id"];
+	slug = productData["slug"];
 
 	auto found = thumbnailUrl.find_last_of("/");
 	if (found == std::string::npos) {

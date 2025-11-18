@@ -18,6 +18,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 
 #include "scene-bundle.hpp"
 #include "elgato-cloud-window.hpp"
+#include "elgato-stream-deck-widgets.hpp"
 #include <obs-module.h>
 #include "obs-frontend-api.h"
 #include <util/platform.h>
@@ -122,10 +123,65 @@ bool SceneBundle::FromElgatoCloudFile(std::string filePath,
 	return true;
 }
 
-std::string SceneBundle::ExtractBundleInfo(std::string filePath)
+SceneCollectionInfo SceneBundle::ExtractBundleInfo(std::string filePath)
 {
+	SceneCollectionInfo result;
 	miniz_cpp::zip_file file(filePath);
-	auto result = file.read("bundle_info.json");
+	auto bundleInfo = file.read("bundle_info.json");
+	result.bundleInfo = bundleInfo;
+
+	bool hasStreamDeck = false;
+	for (const auto &entry : file.namelist()) {
+		if (entry.rfind("Assets/stream-deck/", 0) == 0) { // starts with
+			hasStreamDeck = true;
+			break;
+		}
+	}
+
+	if (!hasStreamDeck) {
+		return result;
+	}
+
+	QTemporaryDir tempDir;
+	if (!tempDir.isValid()) {
+		qWarning() << "Failed to create temporary directory";
+		return result;
+	}
+
+	QString basePath = tempDir.path();
+	// Keep the directory alive (release ownership so it persists)
+	tempDir.setAutoRemove(false);
+
+	// Extract all entries under Assets/stream-deck
+	for (const auto &entry : file.namelist()) {
+		if (entry.rfind("Assets/stream-deck/", 0) == 0) {
+			if (entry.back() == '/') {
+				// It's a directory, ensure it exists
+				QDir().mkpath(basePath + "/" +
+							QString::fromStdString(entry));
+			} else {
+				// It's a file
+				QString outPath = basePath + "/" +
+							QString::fromStdString(entry);
+				QFileInfo fi(outPath);
+				QDir().mkpath(
+					fi.path()); // Ensure directories exist
+
+				QFile outFile(outPath);
+				if (outFile.open(QIODevice::WriteOnly)) {
+					std::string bytes = file.read(entry);
+					outFile.write(bytes.data(),
+								static_cast<qint64>(
+									bytes.size()));
+					outFile.close();
+				} else {
+					qWarning() << "Failed to write file:" << outPath;
+				}
+			}
+		}
+	}
+	result.streamDeckPath = basePath.toStdString();
+
 	return result;
 }
 
@@ -400,7 +456,9 @@ bool SceneBundle::MergeCollection(std::string collection_name,
 
 bool SceneBundle::ToCollection(std::string collection_name,
 			       std::map<std::string, std::string> videoSettings,
-			       std::string audioSettings, std::string id)
+			       std::string audioSettings, std::string id,
+			       std::string productName, std::string productId,
+			       std::string productSlug)
 {
 	const auto userConf = GetUserConfig();
 	_backupCurrentCollection();
@@ -457,6 +515,42 @@ bool SceneBundle::ToCollection(std::string collection_name,
 	if (_bundleInfo.contains("third_party")) {
 		module_info["third_party"] = _bundleInfo["third_party"];
 	}
+
+	if (_bundleInfo.contains("version")) {
+		module_info["version"] = _bundleInfo["version"];
+	} else {
+		module_info["version"] = "1.0";
+	}
+
+	if (_bundleInfo.contains("exported_with_plugin_version")) {
+		module_info["exported_with_plugin_version"] = _bundleInfo["exported_with_plugin_version"];
+	} else {
+		module_info["exported_with_plugin_version"] = "1.0.0.0";
+	}
+
+	if (_bundleInfo.contains("stream_deck_actions")) {
+		module_info["stream_deck_actions"] =
+			_bundleInfo["stream_deck_actions"];
+	} else {
+		module_info["stream_deck_actions"] = nlohmann::json::array();
+	}
+
+	if (_bundleInfo.contains("stream_deck_profiles")) {
+		module_info["stream_deck_profiles"] =
+			_bundleInfo["stream_deck_profiles"];
+	} else {
+		module_info["stream_deck_profiles"] = nlohmann::json::array();
+	}
+
+	if (productId != "") {
+		module_info["product_details"] = {
+			{"name", productName},
+			{"id", productId},
+			{"slug", productSlug}
+		};
+	}
+
+	module_info["pack_path"] = _packPath;
 
 	if (!id.empty()) {
 		module_info["id"] = id;
@@ -594,7 +688,10 @@ SceneBundleStatus SceneBundle::ToElgatoCloudFile(
 	std::string file_path, std::vector<std::string> plugins,
 	std::vector<std::pair<std::string, std::string>> thirdParty,
 	std::vector<SceneInfo> outputScenes,
-	std::map<std::string, std::string> videoDeviceDescriptions)
+	std::map<std::string, std::string> videoDeviceDescriptions,
+	std::vector<SdaFileInfo> sdaFiles,
+	std::vector<SdaFileInfo> sdProfileFiles,
+	std::string version)
 {
 	_interrupt = false;
 	miniz_cpp::zip_file ecFile;
@@ -622,16 +719,39 @@ SceneBundleStatus SceneBundle::ToElgatoCloudFile(
 		thirdPartyReqs.push_back(r);
 	}
 
+	std::vector<std::map<std::string, std::string>> zipSdaFiles;
+	for (auto const &sda : sdaFiles) {
+		auto filename = std::filesystem::path(sda.path.toStdString()).filename();
+		std::map<std::string, std::string> details = {
+			{"filename", filename.string()},
+			{"label", sda.label.toStdString()}};
+		zipSdaFiles.push_back(details);
+	}
+
+	std::vector<std::map<std::string, std::string>> zipSdProfileFiles;
+	for (auto const &sdp : sdProfileFiles) {
+		auto filename =
+			std::filesystem::path(sdp.path.toStdString()).filename();
+		std::map<std::string, std::string> details = {
+			{"filename", filename.string()},
+			{"label", sdp.label.toStdString()}};
+		zipSdProfileFiles.push_back(details);
+	}
+
 	nlohmann::json bundleInfo;
 	bundleInfo["canvas"]["width"] = ovi.base_width;
 	bundleInfo["canvas"]["height"] = ovi.base_height;
-	bundleInfo["version"] = "1.0";
+	bundleInfo["version"] = version;
 	bundleInfo["ec_version"] = "1.0";
 	bundleInfo["id"] = gen_uuid();
 	bundleInfo["plugins_required"] = plugins;
 	bundleInfo["third_party"] = thirdPartyReqs;
 	bundleInfo["video_devices"] = videoDeviceDescriptions;
 	bundleInfo["output_scenes"] = oScenes;
+	bundleInfo["stream_deck_actions"] = zipSdaFiles;
+	bundleInfo["stream_deck_profiles"] = zipSdProfileFiles;
+	std::string pluginVersion = PLUGIN_VERSION;
+	bundleInfo["exported_with_plugin_version"] = pluginVersion;
 
 	// Write the scene collection json file to zip archive.
 	std::string collection_json = _collection.dump(2);
@@ -687,6 +807,42 @@ SceneBundleStatus SceneBundle::ToElgatoCloudFile(
 				}
 				return SceneBundleStatus::Error;
 			}
+		}
+	}
+
+	for (auto const &sda : sdaFiles) {
+		std::string path = sda.path.toStdString();
+		std::string filename =
+			std::filesystem::path(sda.path.toStdString())
+				.filename()
+				.string();
+		std::string saveFile =
+			"Assets/stream-deck/stream-deck-actions/" + filename;
+		if (!_AddFileToZip(path, saveFile, ecFile)) {
+			bool wasInterrupted = _interrupt;
+			_interrupt = false;
+			if (wasInterrupted) {
+				return _interruptReason;
+			}
+			return SceneBundleStatus::Error;
+		}
+	}
+
+	for (auto const &sdp : sdProfileFiles) {
+		std::string path = sdp.path.toStdString();
+		std::string filename =
+			std::filesystem::path(sdp.path.toStdString())
+				.filename()
+				.string();
+		std::string saveFile =
+			"Assets/stream-deck/stream-deck-profiles/" + filename;
+		if (!_AddFileToZip(path, saveFile, ecFile)) {
+			bool wasInterrupted = _interrupt;
+			_interrupt = false;
+			if (wasInterrupted) {
+				return _interruptReason;
+			}
+			return SceneBundleStatus::Error;
 		}
 	}
 
@@ -1029,5 +1185,280 @@ void addSources(
 		) {
 			addSources(field, requiredSources, requiredGroups, sourceNames, groupNames);
 		}
+	}
+}
+
+SdaFile::SdaFile(const QString& path)
+	: originalPath_(path)
+{
+	parse_();
+}
+
+void SdaFile::parse_()
+{
+	std::string imageBaseDir = GetDataPath();
+	imageBaseDir += "/images/stream-deck-default-icons/";
+
+	try {
+		miniz_cpp::zip_file zip(originalPath_.toStdString());
+
+		// Check if this is a new or legacy file
+		std::string packageJsonPath = "package.json";
+		version_ = zip.has_file(packageJsonPath)
+				   ? SdFileVersion::Current
+				   : SdFileVersion::Legacy;
+
+		// Find the correct manifest.json under Profiles/*
+		std::string chosenManifestPath;
+		nlohmann::json manifest;
+
+		for (auto& entry : zip.namelist()) {
+			if (entry.find("Profiles/") != std::string::npos &&
+				entry.find("manifest.json") != std::string::npos)
+			{
+				std::string jsonStr = zip.read(entry);
+				auto j = nlohmann::json::parse(jsonStr, nullptr, false);
+
+				if (!j.is_discarded() && j.contains("Controllers") && j["Controllers"].is_array()) {
+					for (auto& controller : j["Controllers"]) {
+						if (controller.contains("Type") && controller["Type"] == "Keypad" &&
+							controller.contains("Actions") && !controller["Actions"].is_null()) {
+
+							chosenManifestPath = entry;
+							manifest = j;
+							break;
+						}
+					}
+				}
+			}
+			if (!chosenManifestPath.empty())
+				break;
+		}
+
+		if (chosenManifestPath.empty()) {
+			qWarning() << "SdaFile:" << originalPath_ << "no valid manifest found";
+			return;
+		}
+
+		// Extract Controllers Actions "0,0" first state
+		auto& controllers = manifest["Controllers"];
+		for (auto& controller : manifest["Controllers"]) {
+			if (!controller.contains("Actions")) continue;
+			auto& actions = controller["Actions"];
+			if (!actions.contains("0,0")) continue;
+
+			auto& action = actions["0,0"];
+			if (!action.contains("States") || !action["States"].is_array() || action["States"].empty())
+				continue;
+
+			auto& stateJson = action["States"][0];
+			bool hasImage = stateJson.contains("Image");
+			bool hasTitle = stateJson.contains("Title");
+			std::string actionId = action.contains("UUID") ? action["UUID"] : "";
+
+			std::string relImagePath = hasImage ? stateJson["Image"] : "";
+			std::string title = hasTitle ? stateJson["Title"] : "";
+
+			// Build full relative path
+			std::string manifestDir = chosenManifestPath.substr(0, chosenManifestPath.find_last_of('/') + 1);
+			std::string imagePath = manifestDir + relImagePath;
+
+			SdaState s;
+			s.path = originalPath_;
+			s.title = QString::fromStdString(title);
+			s.titleAlign = SdaIconVerticalAlign::Bottom;
+			if (hasTitle && stateJson.contains("TitleAlignment")) {
+				std::string align = stateJson["TitleAlignment"];
+				s.titleAlign = align == "top" ? SdaIconVerticalAlign::Top 
+					: align == "middle" ? SdaIconVerticalAlign::Middle 
+					: SdaIconVerticalAlign::Bottom;
+			}
+			s.relativeImagePath = QString::fromStdString(relImagePath);
+			s.hasTitle = hasTitle;
+			s.hasImage = hasImage;
+
+			if (hasImage && zip.has_file(imagePath)) {
+				std::string imgBytes = zip.read(imagePath);
+				s.imageBytes = QByteArray(imgBytes.data(), static_cast<int>(imgBytes.size()));
+			} else if (actionId != "") {
+				std::string iconPath = imageBaseDir + actionId + ".png";
+				std::string defaultIconPath = imageBaseDir + "default.png";
+				if (std::filesystem::exists(iconPath) &&
+					std::filesystem::is_regular_file(iconPath)) {
+					QFile file(iconPath.c_str());
+					if (file.open(QIODevice::ReadOnly)) {
+						QByteArray data = file.readAll();
+						s.imageBytes = data;
+						s.hasImage = true;
+						file.close();
+					}
+				} else if (std::filesystem::exists(defaultIconPath) &&
+					std::filesystem::is_regular_file(
+					defaultIconPath)) {
+					QFile file(defaultIconPath.c_str());
+					if (file.open(QIODevice::ReadOnly)) {
+						QByteArray data =
+							file.readAll();
+						s.imageBytes = data;
+						s.hasImage = true;
+						file.close();
+					}
+				}
+			}
+
+			state_ = std::move(s);
+			valid_ = true;
+		}
+	}
+	catch (const std::exception& ex) {
+		qWarning() << "SdaFile error parsing" << originalPath_ << ":" << ex.what();
+	}
+}
+
+std::optional<SdaState> SdaFile::firstState() const
+{
+	return state_;
+}
+
+SdProfileFile::SdProfileFile(const QString &path) : originalPath_(path)
+{
+	parse_();
+}
+
+void SdProfileFile::parse_()
+{
+	try {
+		miniz_cpp::zip_file zip(originalPath_.toStdString());
+
+		// Check if this is a new or legacy file
+		std::string packageJsonPath = "package.json";
+		version_ = zip.has_file(packageJsonPath)
+				   ? SdFileVersion::Current
+				   : SdFileVersion::Legacy;
+
+		// Find the correct manifest.json under Profiles/*
+
+		if (version_ == SdFileVersion::Legacy) {
+			std::string manifestPath;
+			for (const auto &entry : zip.namelist()) {
+				// We only want "something/manifest.json" (but not Profiles/*)
+				if (entry.find('/') != std::string::npos &&
+				    entry.rfind("manifest.json") ==
+					    entry.size() -
+						    std::string("manifest.json")
+							    .size()) {
+
+					// Ensure it's not Profiles/.../manifest.json
+					if (entry.find("Profiles/") ==
+					    std::string::npos) {
+						manifestPath = entry;
+						break;
+					}
+				}
+			}
+
+			if (manifestPath.empty()) {
+				errorMsg_ =
+					"No top-level manifest.json found in " +
+					originalPath_.toStdString();
+				return;
+			}
+
+			std::string jsonStr = zip.read(manifestPath);
+			auto j = nlohmann::json::parse(jsonStr, nullptr, false);
+			if (j.is_discarded()) {
+				errorMsg_ =
+					"Failed to parse manifest.json in " +
+					manifestPath;
+				return;
+			}
+			if (j.contains("Device") &&
+			    j["Device"].contains("Model")) {
+				std::string modelStr = j["Device"]["Model"];
+				state_.model = modelStr.c_str();
+			} else {
+				state_.model = "Unknown Model";
+			}
+
+			if (j.contains("Name")) {
+				std::string nameStr = j["Name"];
+				state_.name = nameStr.c_str();
+			} else {
+				state_.name = "No Name";
+			}
+		} else {
+			std::string packageContents;
+			std::string manifestContents;
+			const std::string packagePath = "package.json";
+			bool packageFound = false;
+			bool hasPackageJson = zip.has_file(packagePath);
+			if (hasPackageJson) {
+				packageFound = true;
+				packageContents =
+					zip.read(packagePath);
+			} else {
+				errorMsg_ =
+					"No top-level package.json found in " +
+					originalPath_.toStdString();
+				return;
+			}
+
+			std::optional<std::string> manifestPath;
+
+			static const std::string profilesPrefix = "Profiles/";
+			static const std::string manifestSuffix = "/manifest.json";
+
+			for (const auto &entry : zip.namelist()) {
+				if (!endsWith(entry, manifestSuffix))
+					continue;
+				auto parts = splitPath(entry);
+				if (parts.size() == 3 &&
+				    parts[0] == "Profiles" &&
+				    parts[2] == "manifest.json") {
+					manifestPath = entry;
+					break;
+				}
+			}
+
+			if (manifestPath) {
+				manifestContents = zip.read(*manifestPath);
+			} else {
+				errorMsg_ =
+					"No manifest.json found in " +
+					originalPath_.toStdString();
+				return;
+			}
+
+			auto package = nlohmann::json::parse(packageContents, nullptr, false);
+			auto manifest = nlohmann::json::parse(manifestContents, nullptr, false);
+			if (package.is_discarded()) {
+				errorMsg_ = "Failed to parse package.json in " + packagePath;
+				return;
+			}
+			if (manifest.is_discarded()) {
+				errorMsg_ = "Failed to parse manifest.json in " +  *manifestPath;
+				return;
+			}
+
+			if (package.contains("DeviceModel")) {
+				std::string modelStr = package["DeviceModel"];
+				state_.model = modelStr.c_str();
+			} else {
+				state_.model = "Unknown Model";
+			}
+
+			if (manifest.contains("Name")) {
+				std::string nameStr = manifest["Name"];
+				state_.name = nameStr.c_str();
+			} else {
+				state_.name = "No Name";
+			}
+		}
+
+		state_.path = originalPath_;
+
+		valid_ = true;
+	} catch (const std::exception &ex) {
+		errorMsg_ = std::string("Error opening zip file: ") + ex.what();
 	}
 }

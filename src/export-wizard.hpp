@@ -39,6 +39,7 @@ with this program.If not, see < https://www.gnu.org/licenses/>
 
 #include "scene-bundle.hpp"
 #include "elgato-widgets.hpp"
+#include "elgato-stream-deck-widgets.hpp"
 
 
 namespace elgatocloud {
@@ -167,6 +168,55 @@ private:
 	bool isLastRow(const InputRow& row) const;
 	bool isRowFilled(const InputRow& row) const;
 };
+
+class Version : public QWidget {
+	Q_OBJECT
+
+public:
+	explicit Version(std::string name, QWidget *parent = nullptr);
+
+signals:
+	void backPressed();
+	void nextPressed(const QString &version);
+
+private slots:
+	void validateInput();
+	void handleBackPressed();
+	void handleNextPressed();
+
+private:
+	QLineEdit *_lineEdit;
+	QPushButton *_backButton;
+	QPushButton *_nextButton;
+};
+
+class StreamDeckButtons : public QWidget {
+	Q_OBJECT
+
+public:
+	explicit StreamDeckButtons(std::string name, QWidget *parent = nullptr);
+	inline std::vector<SdaFileInfo> sdaFiles() const {
+		return _sdaList->sdaFiles();
+	};
+	inline std::vector<SdaFileInfo> sdProfileFiles() const {
+		return _sdaList->sdProfileFiles();
+	};
+
+signals:
+	void backPressed();
+	void nextPressed();
+
+private slots:
+	void handleBackPressed();
+	void handleNextPressed();
+
+private:
+	//SdaListWidget *_sdaList;
+	StreamDeckFilesDropContainer *_sdaList;
+	QPushButton *_backButton;
+	QPushButton *_nextButton;
+};
+
 
 static bool isValidHttpUrl(const QString& urlStr);
 

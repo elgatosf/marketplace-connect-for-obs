@@ -41,6 +41,13 @@ enum class SceneBundleStatus {
 	Error
 };
 
+struct SdaFileInfo;
+
+enum class SdFileVersion {
+	Legacy,
+	Current
+};
+
 struct SceneInfo {
 	std::string name;
 	std::string id;
@@ -50,6 +57,11 @@ struct SceneInfo {
 struct ThirdPartyRequirement {
 	std::string name;
 	std::string url;
+};
+
+struct SceneCollectionInfo {
+	std::string bundleInfo;
+	std::string streamDeckPath;
 };
 
 class SceneBundle {
@@ -75,7 +87,9 @@ public:
 				 std::string destination);
 	bool ToCollection(std::string collection_name,
 			  std::map<std::string, std::string> videoSettings,
-			  std::string audioSettings, std::string id);
+			  std::string audioSettings, std::string id,
+			  std::string productName, std::string productId,
+			  std::string productSlug);
 	bool MergeCollection(std::string collection_name,
 			  std::vector<std::string> scenes,
 			  std::map<std::string, std::string> videoSettings,
@@ -84,7 +98,10 @@ public:
 		std::string file_path, std::vector<std::string> plugins,
 		std::vector<std::pair<std::string, std::string>> thirdParty,
 		std::vector<SceneInfo> outputScenes,
-		std::map<std::string, std::string> videoDeviceDescriptions);
+		std::map<std::string, std::string> videoDeviceDescriptions,
+		std::vector<SdaFileInfo> sdaFiles,
+		std::vector<SdaFileInfo> sdProfileFiles,
+		std::string version);
 
 	bool FileCheckDialog();
 
@@ -94,7 +111,7 @@ public:
 		_interrupt = true;
 	}
 
-	std::string ExtractBundleInfo(std::string filePath);
+	SceneCollectionInfo ExtractBundleInfo(std::string filePath);
 
 	std::vector<std::string> FileList();
 	std::map<std::string, std::string> VideoCaptureDevices();
@@ -120,5 +137,71 @@ private:
 };
 
 void addSources(std::string sourceName, std::set<std::string>& requiredSources, std::set<std::string>& requiredGroups, std::map<std::string, nlohmann::json>& sourceNames, std::map<std::string, nlohmann::json>& groupNames);
+
+enum class SdaIconVerticalAlign {
+	Top,
+	Middle,
+	Bottom
+};
+
+/// Represents a parsed state inside the SDA file.
+struct SdaState {
+	QString title;
+	SdaIconVerticalAlign titleAlign;
+	QString relativeImagePath;
+	QByteArray imageBytes;
+	bool hasImage;
+	bool hasTitle;
+	QString path;
+};
+
+class SdaFile
+{
+public:
+	explicit SdaFile(const QString& path);
+
+	bool isValid() const { return valid_; }
+
+	QString originalPath() const { return originalPath_; }
+
+	std::optional<SdaState> firstState() const;
+	SdFileVersion fileVersion() const { return version_; }
+
+private:
+	void parse_();
+
+	QString originalPath_;
+	bool valid_{ false };
+	std::optional<SdaState> state_;
+	SdFileVersion version_;
+};
+
+struct SdProfileState {
+	QString name;
+	QString model;
+	QString path;
+};
+
+class SdProfileFile
+{
+public:
+	explicit SdProfileFile(const QString &path);
+	bool isValid() const { return valid_; }
+	QString originalPath() const { return originalPath_; }
+	SdProfileState state() const { return state_; }
+	SdFileVersion fileVersion() const { return version_; }
+
+private:
+	void parse_();
+
+	QString originalPath_;
+	bool valid_{false};
+
+	std::string errorMsg_;
+	SdProfileState state_;
+	SdFileVersion version_;
+};
+
+
 
 #endif // SCENEBUNDLE_H
