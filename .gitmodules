@@ -1,9 +1,0 @@
-[submodule "deps/libzip"]
-	path = deps/libzip
-	url = https://github.com/nih-at/libzip.git
-[submodule "deps/zlib"]
-	path = deps/zlib
-	url = https://github.com/madler/zlib
-[submodule "deps/miniz-cpp"]
-	path = deps/miniz-cpp
-	url = https://github.com/tfussell/miniz-cpp.git
