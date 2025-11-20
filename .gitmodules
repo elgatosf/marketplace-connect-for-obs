@@ -1,0 +1,3 @@
+[submodule "deps/libzip"]
+	path = deps/libzip
+	url = https://github.com/nih-at/libzip.git

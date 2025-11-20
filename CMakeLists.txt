@@ -36,8 +36,36 @@ endif()
 
 find_package(CURL REQUIRED)
 find_package(nlohmann_json REQUIRED)
+find_package(ZLIB REQUIRED)
 
-target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE CURL::libcurl nlohmann_json::nlohmann_json)
+### --- libzip (static) -----------------------------------
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build static libs" FORCE)
+set(DO_INSTALL OFF CACHE BOOL "" FORCE)
+set(ENABLE_BZIP2 OFF CACHE BOOL "" FORCE)
+set(ENABLE_LZMA OFF CACHE BOOL "" FORCE)
+set(ENABLE_ZSTD OFF CACHE BOOL "" FORCE)
+set(ENABLE_OPENSSL OFF CACHE BOOL "" FORCE)
+set(BUILD_TOOLS OFF CACHE BOOL "" FORCE)
+set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(BUILD_DOC OFF CACHE BOOL "" FORCE)
+set(BUILD_OSSFUZZ OFF CACHE BOOL "" FORCE)
+set(BUILD_REGRESS OFF CACHE BOOL "" FORCE)
+
+# Add libzip
+add_subdirectory(deps/libzip)
+
+if(MSVC AND TARGET zip)
+    target_compile_options(zip PRIVATE /wd4244)
+endif()
+
+# Add libzip include directory
+target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/deps/libzip/lib
+    ${CMAKE_CURRENT_BINARY_DIR}/deps/libzip  # for config headers like zipconf.h
+)
+
+target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE CURL::libcurl nlohmann_json::nlohmann_json ZLIB::ZLIB zip)
+target_link_options(zip PRIVATE $<$<CONFIG:DEBUG>:/NODEFAULTLIB:LIBCMT>)
 
 target_sources(
   ${CMAKE_PROJECT_NAME}
