@@ -646,6 +646,7 @@ SelectOutputScenes::SelectOutputScenes(std::string name, QWidget* parent)
 	auto subTitle = new QLabel(this);
 	subTitle->setText(obs_module_text("ExportWizard.OutputScenes.Subtitle"));
 	subTitle->setStyleSheet(EWizardStepSubTitle);
+	subTitle->setWordWrap(true);
 
 	auto sceneList = new QListWidget(this);
 	sceneList->setSizePolicy(QSizePolicy::Preferred,
