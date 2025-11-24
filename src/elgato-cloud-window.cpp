@@ -61,7 +61,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 
 #include <plugin-support.h>
 
-#include <zip.h>
+#include "zip-archive.hpp"
 
 
 namespace elgatocloud {
@@ -703,48 +703,15 @@ ElgatoCloudWindow::~ElgatoCloudWindow()
 
 void ElgatoCloudWindow::initialize()
 {
-	const char *zip_path = "D:\\mixed-7.0.elgatoscene";
+	const char *zip_path = "D:\\big-video.elgatoscene";
 
-	int err = 0;
+	ZipArchive zip(this);
+	zip.openExisting(zip_path);
+	auto files = zip.listEntries();
 
-	// --- Open ---
-	zip_t *archive = zip_open(zip_path, ZIP_RDONLY, &err);
-	if (!archive) {
-		zip_error_t ziperr;
-		zip_error_init_with_code(&ziperr, err);
-
-		obs_log(LOG_ERROR, "Failed to open zip file '%s': %s", zip_path,
-			zip_error_strerror(&ziperr));
-
-		zip_error_fini(&ziperr);
-		return;
+	for (auto &f : files) {
+		obs_log(LOG_INFO, "%s", f.toStdString().c_str());
 	}
-
-	obs_log(LOG_INFO, "Opened zip file: %s", zip_path);
-
-	// --- Get number of entries ---
-	zip_int64_t count = zip_get_num_entries(archive, ZIP_FL_UNCHANGED);
-	obs_log(LOG_INFO, "Number of entries: %lld", (long long)count);
-
-	// --- Iterate entries ---
-	for (zip_uint64_t i = 0; i < (zip_uint64_t)count; ++i) {
-		struct zip_stat st;
-		zip_stat_init(&st);
-
-		if (zip_stat_index(archive, i, ZIP_FL_ENC_GUESS, &st) == 0) {
-			obs_log(LOG_INFO, "Entry %llu: %s (%llu bytes)",
-				(unsigned long long)i,
-				st.name ? st.name : "(null)",
-				(unsigned long long)st.size);
-		} else {
-			obs_log(LOG_WARNING, "Could not stat entry %llu",
-				(unsigned long long)i);
-		}
-	}
-
-	// --- Cleanup ---
-	zip_close(archive);
-
 
 	setWindowTitle(QString("Elgato Marketplace Connect"));
 	//setFixedSize(1140, 600);

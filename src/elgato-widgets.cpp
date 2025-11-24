@@ -327,7 +327,7 @@ QSize VideoPreviewWidget::sizeHint() const
 
 ProgressSpinner::ProgressSpinner(
 	QWidget *parent, int width, int height,
-	int progressWidth, QColor fgColor, QColor bgColor)
+	int progressWidth, QColor fgColor, QColor bgColor, bool cycle)
 : QWidget(parent), _width(width), _height(height), _progressWidth(progressWidth),
   _fgColor(fgColor), _bgColor(bgColor), _blue(true)
 {
@@ -335,24 +335,27 @@ ProgressSpinner::ProgressSpinner(
 	_maximumValue = 100;
 	_value = 0;
 
-	QPropertyAnimation *animBlue =
-		new QPropertyAnimation(this, "valueBlue", this);
-	animBlue->setDuration(1000);
-	animBlue->setStartValue(0.0);
-	animBlue->setEndValue(100.0);
-	animBlue->setEasingCurve(QEasingCurve::InOutExpo);
-	QPropertyAnimation *animGrey =
-		new QPropertyAnimation(this, "valueGrey", this);
-	animGrey->setDuration(1000);
-	animGrey->setStartValue(0.0);
-	animGrey->setEndValue(100.0);
-	animGrey->setEasingCurve(QEasingCurve::InOutExpo);
+	if (cycle) {
+		QPropertyAnimation *animBlue =
+			new QPropertyAnimation(this, "valueBlue", this);
+		animBlue->setDuration(1000);
+		animBlue->setStartValue(0.0);
+		animBlue->setEndValue(100.0);
+		animBlue->setEasingCurve(QEasingCurve::InOutExpo);
+		QPropertyAnimation *animGrey =
+			new QPropertyAnimation(this, "valueGrey", this);
+		animGrey->setDuration(1000);
+		animGrey->setStartValue(0.0);
+		animGrey->setEndValue(100.0);
+		animGrey->setEasingCurve(QEasingCurve::InOutExpo);
 
-	QSequentialAnimationGroup *group = new QSequentialAnimationGroup(this);
-	group->addAnimation(animBlue);
-	group->addAnimation(animGrey);
-	group->setLoopCount(100);
-	group->start();
+		QSequentialAnimationGroup *group =
+			new QSequentialAnimationGroup(this);
+		group->addAnimation(animBlue);
+		group->addAnimation(animGrey);
+		group->setLoopCount(100);
+		group->start();
+	}
 }
 
 ProgressSpinner::~ProgressSpinner() {}

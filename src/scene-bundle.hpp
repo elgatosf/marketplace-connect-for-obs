@@ -25,13 +25,16 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <set>
 #include <utility>
 #include <nlohmann/json.hpp>
+#include <QObject>
+#include <QString>
 #include <QMessageBox>
 #include <QFileDialog>
 #include <obs-frontend-api.h>
+#include <zip-archive.hpp>
 
-namespace miniz_cpp {
-class zip_file;
-}
+namespace elgatocloud {
+	class StreamPackageExportWizard;
+};
 
 enum class SceneBundleStatus {
 	Success,
@@ -64,7 +67,9 @@ struct SceneCollectionInfo {
 	std::string streamDeckPath;
 };
 
-class SceneBundle {
+class SceneBundle : public QObject {
+	Q_OBJECT
+
 private:
 	// Key: original file path, Value: new file name
 	std::map<std::string, std::string> _fileMap;
@@ -79,7 +84,7 @@ private:
 	bool _waiting;
 
 public:
-	SceneBundle();
+	SceneBundle(QObject *parent = nullptr);
 	~SceneBundle();
 
 	bool FromCollection(std::string collection_name);
@@ -100,8 +105,8 @@ public:
 		std::vector<SceneInfo> outputScenes,
 		std::map<std::string, std::string> videoDeviceDescriptions,
 		std::vector<SdaFileInfo> sdaFiles,
-		std::vector<SdaFileInfo> sdProfileFiles,
-		std::string version);
+		std::vector<SdaFileInfo> sdProfileFiles, std::string version,
+		void *wizard);
 
 	bool FileCheckDialog();
 
@@ -120,15 +125,26 @@ public:
 	static void SceneCollectionChanged(enum obs_frontend_event event,
 					   void *obj);
 
+signals:
+	// fileName, fileProgress (0..1)
+	void fileProgress(const QString &fileName, double progress);
+
+	// overallProgress across whole archive (0..1)
+	void overallProgress(double progress);
+
+	// extraction signals (0..1)
+	void extractFileProgress(const QString &fileName, double progress);
+	void extractOverallProgress(double progress);
+
 private:
 	void _ProcessJsonObj(nlohmann::json &obj);
 	void _CreateFileMap(nlohmann::json &item);
 	bool _AddFileToZip(std::string filePath, std::string zipPath,
-			   miniz_cpp::zip_file &ecFile);
+			   ZipArchive &ecFile);
 	bool _AddDirContentsToZip(std::string dirPath, std::string zipDir,
-				  miniz_cpp::zip_file &ecFile);
+				  ZipArchive &ecFile);
 	bool _AddBrowserSourceContentsToZip(std::string dirPath, std::string zipDir,
-		miniz_cpp::zip_file& ecFile);
+		ZipArchive &ecFile);
 	bool _createSceneCollection(std::string collectionName);
 	void _reset();
 	void _backupCurrentCollection();

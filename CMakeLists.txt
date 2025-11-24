@@ -72,6 +72,9 @@ target_sources(
   PRIVATE src/plugin-module.cpp
           src/elgato-styles.hpp
           src/zip_file.hpp
+          src/zip-handle.hpp
+          src/zip-archive.cpp
+          src/zip-archive.hpp
           src/api.cpp
           src/api.hpp
           src/platform.cpp

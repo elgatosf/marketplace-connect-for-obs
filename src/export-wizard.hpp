@@ -226,8 +226,13 @@ public:
 	Exporting(std::string name, QWidget *parent);
 	~Exporting();
 
+	void updateProgress(double progress);
+	void updateFileProgress(const QString &fileName, double progress);
+
 private:
 	QMovie *_indicator;
+	ProgressSpinner *spinner_;
+	QLabel *subTitle_;
 };
 
 class ExportComplete : public QWidget {
@@ -249,8 +254,15 @@ public:
 
 	static void AddModule(void *data, obs_module_t *module);
 
+	void emitOverallProgress(double progress);
+	void emitFileProgress(const QString &filename, double progress);
+
 public slots:
 	void SetupUI();
+
+signals:
+	void overallProgress(double progress);
+	void fileProgress(const QString &filename, double progress);
 
 private:
 	QStackedWidget *_steps;

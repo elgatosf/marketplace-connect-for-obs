@@ -55,15 +55,14 @@ SceneBundleStatus createBundle(std::string filename,
 			       std::map<std::string, std::string> vidDevLabels, 
 				   std::vector<SdaFileInfo> sdaFiles,
 				   std::vector<SdaFileInfo> sdProfileFiles,
-				   std::string version)
+				   std::string version, StreamPackageExportWizard* wizard)
 {
 	if (!bundle) {
 		return SceneBundleStatus::InvalidBundle;
 	}
-	return bundle->ToElgatoCloudFile(
-		filename, plugins, thirdParty,
-		outputScenes, vidDevLabels, sdaFiles,
-		sdProfileFiles, version);
+	return bundle->ToElgatoCloudFile(filename, plugins, thirdParty,
+					 outputScenes, vidDevLabels, sdaFiles,
+					 sdProfileFiles, version, wizard);
 }
 
 // TODO: For MacOS the filename sigatures will be different
@@ -1243,17 +1242,15 @@ Exporting::Exporting(std::string name, QWidget *parent) : QWidget(parent)
 				 QSizePolicy::Expanding);
 	layout->addWidget(spacerTop);
 
-	std::string imagesPath = obs_get_module_data_path(obs_current_module());
-	imagesPath += "/images/";
-	std::string spinnerImage = imagesPath + "spinner-white.gif";
-
-	_indicator = new QMovie(spinnerImage.c_str());
-
-	auto spinner = new QLabel(this);
-	spinner->setMovie(_indicator);
-	_indicator->start();
-	spinner->setAlignment(Qt::AlignCenter);
-	layout->addWidget(spinner);
+	spinner_ = new ProgressSpinner(
+		this, 124, 124, 8, QColor(32, 76, 254), QColor(200, 200, 200), false);
+	spinner_->setFixedHeight(124);
+	spinner_->setFixedWidth(124);
+	auto spinnerLayout = new QHBoxLayout(this);
+	spinnerLayout->addStretch();
+	spinnerLayout->addWidget(spinner_);
+	spinnerLayout->addStretch();
+	layout->addLayout(spinnerLayout);
 
 	auto title = new QLabel(this);
 	title->setText(
@@ -1262,14 +1259,14 @@ Exporting::Exporting(std::string name, QWidget *parent) : QWidget(parent)
 	title->setAlignment(Qt::AlignCenter);
 	layout->addWidget(title);
 
-	auto subTitle = new QLabel(this);
-	subTitle->setText(
+	subTitle_ = new QLabel(this);
+	subTitle_->setText(
 		obs_module_text("ExportWizard.Exporting.Text"));
-	subTitle->setStyleSheet(
+	subTitle_->setStyleSheet(
 		"QLabel{ font-size: 11pt; font-style: italic; }");
-	subTitle->setAlignment(Qt::AlignCenter);
-	subTitle->setWordWrap(true);
-	layout->addWidget(subTitle);
+	subTitle_->setAlignment(Qt::AlignCenter);
+	subTitle_->setWordWrap(true);
+	layout->addWidget(subTitle_);
 
 	auto spacerBottom = new QWidget(this);
 	spacerBottom->setSizePolicy(QSizePolicy::Preferred,
@@ -1278,6 +1275,20 @@ Exporting::Exporting(std::string name, QWidget *parent) : QWidget(parent)
 }
 
 Exporting::~Exporting() {}
+
+void Exporting::updateProgress(double progress)
+{
+	if (spinner_) {
+		spinner_->setValueBlue(progress);
+	}
+}
+
+void Exporting::updateFileProgress(const QString &fileName, double progress)
+{
+	if (subTitle_) {
+		subTitle_->setText(fileName);
+	}
+}
 
 StreamPackageExportWizard::StreamPackageExportWizard(QWidget *parent)
 	: QDialog(parent),
@@ -1406,7 +1417,7 @@ void StreamPackageExportWizard::SetupUI()
 			_future =
 				QtConcurrent::run(createBundle, filename_utf8,
 						  plugins, thirdParty, oScenes,
-						  vidDevLabels, sdaFiles, sdProfileFiles, version.toStdString())
+						  vidDevLabels, sdaFiles, sdProfileFiles, version.toStdString(), this)
 					.then([this](SceneBundleStatus status) {
 						// We are now in a different thread, so we need to execute this
 						// back in the gui thread.  See, threading hell.
@@ -1437,6 +1448,16 @@ void StreamPackageExportWizard::SetupUI()
 		[this]() { _steps->setCurrentIndex(6); });
 
 	auto exporting = new Exporting(collectionName, this);
+	connect(this, &StreamPackageExportWizard::overallProgress, this,
+		[this, exporting](double progress) {
+			exporting->updateProgress(progress);
+		});
+
+	connect(this, &StreamPackageExportWizard::fileProgress, this,
+		[this, exporting](const QString &filename, double progress) {
+			exporting->updateFileProgress(filename, progress);
+		});
+
 	_steps->addWidget(exporting);
 
 	// Successful Export
@@ -1451,6 +1472,17 @@ StreamPackageExportWizard::~StreamPackageExportWizard()
 {
 	bundle->interrupt(SceneBundleStatus::CallerDestroyed);
 }
+
+void StreamPackageExportWizard::emitOverallProgress(double progress) {
+	emit overallProgress(progress);
+}
+
+void StreamPackageExportWizard::emitFileProgress(const QString& filename,
+	double progress)
+{
+	emit fileProgress(filename, progress);
+}
+
 
 void StreamPackageExportWizard::AddModule(void *data, obs_module_t *module)
 {

@@ -95,7 +95,7 @@ class ProgressSpinner : public QWidget {
 	Q_PROPERTY(double valueGrey WRITE setValueGrey READ getValue)
 public:
 	ProgressSpinner(QWidget* parent, int width, int height,
-		int progressWidth, QColor fgColor, QColor bgColor);
+		int progressWidth, QColor fgColor, QColor bgColor, bool cycle = true);
 	~ProgressSpinner();
 	inline double getValue() const { return _value; }
 	void setValueGrey(double value);
