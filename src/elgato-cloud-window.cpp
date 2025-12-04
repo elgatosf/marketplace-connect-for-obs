@@ -61,6 +61,8 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 
 #include <plugin-support.h>
 
+#include "zip-archive.hpp"
+
 
 namespace elgatocloud {
 
@@ -701,6 +703,16 @@ ElgatoCloudWindow::~ElgatoCloudWindow()
 
 void ElgatoCloudWindow::initialize()
 {
+	const char *zip_path = "D:\\big-video.elgatoscene";
+
+	ZipArchive zip(this);
+	zip.openExisting(zip_path);
+	auto files = zip.listEntries();
+
+	for (auto &f : files) {
+		obs_log(LOG_INFO, "%s", f.toStdString().c_str());
+	}
+
 	setWindowTitle(QString("Elgato Marketplace Connect"));
 	//setFixedSize(1140, 600);
 

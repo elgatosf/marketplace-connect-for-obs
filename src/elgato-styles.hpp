@@ -403,7 +403,8 @@ inline const QString EIconOnlySmButtonStyle =
 		"color: rgba(255, 255, 255, 0.67);"
 		"font-size: 14px;"
 		"font-weight: 400;"
-		"}";
+		"} "
+		"QLabel::link { color:#8DB2FF; }";
 
 	inline const QString EWizardFieldLabel =
 		"QLabel {"
@@ -449,6 +450,11 @@ inline const QString EIconOnlySmButtonStyle =
 		"}"
 		"QPushButton:pressed {"
 		"background: #1231AC;"
+		"}"
+		"QPushButton:disabled {"
+		"background: rgba(32, 76, 254, 0.2);"
+		"color: rgba(255, 255, 255, 0.2);"
+		"border: none;"
 		"}";
 
 	inline const QString EWizardQuietButtonStyle =

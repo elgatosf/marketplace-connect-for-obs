@@ -34,7 +34,8 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <filesystem>
 #include <stdio.h>
 #include <algorithm>
-#include <zip_file.hpp>
+#include "zip-archive.hpp"
+//#include <zip_file.hpp>
 
 #include <plugin-support.h>
 #include "platform.h"
@@ -42,6 +43,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include "obs-utils.hpp"
 #include "setup-wizard.hpp"
 #include "api.hpp"
+#include "export-wizard.hpp"
 
 const std::map<std::string, std::string> extensionMap{
 	{".jpg", "/images/"},     {".jpeg", "/images/"},
@@ -60,8 +62,10 @@ const std::map<std::string, std::string> extensionMap{
 // that require external libraries or executables.
 const std::vector<std::string> incompatibleFilters{"vst_filter"};
 
-SceneBundle::SceneBundle() : _interrupt(false)
+SceneBundle::SceneBundle(QObject *parent)
+	: QObject(parent), _interrupt(false)
 {
+
 }
 
 SceneBundle::~SceneBundle()
@@ -112,27 +116,33 @@ bool SceneBundle::FromElgatoCloudFile(std::string filePath,
 	_reset();
 	//Handle the ZIP archive
 	_packPath = packPath;
-	miniz_cpp::zip_file file(filePath);
+	ZipArchive file;
+	file.openExisting(filePath.c_str());
 
 	std::string this_pack_dir = packPath;
 	os_mkdirs(this_pack_dir.c_str());
 	clear_dir(this_pack_dir);
 
-	// TODO: Probe for a valid manifest.json and collection.json before extraction
-	file.extractall(packPath);
+	if(!file.contains("bundle_info.json") || !file.contains("collection.json"))
+		return false;
+	
+	file.extractAllToFolder(packPath.c_str());
 	return true;
 }
 
 SceneCollectionInfo SceneBundle::ExtractBundleInfo(std::string filePath)
 {
 	SceneCollectionInfo result;
-	miniz_cpp::zip_file file(filePath);
-	auto bundleInfo = file.read("bundle_info.json");
-	result.bundleInfo = bundleInfo;
+	ZipArchive file;
+	file.openExisting(filePath.c_str());
+
+	auto bundleInfo = file.extractFileToString("bundle_info.json");
+	result.bundleInfo = bundleInfo.toStdString();
 
 	bool hasStreamDeck = false;
-	for (const auto &entry : file.namelist()) {
-		if (entry.rfind("Assets/stream-deck/", 0) == 0) { // starts with
+	for (const auto &entry : file.listEntries()) {
+		if (entry.toStdString().rfind("Assets/stream-deck/", 0) ==
+		    0) { // starts with
 			hasStreamDeck = true;
 			break;
 		}
@@ -153,23 +163,23 @@ SceneCollectionInfo SceneBundle::ExtractBundleInfo(std::string filePath)
 	tempDir.setAutoRemove(false);
 
 	// Extract all entries under Assets/stream-deck
-	for (const auto &entry : file.namelist()) {
-		if (entry.rfind("Assets/stream-deck/", 0) == 0) {
+	for (const auto &entry : file.listEntries()) {
+		if (entry.toStdString().rfind("Assets/stream-deck/", 0) ==
+		    0) {
 			if (entry.back() == '/') {
 				// It's a directory, ensure it exists
-				QDir().mkpath(basePath + "/" +
-							QString::fromStdString(entry));
+				QDir().mkpath(basePath + "/" +entry);
 			} else {
 				// It's a file
-				QString outPath = basePath + "/" +
-							QString::fromStdString(entry);
+				QString outPath = basePath + "/" + entry;
 				QFileInfo fi(outPath);
 				QDir().mkpath(
 					fi.path()); // Ensure directories exist
 
 				QFile outFile(outPath);
 				if (outFile.open(QIODevice::WriteOnly)) {
-					std::string bytes = file.read(entry);
+					auto bytes =
+						file.extractFileToMemory(entry);
 					outFile.write(bytes.data(),
 								static_cast<qint64>(
 									bytes.size()));
@@ -599,46 +609,46 @@ bool SceneBundle::_createSceneCollection(std::string collection_name)
 	_waiting = true;
 
 	// 8. Add a callback for scene collection change
-	obs_frontend_add_event_callback(SceneBundle::SceneCollectionChanged,
-		this);
+obs_frontend_add_event_callback(SceneBundle::SceneCollectionChanged,
+	this);
 
-	// 9. Switch back to old scene collection so we can manually write the new
-	//    collection json file
-	obs_frontend_set_current_scene_collection(current_collection);
+// 9. Switch back to old scene collection so we can manually write the new
+//    collection json file
+obs_frontend_set_current_scene_collection(current_collection);
 
-	// 10. Wait until _wating is set to false
-	while (_waiting)
-		; // do nothing
+// 10. Wait until _wating is set to false
+while (_waiting)
+; // do nothing
 
-	// 11. Replace newCollectionFileName with imported json data
-	obs_data_t* data =
-		obs_data_create_from_json(_collection.dump().c_str());
-	bool success = obs_data_save_json_safe(
-		data, newCollectionFileName.c_str(), "tmp", "bak");
-	obs_data_release(data);
+// 11. Replace newCollectionFileName with imported json data
+obs_data_t* data =
+obs_data_create_from_json(_collection.dump().c_str());
+bool success = obs_data_save_json_safe(
+	data, newCollectionFileName.c_str(), "tmp", "bak");
+obs_data_release(data);
 
-	bfree(current_collection);
+bfree(current_collection);
 
-	if (!success) {
-		obs_log(LOG_ERROR, "Unable to create scene collection.");
-		obs_frontend_remove_event_callback(SceneBundle::SceneCollectionChanged,
-			this);
-		return false;
-	}
-
-	_waiting = true;
-
-	// 12. Load in the new scene collection with the new data.
-	obs_frontend_set_current_scene_collection(newCollectionName.c_str());
-
-	while (_waiting)
-		;
-
-	// 13. Remove the callback
+if (!success) {
+	obs_log(LOG_ERROR, "Unable to create scene collection.");
 	obs_frontend_remove_event_callback(SceneBundle::SceneCollectionChanged,
 		this);
+	return false;
+}
 
-	return true;
+_waiting = true;
+
+// 12. Load in the new scene collection with the new data.
+obs_frontend_set_current_scene_collection(newCollectionName.c_str());
+
+while (_waiting)
+;
+
+// 13. Remove the callback
+obs_frontend_remove_event_callback(SceneBundle::SceneCollectionChanged,
+	this);
+
+return true;
 }
 
 void SceneBundle::_backupCurrentCollection()
@@ -690,11 +700,39 @@ SceneBundleStatus SceneBundle::ToElgatoCloudFile(
 	std::vector<SceneInfo> outputScenes,
 	std::map<std::string, std::string> videoDeviceDescriptions,
 	std::vector<SdaFileInfo> sdaFiles,
-	std::vector<SdaFileInfo> sdProfileFiles,
-	std::string version)
+	std::vector<SdaFileInfo> sdProfileFiles, std::string version,
+	void* data)
 {
 	_interrupt = false;
-	miniz_cpp::zip_file ecFile;
+	ZipArchive ecFile;
+	bool canceled = false;
+	auto wizard = static_cast<elgatocloud::StreamPackageExportWizard*>(data);
+
+	auto cancelCallback = connect(wizard, &elgatocloud::StreamPackageExportWizard::cancelOperation,
+		this, [this, &ecFile, &canceled]() {
+			ecFile.cancelOperation();
+			canceled = true;
+		});
+
+	connect(&ecFile, &ZipArchive::overallProgress, this,
+		[this, wizard](double progress) {
+			QMetaObject::invokeMethod(
+				QCoreApplication::instance()->thread(), // main GUI thread
+				[this, wizard, progress]() {
+					wizard->emitOverallProgress(progress * 100.0);
+				}
+			);
+		});
+
+	connect(&ecFile, &ZipArchive::fileProgress, this,
+		[this, wizard](const QString& fileName, double progress) {
+			QMetaObject::invokeMethod(
+				QCoreApplication::instance()->thread(), // main GUI thread
+				[this, wizard, fileName, progress]() {
+					wizard->emitFileProgress(fileName, progress * 100.0);
+				}
+			);
+		});
 
 	// TODO: Let the bundle author specify the canvas dimensions,
 	//       version, plugins required, etc..
@@ -759,8 +797,8 @@ SceneBundleStatus SceneBundle::ToElgatoCloudFile(
 
 	std::vector<std::string> browserSourceDirs;
 
-	ecFile.writestr("collection.json", collection_json);
-	ecFile.writestr("bundle_info.json", bundleInfo_json);
+	ecFile.addString("collection.json", collection_json.c_str());
+	ecFile.addString("bundle_info.json", bundleInfo_json.c_str());
 	// Write all assets to zip archive.
 	for (const auto &file : _fileMap) {
 		std::string oFilename = file.first;
@@ -846,9 +884,11 @@ SceneBundleStatus SceneBundle::ToElgatoCloudFile(
 		}
 	}
 
-	ecFile.save(file_path);
+	ecFile.writeArchive(file_path.c_str());
 
-	return SceneBundleStatus::Success;
+	disconnect(cancelCallback);
+
+	return canceled ? SceneBundleStatus::Cancelled : SceneBundleStatus::Success;
 }
 
 std::vector<std::string> SceneBundle::FileList()
@@ -1050,17 +1090,17 @@ void SceneBundle::_CreateFileMap(nlohmann::json &item)
 }
 
 bool SceneBundle::_AddFileToZip(std::string filePath, std::string zipPath,
-				miniz_cpp::zip_file &ecFile)
+				ZipArchive &ecFile)
 {
 	if (_interrupt) {
 		return false;
 	}
-	ecFile.write(filePath, zipPath);
+	ecFile.addFile(zipPath.c_str(), filePath.c_str());
 	return true;
 }
 
 bool SceneBundle::_AddBrowserSourceContentsToZip(std::string dirPath, std::string zipDir,
-	miniz_cpp::zip_file& ecFile)
+	ZipArchive &ecFile)
 {
 	// Iterate the files in the directory and add them to the zip.
 	// Ignore sub-directories
@@ -1105,7 +1145,7 @@ bool SceneBundle::_AddBrowserSourceContentsToZip(std::string dirPath, std::strin
 }
 
 bool SceneBundle::_AddDirContentsToZip(std::string dirPath, std::string zipDir,
-				       miniz_cpp::zip_file &ecFile)
+				       ZipArchive &ecFile)
 {
 	// Iterate the files in the directory and add them to the zip.
 	// Ignore sub-directories
@@ -1198,13 +1238,13 @@ void SdaFile::parse_()
 {
 	std::string imageBaseDir = GetDataPath();
 	imageBaseDir += "/images/stream-deck-default-icons/";
-
 	try {
-		miniz_cpp::zip_file zip(originalPath_.toStdString());
+		ZipArchive zip;
+		zip.openExisting(originalPath_);
 
 		// Check if this is a new or legacy file
 		std::string packageJsonPath = "package.json";
-		version_ = zip.has_file(packageJsonPath)
+		version_ = zip.contains(packageJsonPath.c_str())
 				   ? SdFileVersion::Current
 				   : SdFileVersion::Legacy;
 
@@ -1212,11 +1252,13 @@ void SdaFile::parse_()
 		std::string chosenManifestPath;
 		nlohmann::json manifest;
 
-		for (auto& entry : zip.namelist()) {
-			if (entry.find("Profiles/") != std::string::npos &&
-				entry.find("manifest.json") != std::string::npos)
+		for (auto& entry : zip.listEntries()) {
+			if (entry.toStdString().find("Profiles/") !=
+				    std::string::npos &&
+			    entry.toStdString().find("manifest.json") !=
+				    std::string::npos)
 			{
-				std::string jsonStr = zip.read(entry);
+				std::string jsonStr = zip.extractFileToString(entry).toStdString();
 				auto j = nlohmann::json::parse(jsonStr, nullptr, false);
 
 				if (!j.is_discarded() && j.contains("Controllers") && j["Controllers"].is_array()) {
@@ -1224,7 +1266,7 @@ void SdaFile::parse_()
 						if (controller.contains("Type") && controller["Type"] == "Keypad" &&
 							controller.contains("Actions") && !controller["Actions"].is_null()) {
 
-							chosenManifestPath = entry;
+							chosenManifestPath = entry.toStdString();
 							manifest = j;
 							break;
 						}
@@ -1277,9 +1319,9 @@ void SdaFile::parse_()
 			s.hasTitle = hasTitle;
 			s.hasImage = hasImage;
 
-			if (hasImage && zip.has_file(imagePath)) {
-				std::string imgBytes = zip.read(imagePath);
-				s.imageBytes = QByteArray(imgBytes.data(), static_cast<int>(imgBytes.size()));
+			if (hasImage && zip.contains(imagePath.c_str())) {
+				QByteArray imgBytes = zip.extractFileToMemory(imagePath.c_str());
+				s.imageBytes = imgBytes;
 			} else if (actionId != "") {
 				std::string iconPath = imageBaseDir + actionId + ".png";
 				std::string defaultIconPath = imageBaseDir + "default.png";
@@ -1328,11 +1370,12 @@ SdProfileFile::SdProfileFile(const QString &path) : originalPath_(path)
 void SdProfileFile::parse_()
 {
 	try {
-		miniz_cpp::zip_file zip(originalPath_.toStdString());
+		ZipArchive zip;
+		zip.openExisting(originalPath_);
 
 		// Check if this is a new or legacy file
 		std::string packageJsonPath = "package.json";
-		version_ = zip.has_file(packageJsonPath)
+		version_ = zip.contains(packageJsonPath.c_str())
 				   ? SdFileVersion::Current
 				   : SdFileVersion::Legacy;
 
@@ -1340,18 +1383,22 @@ void SdProfileFile::parse_()
 
 		if (version_ == SdFileVersion::Legacy) {
 			std::string manifestPath;
-			for (const auto &entry : zip.namelist()) {
+			for (const auto &entry : zip.listEntries()) {
+				std::string entryStr = entry.toStdString();
 				// We only want "something/manifest.json" (but not Profiles/*)
-				if (entry.find('/') != std::string::npos &&
-				    entry.rfind("manifest.json") ==
+				if (entryStr.find('/') !=
+					    std::string::npos &&
+				    entryStr.rfind(
+					    "manifest.json") ==
 					    entry.size() -
 						    std::string("manifest.json")
 							    .size()) {
 
 					// Ensure it's not Profiles/.../manifest.json
-					if (entry.find("Profiles/") ==
+					if (entryStr.find(
+						    "Profiles/") ==
 					    std::string::npos) {
-						manifestPath = entry;
+						manifestPath = entryStr;
 						break;
 					}
 				}
@@ -1364,7 +1411,7 @@ void SdProfileFile::parse_()
 				return;
 			}
 
-			std::string jsonStr = zip.read(manifestPath);
+			std::string jsonStr = zip.extractFileToString(manifestPath.c_str()).toStdString();
 			auto j = nlohmann::json::parse(jsonStr, nullptr, false);
 			if (j.is_discarded()) {
 				errorMsg_ =
@@ -1391,11 +1438,11 @@ void SdProfileFile::parse_()
 			std::string manifestContents;
 			const std::string packagePath = "package.json";
 			bool packageFound = false;
-			bool hasPackageJson = zip.has_file(packagePath);
+			bool hasPackageJson = zip.contains(packagePath.c_str());
 			if (hasPackageJson) {
 				packageFound = true;
 				packageContents =
-					zip.read(packagePath);
+					zip.extractFileToString(packagePath.c_str()).toStdString();
 			} else {
 				errorMsg_ =
 					"No top-level package.json found in " +
@@ -1408,20 +1455,21 @@ void SdProfileFile::parse_()
 			static const std::string profilesPrefix = "Profiles/";
 			static const std::string manifestSuffix = "/manifest.json";
 
-			for (const auto &entry : zip.namelist()) {
-				if (!endsWith(entry, manifestSuffix))
+			for (const auto &entry : zip.listEntries()) {
+				if (!endsWith(entry.toStdString(),
+					      manifestSuffix))
 					continue;
-				auto parts = splitPath(entry);
+				auto parts = splitPath(entry.toStdString());
 				if (parts.size() == 3 &&
 				    parts[0] == "Profiles" &&
 				    parts[2] == "manifest.json") {
-					manifestPath = entry;
+					manifestPath = entry.toStdString();
 					break;
 				}
 			}
 
 			if (manifestPath) {
-				manifestContents = zip.read(*manifestPath);
+				manifestContents = zip.extractFileToString((*manifestPath).c_str()).toStdString();
 			} else {
 				errorMsg_ =
 					"No manifest.json found in " +
