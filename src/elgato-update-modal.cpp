@@ -21,29 +21,47 @@ ElgatoUpdateModal* updateModal = nullptr;
 ElgatoUpdateModal::ElgatoUpdateModal(QWidget* parent, std::string version, std::string downloadUrl)
 	: QDialog(parent)
 {
+	std::string imageBaseDir =
+		obs_get_module_data_path(obs_current_module());
+	imageBaseDir += "/images/";
+
 	setWindowTitle(QString("Elgato Marketplace Connect Update Available"));
-	setFixedSize(QSize(680, 300));
+	setFixedSize(QSize(680, 532));
 	setAttribute(Qt::WA_DeleteOnClose);
 
 	auto layout = new QVBoxLayout();
+
+	auto icon = new QLabel(this);
+	std::string iconImgPath = imageBaseDir + "IconSync.svg";
+	QPixmap iconPixmap = QPixmap(iconImgPath.c_str());
+	icon->setPixmap(iconPixmap);
+	icon->setAlignment(Qt::AlignCenter);
 
 	auto title = new QLabel(this);
 	title->setText(
 		obs_module_text("UpdateModal.Title"));
 	title->setAlignment(Qt::AlignCenter);
-	title->setStyleSheet("QLabel { font-size: 18pt; }");
+	title->setStyleSheet(EWizardStepTitle);
 	title->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
 
 	layout->addStretch();
+	layout->addWidget(icon);
 	layout->addWidget(title);
 	
 	auto hLayout = new QHBoxLayout();
 	auto description = new QLabel(this);
-	description->setText(obs_module_text("UpdateModal.Description"));
+	std::string descriptionText = obs_module_text("UpdateModal.Description");
+	std::string linkText = obs_module_text("UpdateModal.ChangesLinkText");
+	std::string link = "<a href='https://help.elgato.com/hc/en-us/sections/32970231491345-Marketplace-Connect-for-OBS-Release-Notes'>" + linkText + "</a>";
+	replace_all(descriptionText, "{CHANGES LINK}", link);
+	description->setText(descriptionText.c_str());
 	description->setAlignment(Qt::AlignCenter);
 	description->setWordWrap(true);
-	description->setStyleSheet("QLabel { font-size: 13pt; }");
+	description->setStyleSheet(EWizardStepSubTitle);
 	description->setFixedWidth(480);
+	description->setTextInteractionFlags(Qt::TextBrowserInteraction);
+	description->setTextFormat(Qt::RichText);
+	description->setOpenExternalLinks(true);
 	hLayout->addStretch();
 	hLayout->addWidget(description);
 	hLayout->addStretch();
@@ -55,17 +73,17 @@ ElgatoUpdateModal::ElgatoUpdateModal(QWidget* parent, std::string version, std::
 	QPushButton* skipButton = new QPushButton(this);
 	skipButton->setText(
 		obs_module_text("UpdateModal.SkipVersionButton"));
-	skipButton->setStyleSheet(EPushButtonCancelStyle);
+	skipButton->setStyleSheet(EWizardQuietButtonStyle);
 
 	QPushButton* laterButton = new QPushButton(this);
 	laterButton->setText(
 		obs_module_text("UpdateModal.LaterButton"));
-	laterButton->setStyleSheet(EPushButtonCancelStyle);
+	laterButton->setStyleSheet(EWizardQuietButtonStyle);
 
 	QPushButton* downloadButton = new QPushButton(this);
 	downloadButton->setText(
 		obs_module_text("UpdateModal.DownloadUpdateButton"));
-	downloadButton->setStyleSheet(EPushButtonStyle);
+	downloadButton->setStyleSheet(EWizardButtonStyle);
 	
 	buttons->addWidget(skipButton);
 	buttons->addStretch();
@@ -87,7 +105,7 @@ ElgatoUpdateModal::ElgatoUpdateModal(QWidget* parent, std::string version, std::
 
 	layout->addStretch();
 	layout->addLayout(buttons);
-	setStyleSheet("background-color: #232323");
+	setStyleSheet("background-color: #151515");
 	layout->setSpacing(16);
 	setLayout(layout);
 

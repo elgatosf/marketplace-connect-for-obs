@@ -327,9 +327,12 @@ QSize VideoPreviewWidget::sizeHint() const
 
 ProgressSpinner::ProgressSpinner(
 	QWidget *parent, int width, int height,
-	int progressWidth, QColor fgColor, QColor bgColor, bool cycle)
+	int progressWidth, QColor fgColor, QColor bgColor, bool cycle, bool showPct)
 : QWidget(parent), _width(width), _height(height), _progressWidth(progressWidth),
-  _fgColor(fgColor), _bgColor(bgColor), _blue(true)
+	  _fgColor(fgColor),
+	  _bgColor(bgColor),
+	  _blue(true),
+	  _showPct(showPct)
 {
 	_minimumValue = 0;
 	_maximumValue = 100;
@@ -409,6 +412,24 @@ void ProgressSpinner::paintEvent(QPaintEvent *e)
 	float remaining = 360.0 - value;
 	paint.drawArc(margin, margin, width, height, 90.0 * 16.0,
 		      remaining * 16.0);
+
+	if (_showPct) {
+		double fontSize = _width / 4.0;
+		paint.setPen(fg); // or choose a custom color
+
+		QFont font = paint.font();
+		font.setPixelSize(fontSize); // <-- set your desired size in pixels
+		font.setBold(true);
+
+		paint.setFont(font);
+
+		QString text = QString::number(int(_value)) + "%";
+
+		// Center inside the whole widget
+		QRect textRect(0, 0, _width, _height);
+
+		paint.drawText(textRect, Qt::AlignCenter, text);
+	}
 
 	paint.end();
 }

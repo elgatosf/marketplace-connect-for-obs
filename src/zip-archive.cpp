@@ -67,6 +67,9 @@ bool ZipArchive::writeArchive(const QString &targetZipPath)
 
     if (!ok) {
         zip_discard(z.get());
+	    if (m_cancelRequested.load(std::memory_order_relaxed)) {
+		    QFile::remove(targetZipPath);
+	    }
         return false;
     }
 
@@ -101,6 +104,11 @@ bool ZipArchive::writePendingToZip(zip_t *zip, qint64 totalBytes)
 		if (!src)
 			return false;
 
+		if (m_cancelRequested.load(std::memory_order_relaxed)) {
+			zip_source_free(src);
+			return false;
+		}
+
 		zip_int64_t idx =
 			zip_file_add(zip, name.toUtf8().constData(), src,
 				     ZIP_FL_OVERWRITE | ZIP_FL_ENC_UTF_8);
@@ -110,18 +118,9 @@ bool ZipArchive::writePendingToZip(zip_t *zip, qint64 totalBytes)
 		}
 
 		overallWritten += entry.size();
-		//if (totalBytes > 0) {
-		//	double overallP =
-		//		double(overallWritten) / double(totalBytes);
-		//	int step = static_cast<int>(floor(overallP * 100.0));
-		//	if (step != writeSteps) {
-		//		writeSteps = step;
-		//		QMetaObject::invokeMethod(
-		//			this, "emitOverallProgress",
-		//			Qt::AutoConnection,
-		//			Q_ARG(double, overallP));
-		//	}
-		//}
+
+		if (m_cancelRequested.load(std::memory_order_relaxed))
+			return false;
 	}
 
 	m_pending.clear();
@@ -164,15 +163,32 @@ zip_source_t* ZipArchive::createProgressingSourceFromFile(const PendingEntry &en
 
     auto callback = [](void *userdata, void *data, zip_uint64_t len, zip_source_cmd_t cmd) -> zip_int64_t {
         Ctx *c = reinterpret_cast<Ctx*>(userdata);
+
+	    // Global cancel check helper
+	    auto isCanceled = [&]() {
+		    return c->owner->m_cancelRequested.load(
+			    std::memory_order_relaxed);
+	    };
+
         switch (cmd) {
         case ZIP_SOURCE_SUPPORTS:
             return ZIP_SOURCE_SUPPORTS_READABLE;
         case ZIP_SOURCE_OPEN:
-            if (!c->file->seek(0)) return -1;
-            return 0;
+			if (isCanceled())
+				return -1; // abort before reading starts
+			if (!c->file->seek(0))
+				return -1;
+			return 0;
         case ZIP_SOURCE_READ: {
+			if (isCanceled())
+				return -1;
+
             qint64 r = c->file->read(reinterpret_cast<char*>(data), (qint64)len);
+			
 			if (r > 0) {
+				if (isCanceled())
+					return -1;
+
                 // emit progress for this file and overall
                 c->reportedForFile += r;
 				double fileP = (c->totalForEntry > 0) ? (double(c->reportedForFile) / double(c->totalForEntry)) : 1.0;
@@ -195,14 +211,17 @@ zip_source_t* ZipArchive::createProgressingSourceFromFile(const PendingEntry &en
         }
         case ZIP_SOURCE_CLOSE:
             return 0;
-        case ZIP_SOURCE_STAT: {
-            zip_stat_t *st = reinterpret_cast<zip_stat_t*>(data);
-            zip_stat_init(st);
-            st->size = c->file->size();
-            st->mtime = QFileInfo(*c->file).lastModified().toSecsSinceEpoch();
-            st->valid = ZIP_STAT_SIZE | ZIP_STAT_MTIME;
-            return 0;
-        }
+        case ZIP_SOURCE_STAT:
+			if (isCanceled())
+				return -1;
+			{
+				zip_stat_t *st = reinterpret_cast<zip_stat_t*>(data);
+				zip_stat_init(st);
+				st->size = c->file->size();
+				st->mtime = QFileInfo(*c->file).lastModified().toSecsSinceEpoch();
+				st->valid = ZIP_STAT_SIZE | ZIP_STAT_MTIME;
+				return 0;
+			}
         case ZIP_SOURCE_ERROR:
             return 0;
         case ZIP_SOURCE_FREE:
@@ -247,17 +266,30 @@ zip_source_t *ZipArchive::createProgressingSourceFromMemory(
 	auto callback = [](void *userdata, void *data, zip_uint64_t len,
 			   zip_source_cmd_t cmd) -> zip_int64_t {
 		Ctx *c = reinterpret_cast<Ctx *>(userdata);
+
+		auto isCanceled = [&]() {
+			return c->owner->m_cancelRequested.load(std::memory_order_relaxed);
+		};
+
 		switch (cmd) {
 		case ZIP_SOURCE_SUPPORTS:
 			return ZIP_SOURCE_SUPPORTS_READABLE;
 		case ZIP_SOURCE_OPEN:
+			if (isCanceled())
+				return -1;
 			if (!c->buffer->seek(0))
 				return -1;
 			return 0;
 		case ZIP_SOURCE_READ: {
+			if (isCanceled())
+				return -1;
+
 			qint64 r = c->buffer->read(
 				reinterpret_cast<char *>(data), (qint64)len);
 			if (r > 0) {
+				if (isCanceled())
+					return -1;
+
 				c->reportedForFile += r;
 				double fileP =
 					(c->totalForEntry > 0)
@@ -269,30 +301,22 @@ zip_source_t *ZipArchive::createProgressingSourceFromMemory(
 					Qt::AutoConnection,
 					Q_ARG(QString, c->name),
 					Q_ARG(double, fileP));
-
-				//if (c->overallTotal > 0) {
-				//	double overallP =
-				//		double(c->overallOffset +
-				//		       c->reportedForFile) /
-				//		double(c->overallTotal);
-				//	QMetaObject::invokeMethod(
-				//		c->owner, "emitOverallProgress",
-				//		Qt::AutoConnection,
-				//		Q_ARG(double, overallP));
-				//}
 			}
 			return r >= 0 ? r : -1;
 		}
 		case ZIP_SOURCE_CLOSE:
 			return 0;
-		case ZIP_SOURCE_STAT: {
-			zip_stat_t *st = reinterpret_cast<zip_stat_t *>(data);
-			zip_stat_init(st);
-			st->size = c->totalForEntry;
-			st->mtime = QDateTime::currentSecsSinceEpoch();
-			st->valid = ZIP_STAT_SIZE | ZIP_STAT_MTIME;
-			return 0;
-		}
+		case ZIP_SOURCE_STAT: 
+		    if (isCanceled())
+				return -1;
+			{
+				zip_stat_t *st = reinterpret_cast<zip_stat_t *>(data);
+				zip_stat_init(st);
+				st->size = c->totalForEntry;
+				st->mtime = QDateTime::currentSecsSinceEpoch();
+				st->valid = ZIP_STAT_SIZE | ZIP_STAT_MTIME;
+				return 0;
+			}
 		case ZIP_SOURCE_ERROR:
 			return 0;
 		case ZIP_SOURCE_FREE:

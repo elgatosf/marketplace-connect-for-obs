@@ -138,6 +138,22 @@ private:
 	std::map<std::string, std::pair<bool, std::string>> _pluginStatus;
 };
 
+// --- Row-level focus watcher ---
+class RowFocusWatcher : public QObject {
+	Q_OBJECT
+public:
+	std::function<void()> onRowFocusLost;
+	explicit RowFocusWatcher(QWidget *rowWidget, QObject *parent = nullptr);
+
+protected:
+	bool eventFilter(QObject *obj, QEvent *event) override;
+
+private:
+	bool anyChildHasFocus() const;
+
+	QWidget *m_row;
+};
+
 class ThirdPartyRequirements : public QWidget {
 	Q_OBJECT
 public:
@@ -158,15 +174,22 @@ private:
 		QLineEdit* titleEdit;
 		QLineEdit* urlEdit;
 		QPushButton* deleteButton;
+		QLabel *errorLabel;
 	};
 
 	QVBoxLayout* _formLayout;
 	QVector<InputRow> _inputRows;
+	QPushButton *_continueButton = nullptr;
+	QLabel *_errorLabel = nullptr;
 
 	void addInputRow();
 	void removeInputRow(QWidget* rowWidget);
 	bool isLastRow(const InputRow& row) const;
 	bool isRowFilled(const InputRow& row) const;
+	void validateRowForUserFeedback(const InputRow &row);
+	void updateDeleteButtonStates();
+
+	void validate();
 };
 
 class Version : public QWidget {
@@ -256,6 +279,7 @@ public:
 
 	void emitOverallProgress(double progress);
 	void emitFileProgress(const QString &filename, double progress);
+	void emitCancelOperation();
 
 public slots:
 	void SetupUI();
@@ -263,6 +287,10 @@ public slots:
 signals:
 	void overallProgress(double progress);
 	void fileProgress(const QString &filename, double progress);
+	void cancelOperation();
+
+protected:
+	void closeEvent(QCloseEvent *event) override;
 
 private:
 	QStackedWidget *_steps;

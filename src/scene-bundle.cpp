@@ -609,46 +609,46 @@ bool SceneBundle::_createSceneCollection(std::string collection_name)
 	_waiting = true;
 
 	// 8. Add a callback for scene collection change
-	obs_frontend_add_event_callback(SceneBundle::SceneCollectionChanged,
-		this);
+obs_frontend_add_event_callback(SceneBundle::SceneCollectionChanged,
+	this);
 
-	// 9. Switch back to old scene collection so we can manually write the new
-	//    collection json file
-	obs_frontend_set_current_scene_collection(current_collection);
+// 9. Switch back to old scene collection so we can manually write the new
+//    collection json file
+obs_frontend_set_current_scene_collection(current_collection);
 
-	// 10. Wait until _wating is set to false
-	while (_waiting)
-		; // do nothing
+// 10. Wait until _wating is set to false
+while (_waiting)
+; // do nothing
 
-	// 11. Replace newCollectionFileName with imported json data
-	obs_data_t* data =
-		obs_data_create_from_json(_collection.dump().c_str());
-	bool success = obs_data_save_json_safe(
-		data, newCollectionFileName.c_str(), "tmp", "bak");
-	obs_data_release(data);
+// 11. Replace newCollectionFileName with imported json data
+obs_data_t* data =
+obs_data_create_from_json(_collection.dump().c_str());
+bool success = obs_data_save_json_safe(
+	data, newCollectionFileName.c_str(), "tmp", "bak");
+obs_data_release(data);
 
-	bfree(current_collection);
+bfree(current_collection);
 
-	if (!success) {
-		obs_log(LOG_ERROR, "Unable to create scene collection.");
-		obs_frontend_remove_event_callback(SceneBundle::SceneCollectionChanged,
-			this);
-		return false;
-	}
-
-	_waiting = true;
-
-	// 12. Load in the new scene collection with the new data.
-	obs_frontend_set_current_scene_collection(newCollectionName.c_str());
-
-	while (_waiting)
-		;
-
-	// 13. Remove the callback
+if (!success) {
+	obs_log(LOG_ERROR, "Unable to create scene collection.");
 	obs_frontend_remove_event_callback(SceneBundle::SceneCollectionChanged,
 		this);
+	return false;
+}
 
-	return true;
+_waiting = true;
+
+// 12. Load in the new scene collection with the new data.
+obs_frontend_set_current_scene_collection(newCollectionName.c_str());
+
+while (_waiting)
+;
+
+// 13. Remove the callback
+obs_frontend_remove_event_callback(SceneBundle::SceneCollectionChanged,
+	this);
+
+return true;
 }
 
 void SceneBundle::_backupCurrentCollection()
@@ -701,11 +701,18 @@ SceneBundleStatus SceneBundle::ToElgatoCloudFile(
 	std::map<std::string, std::string> videoDeviceDescriptions,
 	std::vector<SdaFileInfo> sdaFiles,
 	std::vector<SdaFileInfo> sdProfileFiles, std::string version,
-	void *data)
+	void* data)
 {
 	_interrupt = false;
 	ZipArchive ecFile;
-	auto wizard = static_cast<elgatocloud::StreamPackageExportWizard *>(data);
+	bool canceled = false;
+	auto wizard = static_cast<elgatocloud::StreamPackageExportWizard*>(data);
+
+	auto cancelCallback = connect(wizard, &elgatocloud::StreamPackageExportWizard::cancelOperation,
+		this, [this, &ecFile, &canceled]() {
+			ecFile.cancelOperation();
+			canceled = true;
+		});
 
 	connect(&ecFile, &ZipArchive::overallProgress, this,
 		[this, wizard](double progress) {
@@ -879,7 +886,9 @@ SceneBundleStatus SceneBundle::ToElgatoCloudFile(
 
 	ecFile.writeArchive(file_path.c_str());
 
-	return SceneBundleStatus::Success;
+	disconnect(cancelCallback);
+
+	return canceled ? SceneBundleStatus::Cancelled : SceneBundleStatus::Success;
 }
 
 std::vector<std::string> SceneBundle::FileList()

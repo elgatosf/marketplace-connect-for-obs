@@ -842,6 +842,41 @@ RequiredPlugins::RequiredPlugins(std::string name,
 	layout->addLayout(buttons);
 }
 
+RowFocusWatcher::RowFocusWatcher(QWidget *rowWidget, QObject *parent)
+	: QObject(parent),
+		m_row(rowWidget)
+{
+	// Watch all child widgets of this row
+	for (auto child : m_row->findChildren<QWidget *>()) {
+		child->installEventFilter(this);
+	}
+}
+
+bool RowFocusWatcher::eventFilter(QObject *obj, QEvent *event)
+{
+	if (event->type() == QEvent::FocusOut) {
+		// Delay until next event loop to check if any child still has focus
+		QTimer::singleShot(0, [this]() {
+			if (!anyChildHasFocus()) {
+				if (onRowFocusLost)
+					onRowFocusLost();
+			}
+		});
+	}
+	return QObject::eventFilter(obj, event);
+}
+
+bool RowFocusWatcher::anyChildHasFocus() const
+{
+	for (auto child : m_row->findChildren<QWidget *>()) {
+		if (child->hasFocus())
+			return true;
+	}
+	return false;
+}
+
+
+
 ThirdPartyRequirements::ThirdPartyRequirements(std::string name, QWidget* parent)
 	: QWidget(parent)
 {
@@ -868,6 +903,7 @@ ThirdPartyRequirements::ThirdPartyRequirements(std::string name, QWidget* parent
 	_formLayout->setAlignment(Qt::AlignTop);
 	_formLayout->addWidget(title);
 	_formLayout->addWidget(subTitle);
+
 	_formLayout->addStretch();
 	addInputRow();
 
@@ -879,49 +915,114 @@ ThirdPartyRequirements::ThirdPartyRequirements(std::string name, QWidget* parent
 	connect(backButton, &QPushButton::released, this,
 		[this]() { emit backPressed(); });
 
-	auto continueButton = new QPushButton(this);
-	continueButton->setText(
+	_continueButton = new QPushButton(this);
+	_continueButton->setText(
 		obs_module_text("ExportWizard.NextButton"));
-	continueButton->setStyleSheet(EWizardButtonStyle);
+	_continueButton->setStyleSheet(EWizardButtonStyle);
 
-	connect(continueButton, &QPushButton::released, this,
+	connect(_continueButton, &QPushButton::released, this,
 		[this]() { emit continuePressed(); });
 	buttons->addStretch();
 	buttons->addWidget(backButton);
-	buttons->addWidget(continueButton);
+	buttons->addWidget(_continueButton);
 
 	main->addWidget(sideBar);
 	main->addLayout(_formLayout);
 	layout->addLayout(main);
 	layout->addLayout(buttons);
+
+	validate();
 }
 
 void ThirdPartyRequirements::addInputRow()
 {
-	QWidget* rowWidget = new QWidget(this);
-	QHBoxLayout* rowLayout = new QHBoxLayout(rowWidget);
 
-	QLineEdit* titleEdit = new QLineEdit;
-	QLineEdit* urlEdit = new QLineEdit;
-	QPushButton* deleteButton = new QPushButton("Delete");
+	QWidget *rowWidget = new QWidget(this);
+	QVBoxLayout *rowLayout = new QVBoxLayout(rowWidget);
+	QHBoxLayout *inputLayout = new QHBoxLayout();
+
+	QLineEdit *titleEdit = new QLineEdit;
+	QLineEdit *urlEdit = new QLineEdit;
+	QPushButton *deleteButton = new QPushButton("Delete");
 
 	titleEdit->setPlaceholderText("Title");
 	urlEdit->setPlaceholderText("URL");
 
-	rowLayout->addWidget(titleEdit);
-	rowLayout->addWidget(urlEdit);
-	rowLayout->addWidget(deleteButton);
+	inputLayout->addWidget(titleEdit);
+	inputLayout->addWidget(urlEdit);
+	inputLayout->addWidget(deleteButton);
+
+	rowLayout->addLayout(inputLayout);
+
+	// --- Inline error label ---
+	QLabel *errorLabel = new QLabel(rowWidget);
+	errorLabel->setStyleSheet("color: #ff5555; font-size: 12px;");
+	errorLabel->setWordWrap(true);
+	errorLabel->hide(); // hidden until needed
+	rowLayout->addWidget(errorLabel);
 
 	rowWidget->setLayout(rowLayout);
 	_formLayout->insertWidget(_formLayout->count() - 1, rowWidget);
-	//_formLayout->addWidget(rowWidget);
 
-	InputRow row = { rowWidget, titleEdit, urlEdit, deleteButton };
+	InputRow row = {rowWidget, titleEdit, urlEdit, deleteButton,
+			errorLabel};
 	_inputRows.append(row);
+	updateDeleteButtonStates();
 
-	connect(titleEdit, &QLineEdit::textChanged, this, &ThirdPartyRequirements::onTextChanged);
-	connect(urlEdit, &QLineEdit::textChanged, this, &ThirdPartyRequirements::onTextChanged);
-	connect(deleteButton, &QPushButton::clicked, this, &ThirdPartyRequirements::onDeleteClicked);
+	// Live Continue button updates
+	connect(titleEdit, &QLineEdit::textChanged, this,
+		&ThirdPartyRequirements::onTextChanged);
+	connect(urlEdit, &QLineEdit::textChanged, this,
+		&ThirdPartyRequirements::onTextChanged);
+	connect(deleteButton, &QPushButton::clicked, this,
+		&ThirdPartyRequirements::onDeleteClicked);
+
+	// Row-level focus watcher
+	auto watcher = new RowFocusWatcher(rowWidget, rowWidget);
+	watcher->onRowFocusLost = [this, row]() {
+		validateRowForUserFeedback(row);
+	};
+}
+
+void ThirdPartyRequirements::validateRowForUserFeedback(const InputRow &row)
+{
+	QString title = row.titleEdit->text().trimmed();
+	QString url = row.urlEdit->text().trimmed();
+
+	bool titleEmpty = title.isEmpty();
+	bool urlEmpty = url.isEmpty();
+
+	bool invalid = false;
+
+	if (titleEmpty && urlEmpty) {
+		row.errorLabel->hide();
+	} else if (titleEmpty != urlEmpty) {
+		row.errorLabel->setText("Both Title and URL are required.");
+		row.errorLabel->show();
+		invalid = true;
+	} else if (!isValidHttpUrl(url)) {
+		row.errorLabel->setText("URL must begin with https:// or http://.");
+		row.errorLabel->show();
+		invalid = true;
+	} else {
+		row.errorLabel->hide();
+	}
+	// Highlight text inputs only
+	if (invalid) {
+		row.titleEdit->setStyleSheet("border: 1px solid red;");
+		row.urlEdit->setStyleSheet("border: 1px solid red;");
+	} else {
+		row.titleEdit->setStyleSheet("");
+		row.urlEdit->setStyleSheet("");
+	}
+
+}
+
+void ThirdPartyRequirements::updateDeleteButtonStates()
+{
+	for (auto& row : _inputRows) {
+		row.deleteButton->setEnabled(!isLastRow(row));
+	}
 }
 
 bool ThirdPartyRequirements::isLastRow(const InputRow& row) const
@@ -956,11 +1057,14 @@ void ThirdPartyRequirements::onTextChanged()
 	if (_inputRows.isEmpty())
 		return;
 
-	const InputRow& last = _inputRows.last();
-
-	if (isRowFilled(last)) {
+	// If last row is fully filled add a new empty row
+	const InputRow &last = _inputRows.last();
+	if (!last.titleEdit->text().trimmed().isEmpty() &&
+	    !last.urlEdit->text().trimmed().isEmpty()) {
 		addInputRow();
 	}
+
+	validate(); // live update Continue button
 }
 
 std::vector<std::pair<std::string, std::string>> ThirdPartyRequirements::getRequirements() const
@@ -986,16 +1090,59 @@ static bool isValidHttpUrl(const QString& urlStr) {
 
 void ThirdPartyRequirements::onDeleteClicked()
 {
-	QPushButton* senderButton = qobject_cast<QPushButton*>(sender());
+	QPushButton *senderButton = qobject_cast<QPushButton *>(sender());
 	if (!senderButton)
 		return;
 
 	for (int i = 0; i < _inputRows.size(); ++i) {
 		if (_inputRows[i].deleteButton == senderButton) {
-			removeInputRow(_inputRows[i].rowWidget);
+			_formLayout->removeWidget(_inputRows[i].rowWidget);
+			_inputRows[i].rowWidget->deleteLater();
+			_inputRows.removeAt(i);
 			break;
 		}
 	}
+
+	// Ensure at least one empty row exists
+	if (_inputRows.isEmpty() ||
+	    (!_inputRows.last().titleEdit->text().trimmed().isEmpty() &&
+	     !_inputRows.last().urlEdit->text().trimmed().isEmpty())) {
+		addInputRow();
+	}
+	updateDeleteButtonStates();
+	validate(); // update Continue button after deletion
+}
+
+void ThirdPartyRequirements::validate()
+{
+
+	bool allValid = true;
+
+	for (const auto &row : _inputRows) {
+		QString title = row.titleEdit->text().trimmed();
+		QString url = row.urlEdit->text().trimmed();
+
+		bool titleEmpty = title.isEmpty();
+		bool urlEmpty = url.isEmpty();
+
+		// Fully empty row: OK
+		if (titleEmpty && urlEmpty)
+			continue;
+
+		// Partially filled: invalid
+		if (titleEmpty != urlEmpty) {
+			allValid = false;
+			break;
+		}
+
+		// Fully filled: check URL
+		if (!isValidHttpUrl(url)) {
+			allValid = false;
+			break;
+		}
+	}
+
+	_continueButton->setEnabled(allValid);
 }
 
 Version::Version(std::string name, QWidget *parent) : QWidget(parent)
@@ -1243,9 +1390,9 @@ Exporting::Exporting(std::string name, QWidget *parent) : QWidget(parent)
 	layout->addWidget(spacerTop);
 
 	spinner_ = new ProgressSpinner(
-		this, 124, 124, 8, QColor(32, 76, 254), QColor(200, 200, 200), false);
-	spinner_->setFixedHeight(124);
-	spinner_->setFixedWidth(124);
+		this, 64, 64, 2, QColor(200, 200, 200), QColor(30, 30, 30), false, true);
+	spinner_->setFixedHeight(64);
+	spinner_->setFixedWidth(64);
 	auto spinnerLayout = new QHBoxLayout(this);
 	spinnerLayout->addStretch();
 	spinnerLayout->addWidget(spinner_);
@@ -1255,18 +1402,32 @@ Exporting::Exporting(std::string name, QWidget *parent) : QWidget(parent)
 	auto title = new QLabel(this);
 	title->setText(
 		obs_module_text("ExportWizard.Exporting.Title"));
-	title->setStyleSheet(ETitleStyle);
+	title->setStyleSheet(EWizardStepTitle);
 	title->setAlignment(Qt::AlignCenter);
 	layout->addWidget(title);
 
 	subTitle_ = new QLabel(this);
 	subTitle_->setText(
 		obs_module_text("ExportWizard.Exporting.Text"));
-	subTitle_->setStyleSheet(
-		"QLabel{ font-size: 11pt; font-style: italic; }");
+	subTitle_->setStyleSheet(EWizardStepSubTitle);
 	subTitle_->setAlignment(Qt::AlignCenter);
 	subTitle_->setWordWrap(true);
 	layout->addWidget(subTitle_);
+
+	auto cancelLayout = new QHBoxLayout(this);
+	auto cancelButton = new QPushButton(this);
+	cancelButton->setText(obs_module_text("ExportWizard.CancelButton"));
+	cancelButton->setStyleSheet(EWizardQuietButtonStyle);
+	connect(cancelButton, &QPushButton::released, this, [this, parent]() {
+		auto wizard = static_cast<StreamPackageExportWizard *>(parent);
+		if (wizard) {
+			wizard->emitCancelOperation();
+		}
+	});
+	cancelLayout->addStretch();
+	cancelLayout->addWidget(cancelButton);
+	cancelLayout->addStretch();
+	layout->addLayout(cancelLayout);
 
 	auto spacerBottom = new QWidget(this);
 	spacerBottom->setSizePolicy(QSizePolicy::Preferred,
@@ -1299,6 +1460,12 @@ StreamPackageExportWizard::StreamPackageExportWizard(QWidget *parent)
 	// Since scene collection save is threaded as a Queued connection
 	// queue the SetupUI to execute *after* the frontend is completely saved.
 	QMetaObject::invokeMethod(this, "SetupUI", Qt::QueuedConnection);
+}
+
+void StreamPackageExportWizard::closeEvent(QCloseEvent* event)
+{
+	emitCancelOperation();
+	QDialog::closeEvent(event);
 }
 
 void StreamPackageExportWizard::SetupUI()
@@ -1481,6 +1648,10 @@ void StreamPackageExportWizard::emitFileProgress(const QString& filename,
 	double progress)
 {
 	emit fileProgress(filename, progress);
+}
+
+void StreamPackageExportWizard::emitCancelOperation() {
+	emit cancelOperation();
 }
 
 
