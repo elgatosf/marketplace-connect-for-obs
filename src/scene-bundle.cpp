@@ -247,8 +247,11 @@ bool SceneBundle::MergeCollection(std::string collection_name,
 			}
 
 			// TODO: Mac Compatibility
-			if (source["id"] == "dshow_input") {
-				std::string vdi = source["settings"]["video_device_id"];
+			if (source["id"] == "dshow_input" &&
+			    source.contains("settings") &&
+			    source["settings"].contains("video_device_id")) {
+				std::string vdi =
+					source["settings"]["video_device_id"];
 				cVideoCaptureSources[vdi] = source;
 			}
 		}
