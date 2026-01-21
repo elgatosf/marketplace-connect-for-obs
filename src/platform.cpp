@@ -25,7 +25,6 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <plugin-support.h>
 #include <util/platform.h>
 #include <nlohmann/json.hpp>
-#include <unistd.h>
 
 #ifdef WIN32
 #include <shlobj_core.h>
@@ -33,6 +32,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <windows.h>
 #include <io.h>
 #elif __APPLE__
+#include <unistd.h>
 #include <sys/stat.h>
 #include <CoreFoundation/CoreFoundation.h>
 #include <ApplicationServices/ApplicationServices.h>

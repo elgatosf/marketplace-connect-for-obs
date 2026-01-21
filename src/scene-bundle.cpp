@@ -583,7 +583,7 @@ bool SceneBundle::ToCollection(std::string collection_name,
 #ifdef WIN32
 	if (_collection.contains("sources")) {
 		for (auto& source : _collection["sources"]) {
-			if(source.contains(versionIdKey) && source[versionIdKey] != "") {
+			if(source.contains(versionedIdKey) && source[versionedIdKey] != "") {
 				continue;
 			}
 			std::string id = source[idKey];
