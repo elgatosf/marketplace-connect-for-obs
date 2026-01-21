@@ -95,6 +95,8 @@ void ElgatoCloud::FrontEndEventHandler(enum obs_frontend_event event, void* data
 				});
 		}
 		break;
+	default:
+		break;
 	}
 }
 
@@ -416,7 +418,11 @@ void ElgatoCloud::StartLogin()
 	std::string url = api->getAuthUrl(authEndpointSegments, queryParams);
 
 	authorizing = true;
+#ifdef WIN32
 	ShellExecuteA(NULL, NULL, url.c_str(), NULL, NULL, SW_SHOW);
+#elif __APPLE__
+	// TODO: Implement Apple Login
+#endif
 }
 
 void ElgatoCloud::LogOut()

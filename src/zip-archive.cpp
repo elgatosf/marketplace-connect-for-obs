@@ -80,7 +80,7 @@ bool ZipArchive::writePendingToZip(zip_t *zip, qint64 totalBytes)
 {
 	qint64 overallWritten = 0;
 	const qint64 totalEntries = m_pending.size();
-	int writeSteps = 0;
+	//int writeSteps = 0;
 
 	for (qint64 i = 0; i < totalEntries; ++i) {
 		if (m_cancelRequested.load(std::memory_order_relaxed))

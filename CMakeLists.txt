@@ -22,8 +22,8 @@ if(ENABLE_FRONTEND_API)
 endif()
 
 if(ENABLE_QT)
-  find_qt(COMPONENTS Widgets Core Concurrent Svg)
-  target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE Qt::Core Qt::Widgets Qt::Concurrent Qt::Svg)
+  find_qt(COMPONENTS Widgets Core Svg)
+  target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE Qt::Core Qt::Widgets Qt::Svg)
   target_compile_options(
     ${CMAKE_PROJECT_NAME} PRIVATE $<$<C_COMPILER_ID:Clang,AppleClang>:-Wno-quoted-include-in-framework-header
                                   -Wno-comma>)
@@ -56,6 +56,12 @@ add_subdirectory(deps/libzip)
 
 if(MSVC AND TARGET zip)
     target_compile_options(zip PRIVATE /wd4244)
+elseif(OS_MACOS AND TARGET zip)
+    target_compile_options(zip PRIVATE
+        -Wno-unused-parameter
+        -Wno-unreachable-code
+        -Wno-newline-eof
+        -Wno-ambiguous-macro)
 endif()
 
 # Add libzip include directory
@@ -115,7 +121,13 @@ target_sources(
           src/elgato-widgets.cpp
           src/elgato-widgets.hpp)
 
-add_executable(${CMAKE_PROJECT_NAME}-loader loader/main.cpp)
-install(TARGETS ${CMAKE_PROJECT_NAME}-loader RUNTIME DESTINATION helper-app)
+if(OS_WINDOWS)
+  add_executable(${CMAKE_PROJECT_NAME}-loader loader/main.cpp)
+  install(TARGETS ${CMAKE_PROJECT_NAME}-loader RUNTIME DESTINATION helper-app)
+elseif(OS_MACOS)
+
+else()
+
+endif()
 
 set_target_properties_plugin(${CMAKE_PROJECT_NAME} PROPERTIES OUTPUT_NAME ${_name})

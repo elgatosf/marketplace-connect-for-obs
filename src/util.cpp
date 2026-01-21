@@ -42,10 +42,12 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include "util.h"
 #include "api.hpp"
 
+#ifdef WIN32
 #pragma comment(lib, "crypt32.lib")
 #include <Windows.h>
 #include <Wincrypt.h>
 #define MY_ENCODING_TYPE  (PKCS_7_ASN_ENCODING | X509_ASN_ENCODING)
+#endif
 
 obs_data_t *get_module_config()
 {
@@ -65,6 +67,7 @@ obs_data_t *get_module_config()
 	obs_data_set_default_int(config, "AccessTokenExpiration", 0);
 	obs_data_set_default_int(config, "RefreshTokenExpiration", 0);
 
+	// TODO: Default scene collections path for MacOS
 	std::string path = QDir::homePath().toStdString();
 	path += "/AppData/Local/Elgato/MarketplaceConnect/SceneCollections";
 	os_mkdirs(path.c_str());
@@ -138,12 +141,15 @@ std::string get_current_scene_collection_filename()
 	} else { // get the filename from user.ini
 		// in 31+ the filename stored in user.ini *does* have a filetype
 		// suffix.
-		void *obs_frontend_dll = os_dlopen("obs-frontend-api.dll");
-		void *sym = os_dlsym(obs_frontend_dll,
-				     "obs_frontend_get_user_config");
+#ifdef WIN32
+		void *obs_frontend_handle = os_dlopen("obs-frontend-api");
+#elif __APPLE__
+		void *obs_frontend_handle = os_dlopen("obs-frontend-api.dylib");
+#endif
+		void *sym = os_dlsym(obs_frontend_handle, "obs_frontend_get_user_config");
 		config_t *(*get_user_config)() = (config_t * (*)()) sym;
 		config_t *user_config = get_user_config();
-		os_dlclose(obs_frontend_dll);
+		os_dlclose(obs_frontend_handle);
 		filename = config_get_string(user_config, "Basic",
 					     "SceneCollectionFile");
 	}
@@ -571,6 +577,7 @@ std::string releaseType()
 	return rt == "release" ? "" : " " + rt;
 }
 
+#ifdef WIN32
 std::string binaryToString(const BYTE* binaryData, DWORD dataLen, DWORD flags = CRYPT_STRING_BASE64) {
 	DWORD stringLen = 0;
 	// Get the required string length, not including the null terminator.
@@ -679,8 +686,31 @@ std::string decryptString(std::string input)
 	} else {
 		obs_log(LOG_ERROR, "Could not decrypt string.");
 	}
+
 	return decrypted;
 }
+#elif __APPLE__
+
+// TODO: Provide functions to encrypt/decrypt strings on apple
+//       using keychain.
+
+// Encrypts a string, and returns string of encrypted binary data
+// as a formatted BASE 64 encoded string.
+std::string encryptString(std::string input)
+{
+	return input;
+}
+
+// Decrypts a formatted base64 encoded string.  First
+// converts string to binary blob, then uses windows
+// cryto API to decrypt the binary blob into a usable
+// string
+std::string decryptString(std::string input)
+{
+	return input;
+}
+
+#endif
 
 std::string getImagesPath()
 {
@@ -690,9 +720,11 @@ std::string getImagesPath()
 	return path;
 }
 
-
+// TODO: Update functions to see if a protocol is handled and the version
+//       of streamdeck installed on MacOS
 bool isProtocolHandlerRegistered(const std::wstring &protocol)
 {
+	#ifdef WIN32
 	HKEY hKey;
 	std::wstring keyPath = protocol; // e.g. L"streamdeck"
 
@@ -711,12 +743,17 @@ bool isProtocolHandlerRegistered(const std::wstring &protocol)
 	RegCloseKey(hKey);
 
 	return (result == ERROR_SUCCESS && type == REG_SZ);
+	#elif __APPLE__
+		UNUSED_PARAMETER(protocol);
+		return false;
+	#endif
 }
 
 StreamDeckInfo getStreamDeckInfo()
 {
 	StreamDeckInfo info{false, ""};
 
+	#ifdef WIN32
 	HKEY hKey;
 	const std::string uninstallPath =
 		"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall";
@@ -784,6 +821,9 @@ StreamDeckInfo getStreamDeckInfo()
 	}
 
 	RegCloseKey(hKey);
+	#elif __APPLE__
+
+	#endif
 	return info; // not installed
 }
 

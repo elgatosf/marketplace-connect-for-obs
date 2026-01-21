@@ -307,8 +307,8 @@ void SdaListWidget::addSdaFile(const QString &filePath)
 
 	auto *item = new QListWidgetItem(listWidget);
 	auto *widget = new SdaListItemWidget(state.value());
-	auto size = widget->size();
-	auto sizeHint = widget->sizeHint();
+	//auto size = widget->size();
+	//auto sizeHint = widget->sizeHint();
 	item->setSizeHint(widget->sizeHint());
 
 	listWidget->setItemWidget(item, widget);
@@ -1170,7 +1170,7 @@ void SdaGridWidget::mouseMoveEvent(QMouseEvent *event)
 void SdaGridWidget::mouseDoubleClickEvent(QMouseEvent* event)
 {
 	if (event->button() == Qt::LeftButton) {
-		QPoint pos = event->pos();
+		//QPoint pos = event->pos();
 		int idx = indexAtPos(dragStartPos_);
 		if (idx < 0 || idx >= static_cast<int>(states_.size())) {
 			QWidget::mouseDoubleClickEvent(event);
@@ -1201,7 +1201,7 @@ bool SdaGridWidget::event(QEvent *e)
 		QPoint pos = helpEvent->pos();
 		int idx = indexAtPos(pos);
 		if (idx >= 0 && idx < static_cast<int>(states_.size())) {
-			const auto &state = states_[idx].state;
+			//const auto &state = states_[idx].state;
 			QString label = states_[idx].label.c_str();
 			newToolTip = label;
 		}

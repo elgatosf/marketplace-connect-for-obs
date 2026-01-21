@@ -57,7 +57,9 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <QDrag>
 #include <QDesktopServices>
 
+#ifdef WIN32
 #include <Windows.h>
+#endif
 
 #include <plugin-support.h>
 
@@ -85,6 +87,7 @@ void Avatar::update()
 
 void Avatar::paintEvent(QPaintEvent *e)
 {
+	UNUSED_PARAMETER(e);
 	QPainter paint;
 	paint.begin(this);
 	paint.setRenderHint(QPainter::Antialiasing);
@@ -368,7 +371,6 @@ void WindowToolBar::disableLogout(bool disabled)
 
 void WindowToolBar::updateState()
 {
-	auto api = MarketplaceApi::getInstance();
 	_userMenu->setHidden(!elgatoCloud->loggedIn);
 }
 
@@ -914,6 +916,8 @@ void ProgressThumbnail::setDownloading(bool downloading)
 
 void ProgressThumbnail::paintEvent(QPaintEvent* event)
 {
+	UNUSED_PARAMETER(event);
+
 	if (_pixmap.isNull()) return;
 
 	QPainter painter(this);
@@ -960,6 +964,7 @@ void ProgressThumbnail::paintEvent(QPaintEvent* event)
 
 void ProgressThumbnail::onHoverEnter(QHoverEvent* event)
 {
+	UNUSED_PARAMETER(event);
 	if (_hoverDisabled) {
 		return;
 	}
@@ -969,6 +974,7 @@ void ProgressThumbnail::onHoverEnter(QHoverEvent* event)
 
 void ProgressThumbnail::onHoverLeave(QHoverEvent* event)
 {
+	UNUSED_PARAMETER(event);
 	if (_hoverDisabled) {
 		return;
 	}
@@ -1684,6 +1690,7 @@ extern void CheckForUpdates(bool forceCheck)
 extern void CheckForUpdatesOnLaunch(enum obs_frontend_event event,
 				    void *private_data)
 {
+	UNUSED_PARAMETER(private_data);
 	if (event == OBS_FRONTEND_EVENT_FINISHED_LOADING) {
 		obs_frontend_remove_event_callback(CheckForUpdatesOnLaunch,
 						   nullptr);

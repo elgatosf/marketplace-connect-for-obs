@@ -217,7 +217,7 @@ class SdaGridWidget : public QWidget {
 public:
 	explicit SdaGridWidget(bool disabled, QWidget *parent = nullptr);
 	void setStates(std::vector<SDFileDetails> const &sdaFiles);
-	int heightForWidth(int width) const;
+	int heightForWidth(int width) const override;
 
 	QSize sizeHint() const override;
 	QSize minimumSizeHint() const override;

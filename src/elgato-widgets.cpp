@@ -133,14 +133,20 @@ VideoCaptureSourceSelector::~VideoCaptureSourceSelector()
 
 void VideoCaptureSourceSelector::_setupTempSource(obs_data_t *videoData)
 {
+#ifdef WIN32
 	const char *videoSourceId = "dshow_input";
+	const char* vd_id = "video_device_id";
+#elif __APPLE__
+	const char *videoSourceId = "av_capture_input";
+	const char* vd_id = "device";
+#endif	
 	const char *vId = obs_get_latest_input_type_id(videoSourceId);
 	_videoCaptureSource = obs_source_create_private(
 		vId, "elgato-cloud-video-config", videoData);
 
 	obs_properties_t *vProps = obs_source_properties(_videoCaptureSource);
 	obs_property_t *vDevices =
-		obs_properties_get(vProps, "video_device_id");
+		obs_properties_get(vProps, vd_id);
 	_videoSources->addItem("None");
 	_videoSourceIds.push_back("NONE");
 	for (size_t i = 0; i < obs_property_list_item_count(vDevices); i++) {
@@ -152,7 +158,7 @@ void VideoCaptureSourceSelector::_setupTempSource(obs_data_t *videoData)
 	obs_properties_destroy(vProps);
 
 	obs_data_t *vSettings = obs_source_get_settings(_videoCaptureSource);
-	std::string vDevice = obs_data_get_string(vSettings, "video_device_id");
+	std::string vDevice = obs_data_get_string(vSettings, vd_id);
 	if (vDevice != "") {
 		auto it = std::find(_videoSourceIds.begin(),
 				    _videoSourceIds.end(), vDevice);
@@ -175,6 +181,7 @@ void VideoCaptureSourceSelector::_setupTempSource(obs_data_t *videoData)
 
 void VideoCaptureSourceSelector::resizeEvent(QResizeEvent* event)
 {
+	UNUSED_PARAMETER(event);
 	int newWidth = width();
 	int newHeight = static_cast<int>(newWidth * 9.0 / 16.0);
 	_stack->setFixedSize(QSize(newWidth, newHeight));
@@ -379,6 +386,7 @@ void ProgressSpinner::setValueGrey(double value)
 
 void ProgressSpinner::paintEvent(QPaintEvent *e)
 {
+	UNUSED_PARAMETER(e);
 	int margin = _progressWidth / 2;
 
 	int width = _width - _progressWidth;
@@ -438,6 +446,9 @@ SpinnerPanel::SpinnerPanel(QWidget *parent, std::string title,
 			   std::string subTitle, bool background)
 	: QWidget(parent)
 {
+	UNUSED_PARAMETER(title);
+	UNUSED_PARAMETER(subTitle);
+	UNUSED_PARAMETER(background);
 	QVBoxLayout *vLayout = new QVBoxLayout();
 	QHBoxLayout *hLayout = new QHBoxLayout();
 	auto spinner = new ProgressSpinner(this, 124, 124, 8, QColor(32, 76, 254), QColor(200, 200, 200));

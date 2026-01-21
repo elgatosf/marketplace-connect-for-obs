@@ -53,14 +53,17 @@ size_t Downloader::DownloadEntry::write_data(void *ptr, size_t size,
 bool Downloader::DownloadEntry::handleContentDisposition(
 	const std::string &headerData)
 {
-	char header[] = "attachment; filename=";
-	if (sizeof(header) > headerData.size()) {
+	std::string header = "attachment; filename=";
+	if (header.size() > headerData.size()) {
 		return false;
 	}
-	if (strnicmp(header, headerData.c_str(), sizeof(header) - 1) != 0) {
-		return false;
-	}
-	size_t offset = sizeof(header) - 1;
+	for (size_t i = 0; i < header.size(); ++i) {
+        if (std::tolower(static_cast<unsigned char>(headerData[i])) !=
+            std::tolower(static_cast<unsigned char>(header[i]))) {
+            return false;
+        }
+    }
+	size_t offset = header.size() - 1;
 	if (headerData[offset] == '"') {
 		offset += 1;
 	}
@@ -127,6 +130,8 @@ size_t Downloader::DownloadEntry::handle_progress(void *ptr, curl_off_t dltotal,
 {
 	DownloadEntry &self = *static_cast<DownloadEntry *>(ptr);
 	std::unique_lock l(self.lock);
+	UNUSED_PARAMETER(dltotal);
+	UNUSED_PARAMETER(dlnow);
 	UNUSED_PARAMETER(ultotal);
 	UNUSED_PARAMETER(ulnow);
 	//double pct = (int)((double)dlnow / (double)dltotal * 100.0);

@@ -22,6 +22,9 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <string>
 #include <vector>
 
+#include <future>
+#include <atomic>
+
 #include <obs-module.h>
 #include <obs-frontend-api.h>
 #include <util/config-file.h>
@@ -33,7 +36,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <QComboBox>
 #include <QStackedWidget>
 #include <QMovie>
-#include <QTConcurrent>
+//#include <QTConcurrent>
 
 #include <nlohmann/json.hpp>
 
@@ -267,7 +270,9 @@ private:
 	VideoSetup* _vSetupMerge;
 	VideoSetup* _vSetupSubMerge;
 	std::string sdFilesPath_;
-	QFuture<void> _future;
+	//QFuture<void> _future;
+	std::future<void> _future;
+	std::atomic<bool> _canceled{false};
 };
 
 void installStreamPackage(Setup setup, std::string filename, bool deleteOnClose,
