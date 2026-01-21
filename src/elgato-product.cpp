@@ -180,6 +180,7 @@ void ElgatoProduct::DownloadProgress(void *ptr, bool finished, bool downloading,
 
 void ElgatoProduct::SetThumbnail(std::string filename, void *data)
 {
+	UNUSED_PARAMETER(filename);
 	auto ep = static_cast<ElgatoProduct *>(data);
 	ep->_thumbnailReady = true;
 	if (ep->_productItem) {

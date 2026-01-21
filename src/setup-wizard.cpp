@@ -111,6 +111,8 @@ MissingPlugins::MissingPlugins(QWidget *parent, std::string name,
 			       std::vector<PluginDetails> &missing)
 	: QWidget(parent)
 {
+	UNUSED_PARAMETER(name);
+	UNUSED_PARAMETER(thumbnailPath);
 	QVBoxLayout *layout = new QVBoxLayout(this);
 	QLabel *title = new QLabel(this);
 	int count = (int)missing.size();
@@ -176,6 +178,8 @@ MissingPluginItem::MissingPluginItem(QWidget *parent, std::string label,
 MissingSourceClone::MissingSourceClone(std::string name, std::string thumbnailPath, QWidget* parent)
 	: QWidget(parent)
 {
+	UNUSED_PARAMETER(name);
+	UNUSED_PARAMETER(thumbnailPath);
 	auto layout = new QVBoxLayout(this);
 	layout->setSpacing(16);
 	layout->addStretch();
@@ -531,7 +535,6 @@ VideoSetup::VideoSetup(std::vector<std::string> const& steps,
 	buttons->addWidget(proceedButton);
 	connect(proceedButton, &QPushButton::released, this, [this]() {
 		std::map<std::string, std::string> res;
-		int i = 0;
 		for (auto const &source : this->_videoSelectors) {
 			std::string settings = source->GetSettings();
 			std::string sourceName = source->GetSourceName();
@@ -693,7 +696,11 @@ void AudioSetup::_setupTempSources(obs_data_t *audioSettings)
 		obs_source_remove(_audioCaptureSource);
 	}
 
+#ifdef WIN32
 	const char *audioSourceId = "wasapi_input_capture";
+#elif __APPLE__
+	const char *audioSourceId = "coreaudio_input_capture";
+#endif
 	const char *aId = obs_get_latest_input_type_id(audioSourceId);
 	_audioCaptureSource = obs_source_create_private(
 		aId, "elgato-cloud-audio-config", audioSettings);
@@ -862,8 +869,7 @@ MergeSelectScenes::MergeSelectScenes(std::vector<OutputScene>& outputScenes, std
 		}
 
 		connect(allScenes, &QCheckBox::stateChanged, [sceneList](int state) {
-			bool all = state == Qt::Checked;
-			sceneList->setDisabled(state);
+				sceneList->setDisabled(state);
 			});
 
 		connect(sceneList, &QListWidget::itemChanged, this,
@@ -1011,128 +1017,246 @@ StreamPackageSetupWizard::~StreamPackageSetupWizard()
 
 void StreamPackageSetupWizard::OpenArchive()
 {
-	_future =
-		QtConcurrent::run(GetBundleInfo, _filename)
-			.then([this](SceneCollectionInfo bundleInfoData) {
-				// We are now in a different thread, so we need to execute this
-				// back in the gui thread.  See, threading hell.
-				QMetaObject::invokeMethod(
-					QCoreApplication::instance()
-						->thread(), // main GUI thread
-					[this, bundleInfoData]() {
-						sdFilesPath_ = bundleInfoData.streamDeckPath;
-						nlohmann::json bundleInfo;
-						bool error = false;
-						try {
-							bundleInfo = nlohmann::
-								json::parse(
-									bundleInfoData.bundleInfo);
-						} catch (
-							const nlohmann::json::
-								parse_error &e) {
-							obs_log(LOG_ERROR,
-								"Parsing Error.\n  message: %s\n  id: %i",
-								e.what(), e.id);
-							error = true;
+	_canceled = false;
+	_future = std::async(std::launch::async, [this]() {
+		auto bundleInfoData = GetBundleInfo(_filename);
+		QMetaObject::invokeMethod(
+			QCoreApplication::instance()->thread(), // main GUI thread
+			[this, bundleInfoData]() {
+				sdFilesPath_ = bundleInfoData.streamDeckPath;
+				nlohmann::json bundleInfo;
+				bool error = false;
+				try {
+					bundleInfo = nlohmann::
+						json::parse(
+							bundleInfoData.bundleInfo);
+				} catch (
+					const nlohmann::json::
+						parse_error &e) {
+					obs_log(LOG_ERROR,
+						"Parsing Error.\n  message: %s\n  id: %i",
+						e.what(), e.id);
+					error = true;
+				}
+				if (error ||
+					bundleInfo.contains(
+						"Error")) {
+					obs_log(LOG_ERROR,
+						"Invalid file.");
+					int ret = QMessageBox::warning(
+						this,
+						obs_module_text("SetupWizard.IncompatibleFile.Title"),
+						obs_module_text("SetupWizard.IncompatibleFile.Text"),
+						QMessageBox::Ok);
+					UNUSED_PARAMETER(ret);
+					close();
+					return;
+				}
+
+				std::vector<SDFileDetails> streamDeckActions;
+				std::vector<SDFileDetails> streamDeckProfiles;
+				std::string actionsDir =
+					sdFilesPath_ +
+					"/Assets/stream-deck/stream-deck-actions/";
+
+				std::string profilesDir =
+						sdFilesPath_ +
+					"/Assets/stream-deck/stream-deck-profiles/";
+
+
+				if (bundleInfo.contains("stream_deck_actions")) {
+					for (auto const &action : bundleInfo["stream_deck_actions"]) {
+						std::string filename = action["filename"];
+						streamDeckActions.push_back({
+								actionsDir + filename,
+								action["label"]
+						});
+					}
+				}
+
+				if (bundleInfo.contains("stream_deck_profiles")) {
+					for (auto const &action : bundleInfo["stream_deck_profiles"]) {
+						std::string filename = action["filename"];
+						streamDeckProfiles.push_back({
+								profilesDir + filename,
+								action["label"]
+						});
+					}
+				}
+
+				std::map<std::string,
+						std::string>
+					videoSourceLabels = bundleInfo
+						["video_devices"];
+				std::vector<std::string>
+					requiredPlugins = bundleInfo
+						["plugins_required"];
+				std::vector<OutputScene> outputScenes = {};
+				if (bundleInfo.contains("output_scenes")) {
+					for (auto const& outputScene : bundleInfo["output_scenes"]) {
+						if (outputScene.contains("name") && outputScene.contains("id")) {
+							outputScenes.push_back({
+								outputScene["id"],
+								outputScene["name"],
+								true
+							});
 						}
-						if (error ||
-						    bundleInfo.contains(
-							    "Error")) {
-							obs_log(LOG_ERROR,
-								"Invalid file.");
-							int ret = QMessageBox::warning(
-								this,
-								obs_module_text("SetupWizard.IncompatibleFile.Title"),
-								obs_module_text("SetupWizard.IncompatibleFile.Text"),
-								QMessageBox::Ok);
-							close();
-							return;
-						}
+					}
+				}
 
-						std::vector<SDFileDetails> streamDeckActions;
-						std::vector<SDFileDetails> streamDeckProfiles;
-						std::string actionsDir =
-							sdFilesPath_ +
-							"/Assets/stream-deck/stream-deck-actions/";
+				// In case the setup wizard was closed while the
+				// archive was being extracted, stop execution before
+				// anything is called on the now null setupWizard pointer.
+				auto setupWizard = GetSetupWizard();
+				if (!setupWizard) {
+					return;
+				}
 
-						std::string profilesDir =
-								sdFilesPath_ +
-							"/Assets/stream-deck/stream-deck-profiles/";
+				// Disable all video capture sources so that single-thread
+				// capture sources, such as the Elgato Facecam, can be properly
+				// selected in the wizard.  Will re-enable any disabled sources
+				// in the wizard destructor.
+				obs_enum_sources(
+					&StreamPackageSetupWizard::
+						DisableVideoCaptureSources,
+					this);
+
+				PluginInfo pi;
+				std::vector<PluginDetails>
+					missing = pi.missing(
+						requiredPlugins);
+				if (missing.size() > 0) {
+					_buildMissingPluginsUI(
+						missing);
+				} else {
+					_buildSetupUI(
+						videoSourceLabels, outputScenes, streamDeckActions, streamDeckProfiles);
+				}
+			});		
+	});
+	// _future =
+	// 	QtConcurrent::run(GetBundleInfo, _filename)
+	// 		.then([this](SceneCollectionInfo bundleInfoData) {
+	// 			// We are now in a different thread, so we need to execute this
+	// 			// back in the gui thread.  See, threading hell.
+	// 			QMetaObject::invokeMethod(
+	// 				QCoreApplication::instance()
+	// 					->thread(), // main GUI thread
+	// 				[this, bundleInfoData]() {
+	// 					sdFilesPath_ = bundleInfoData.streamDeckPath;
+	// 					nlohmann::json bundleInfo;
+	// 					bool error = false;
+	// 					try {
+	// 						bundleInfo = nlohmann::
+	// 							json::parse(
+	// 								bundleInfoData.bundleInfo);
+	// 					} catch (
+	// 						const nlohmann::json::
+	// 							parse_error &e) {
+	// 						obs_log(LOG_ERROR,
+	// 							"Parsing Error.\n  message: %s\n  id: %i",
+	// 							e.what(), e.id);
+	// 						error = true;
+	// 					}
+	// 					if (error ||
+	// 					    bundleInfo.contains(
+	// 						    "Error")) {
+	// 						obs_log(LOG_ERROR,
+	// 							"Invalid file.");
+	// 						int ret = QMessageBox::warning(
+	// 							this,
+	// 							obs_module_text("SetupWizard.IncompatibleFile.Title"),
+	// 							obs_module_text("SetupWizard.IncompatibleFile.Text"),
+	// 							QMessageBox::Ok);
+	// 						UNUSED_PARAMETER(ret);
+	// 						close();
+	// 						return;
+	// 					}
+
+	// 					std::vector<SDFileDetails> streamDeckActions;
+	// 					std::vector<SDFileDetails> streamDeckProfiles;
+	// 					std::string actionsDir =
+	// 						sdFilesPath_ +
+	// 						"/Assets/stream-deck/stream-deck-actions/";
+
+	// 					std::string profilesDir =
+	// 							sdFilesPath_ +
+	// 						"/Assets/stream-deck/stream-deck-profiles/";
 
 
-						if (bundleInfo.contains("stream_deck_actions")) {
-							for (auto const &action : bundleInfo["stream_deck_actions"]) {
-								std::string filename = action["filename"];
-								streamDeckActions.push_back({
-										actionsDir + filename,
-										action["label"]
-								});
-							}
-						}
+	// 					if (bundleInfo.contains("stream_deck_actions")) {
+	// 						for (auto const &action : bundleInfo["stream_deck_actions"]) {
+	// 							std::string filename = action["filename"];
+	// 							streamDeckActions.push_back({
+	// 									actionsDir + filename,
+	// 									action["label"]
+	// 							});
+	// 						}
+	// 					}
 
-						if (bundleInfo.contains("stream_deck_profiles")) {
-							for (auto const &action : bundleInfo["stream_deck_profiles"]) {
-								std::string filename = action["filename"];
-								streamDeckProfiles.push_back({
-										profilesDir + filename,
-										action["label"]
-								});
-							}
-						}
+	// 					if (bundleInfo.contains("stream_deck_profiles")) {
+	// 						for (auto const &action : bundleInfo["stream_deck_profiles"]) {
+	// 							std::string filename = action["filename"];
+	// 							streamDeckProfiles.push_back({
+	// 									profilesDir + filename,
+	// 									action["label"]
+	// 							});
+	// 						}
+	// 					}
 
-						std::map<std::string,
-							 std::string>
-							videoSourceLabels = bundleInfo
-								["video_devices"];
-						std::vector<std::string>
-							requiredPlugins = bundleInfo
-								["plugins_required"];
-						std::vector<OutputScene> outputScenes = {};
-						if (bundleInfo.contains("output_scenes")) {
-							for (auto const& outputScene : bundleInfo["output_scenes"]) {
-								if (outputScene.contains("name") && outputScene.contains("id")) {
-									outputScenes.push_back({
-										outputScene["id"],
-										outputScene["name"],
-										true
-									});
-								}
-							}
-						}
+	// 					std::map<std::string,
+	// 						 std::string>
+	// 						videoSourceLabels = bundleInfo
+	// 							["video_devices"];
+	// 					std::vector<std::string>
+	// 						requiredPlugins = bundleInfo
+	// 							["plugins_required"];
+	// 					std::vector<OutputScene> outputScenes = {};
+	// 					if (bundleInfo.contains("output_scenes")) {
+	// 						for (auto const& outputScene : bundleInfo["output_scenes"]) {
+	// 							if (outputScene.contains("name") && outputScene.contains("id")) {
+	// 								outputScenes.push_back({
+	// 									outputScene["id"],
+	// 									outputScene["name"],
+	// 									true
+	// 								});
+	// 							}
+	// 						}
+	// 					}
 
-						// In case the setup wizard was closed while the
-						// archive was being extracted, stop execution before
-						// anything is called on the now null setupWizard pointer.
-						auto setupWizard = GetSetupWizard();
-						if (!setupWizard) {
-							return;
-						}
+	// 					// In case the setup wizard was closed while the
+	// 					// archive was being extracted, stop execution before
+	// 					// anything is called on the now null setupWizard pointer.
+	// 					auto setupWizard = GetSetupWizard();
+	// 					if (!setupWizard) {
+	// 						return;
+	// 					}
 
-						// Disable all video capture sources so that single-thread
-						// capture sources, such as the Elgato Facecam, can be properly
-						// selected in the wizard.  Will re-enable any disabled sources
-						// in the wizard destructor.
-						obs_enum_sources(
-							&StreamPackageSetupWizard::
-								DisableVideoCaptureSources,
-							this);
+	// 					// Disable all video capture sources so that single-thread
+	// 					// capture sources, such as the Elgato Facecam, can be properly
+	// 					// selected in the wizard.  Will re-enable any disabled sources
+	// 					// in the wizard destructor.
+	// 					obs_enum_sources(
+	// 						&StreamPackageSetupWizard::
+	// 							DisableVideoCaptureSources,
+	// 						this);
 
-						PluginInfo pi;
-						std::vector<PluginDetails>
-							missing = pi.missing(
-								requiredPlugins);
-						if (missing.size() > 0) {
-							_buildMissingPluginsUI(
-								missing);
-						} else {
-							_buildSetupUI(
-								videoSourceLabels, outputScenes, streamDeckActions, streamDeckProfiles);
-						}
-					});
-			})
-			.onCanceled([]() {
+	// 					PluginInfo pi;
+	// 					std::vector<PluginDetails>
+	// 						missing = pi.missing(
+	// 							requiredPlugins);
+	// 					if (missing.size() > 0) {
+	// 						_buildMissingPluginsUI(
+	// 							missing);
+	// 					} else {
+	// 						_buildSetupUI(
+	// 							videoSourceLabels, outputScenes, streamDeckActions, streamDeckProfiles);
+	// 					}
+	// 				});
+	// 		})
+	// 		.onCanceled([]() {
 
-			});
+	// 		});
 }
 
 bool StreamPackageSetupWizard::DisableVideoCaptureSources(void *data,
@@ -1243,6 +1367,8 @@ void StreamPackageSetupWizard::_buildNewCollectionUI(
 	std::vector<SDFileDetails>& streamDeckActions,
 	std::vector<SDFileDetails>& streamDeckProfiles)
 {
+	UNUSED_PARAMETER(streamDeckActions);
+	UNUSED_PARAMETER(streamDeckProfiles);
 	std::vector<std::string> steps = {
 		obs_module_text("SetupWizard.NewCollectionSteps.GetStarted"),
 		obs_module_text("SetupWizard.NewCollectionSteps.NameSceneCollection"),
@@ -1575,7 +1701,7 @@ void EnableVideoCaptureSourcesJson(std::vector<std::string> sourceIds, std::stri
 		std::string activatedCollection = collectionJson.dump();
 		obs_data_t* data =
 			obs_data_create_from_json(activatedCollection.c_str());
-		bool success = obs_data_save_json_safe(
+		obs_data_save_json_safe(
 			data, path.c_str(), "tmp", "bak");
 		obs_data_release(data);
 	} catch (...) {

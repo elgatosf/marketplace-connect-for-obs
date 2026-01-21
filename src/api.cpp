@@ -20,6 +20,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include "downloader.h"
 #include "util.h"
 #include "elgato-cloud-data.hpp"
+#include "platform.h"
 #include <plugin-support.h>
 
 #include <fstream>
@@ -230,7 +231,11 @@ void MarketplaceApi::OpenStoreInBrowser() const
 	else {
 		url = storeUrl;
 	}
+#ifdef WIN32
 	ShellExecuteA(NULL, NULL, url.c_str(), NULL, NULL, SW_SHOW);
+#elif __APPLE__
+	openURL(url);
+#endif
 }
 
 void MarketplaceApi::OpenAccountInBrowser() const
@@ -248,7 +253,11 @@ void MarketplaceApi::OpenAccountInBrowser() const
 	else {
 		url = storeUrl;
 	}
+#ifdef WIN32
 	ShellExecuteA(NULL, NULL, url.c_str(), NULL, NULL, SW_SHOW);
+#elif __APPLE__
+	openURL(url);
+#endif
 }
 
 } // namespace elgatocloud

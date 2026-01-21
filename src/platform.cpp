@@ -18,6 +18,8 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 
 #include <string>
 #include <vector>
+#include <filesystem>
+#include <cstdio>
 #include <obs-module.h>
 #include "obs-frontend-api.h"
 #include <plugin-support.h>
@@ -29,6 +31,11 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <direct.h>
 #include <windows.h>
 #include <io.h>
+#elif __APPLE__
+#include <unistd.h>
+#include <sys/stat.h>
+#include <CoreFoundation/CoreFoundation.h>
+#include <ApplicationServices/ApplicationServices.h>
 #endif
 
 #include "util.h"
@@ -51,24 +58,6 @@ std::string get_scene_collections_path()
 #ifdef WIN32
 #ifdef UNICODE
 typedef std::wstring TString;
-/*static TString stringToTString(const std::string &str)
-{
-	TString result;
-	result.resize(str.size());
-	auto len = os_utf8_to_wcs(str.c_str(), str.size(), &result[0],
-				  result.size());
-	result.resize(len);
-	return result;
-}
- static std::string TStringToString(const TString &str)
-{
-	std::string result;
-	result.resize(str.size() * 2);
-	auto len = os_wcs_to_utf8(str.c_str(), str.size(), &result[0],
-				  result.size());
-	result.resize(len);
-	return result;
-}*/
 static TString makeLongPath(const std::string &str)
 {
 	TString result = L"\\\\?\\";
@@ -100,45 +89,35 @@ static TString makeLongPath(const std::string &str)
 bool is_symlink(std::string path)
 {
 #ifdef WIN32
-	// TODO: Use lstat on Mac
 	TString tpath = makeLongPath(path);
 	auto attributes = GetFileAttributes(tpath.c_str());
 	return attributes != INVALID_FILE_ATTRIBUTES &&
 	       0 != (attributes & FILE_ATTRIBUTE_REPARSE_POINT);
+#elif __APPLE__
+	struct stat st;
+    if (lstat(path.c_str(), &st) != 0) {
+        // Path does not exist or cannot be accessed
+        return false;
+    }
+    return S_ISLNK(st.st_mode);
 #endif
 }
 
 bool is_directory(std::string path)
 {
 #ifdef WIN32
-	// TODO: Use lstat on Mac
 	TString tpath = makeLongPath(path);
 
 	auto attributes = GetFileAttributes(tpath.c_str());
 	return attributes != INVALID_FILE_ATTRIBUTES &&
 	       0 != (attributes & FILE_ATTRIBUTE_DIRECTORY);
-#endif
-}
-
-std::string get_plugin_data_path()
-{
-#ifdef WIN32
-	TCHAR tpath[MAX_PATH];
-	std::string appdata_path = "";
-	if (SUCCEEDED(SHGetFolderPath(NULL, CSIDL_COMMON_APPDATA, NULL, 0,
-				      tpath))) {
-#ifdef UNICODE
-		char utf8path[MAX_PATH * 4];
-		os_wcs_to_utf8(tpath, lstrlenW(tpath), utf8path,
-			       sizeof(utf8path));
-		appdata_path = utf8path;
-#else
-		appdata_path = tpath;
-#endif
-		appdata_path += "/obs-studio/plugins";
-	}
-
-	return appdata_path;
+#elif __APPLE__
+	struct stat st;
+    if (lstat(path.c_str(), &st) != 0) {
+        // Path does not exist or cannot be accessed
+        return false;
+    }
+    return S_ISDIR(st.st_mode);
 #endif
 }
 
@@ -174,6 +153,7 @@ bool path_begins_with(const std::string &haystack, const std::string &needle)
 bool listen_on_pipe(const std::string &pipe_name,
 		    std::function<void(std::string)> callback)
 {
+#ifdef WIN32
 	int pipe_number = 0;
 	std::string base_name = "\\\\.\\pipe\\" + pipe_name;
 	std::string attempt_name;
@@ -243,6 +223,12 @@ bool listen_on_pipe(const std::string &pipe_name,
 	}
 
 	obs_log(LOG_INFO, "Ended");
+#elif __APPLE__
+// TODO: Apple implementation of pipe to helper app.
+	UNUSED_PARAMETER(pipe_name);
+	UNUSED_PARAMETER(callback);
+	return true;
+#endif
 }
 
 FILE *open_tmp_file(const char *mode, std::string &outFilename)
@@ -301,8 +287,29 @@ FILE *open_tmp_file(const char *mode, std::string &outFilename)
 #endif
 
 	return fdopen(fhandle, mode);
-#else
-	// TODO: Mac
+#elif __APPLE__
+	std::filesystem::path dir = std::filesystem::temp_directory_path();
+	std::filesystem::path tmpl = dir / (fname+"XXXXXX");
+	std::string tmplStr = tmpl.string();
+    std::vector<char> buffer(tmplStr.begin(), tmplStr.end());
+    buffer.push_back('\0');
+
+	int fd = mkstemp(buffer.data());
+
+	    if (fd == -1) {
+        return nullptr;
+    }
+
+    FILE *fp = fdopen(fd, mode);
+    if (!fp) {
+        close(fd);
+        unlink(buffer.data());
+        return nullptr;
+    }
+
+    // Return the actual filename
+    outFilename = buffer.data();
+    return fp;
 #endif
 }
 
@@ -313,8 +320,8 @@ bool move_file(const std::string &from, const std::string &to)
 	TString TTo = makeLongPath(to);
 
 	return MoveFile(TFrom.c_str(), TTo.c_str());
-#else
-#error "Unimplemented"
+#elif __APPLE__
+	return std::rename(from.c_str(), to.c_str()) == 0;
 #endif
 }
 
@@ -341,3 +348,21 @@ std::string move_file_safe(const std::string &from, const std::string &to)
 
 	return newDst;
 }
+
+#ifdef __APPLE__
+void openURL(const std::string& url)
+{
+    CFURLRef cfUrl = CFURLCreateWithBytes(
+        kCFAllocatorDefault,
+        reinterpret_cast<const UInt8*>(url.c_str()),
+        url.length(),
+        kCFStringEncodingUTF8,
+        nullptr
+    );
+
+    if (cfUrl) {
+        LSOpenCFURLRef(cfUrl, nullptr);
+        CFRelease(cfUrl);
+    }
+}
+#endif

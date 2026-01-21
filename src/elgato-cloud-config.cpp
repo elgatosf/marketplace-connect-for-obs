@@ -219,12 +219,15 @@ DefaultAVWidget::DefaultAVWidget(QWidget *parent) : QWidget(parent)
 	connect(_videoSources, &QComboBox::currentIndexChanged, this,
 		[this](int index) {
 			if (index > 0) {
+#ifdef WIN32
+				const char* vdId = "video_device_id";
+#elif __APPLE__
+				const char* vdId = "device";
+#endif
 				_settingsButton->setDisabled(false);
 				auto vSettings = obs_data_create();
 				std::string id = _videoSourceIds[index];
-				obs_data_set_string(vSettings,
-						    "video_device_id",
-						    id.c_str());
+				obs_data_set_string(vSettings, vdId, id.c_str());
 				obs_source_reset_settings(_videoCaptureSource,
 							  vSettings);
 				obs_data_release(vSettings);
@@ -269,7 +272,11 @@ void DefaultAVWidget::_setupTempAudioSource(obs_data_t *audioSettings)
 		obs_source_remove(_audioCaptureSource);
 	}
 
+#ifdef WIN32
 	const char *audioSourceId = "wasapi_input_capture";
+#elif __APPLE__
+	const char *audioSourceId = "coreaudio_input_capture";
+#endif
 	const char *aId = obs_get_latest_input_type_id(audioSourceId);
 	_audioCaptureSource = obs_source_create_private(
 		aId, "elgato-cloud-audio-config", audioSettings);
@@ -378,14 +385,20 @@ void DefaultAVWidget::OBSVolumeLevel(void *data,
 
 void DefaultAVWidget::_setupTempVideoSource(obs_data_t *videoSettings)
 {
+#ifdef WIN32
 	const char *videoSourceId = "dshow_input";
+	const char* vd_id = "video_device_id";
+#elif __APPLE__
+	const char *videoSourceId = "av_capture_input";
+	const char* vd_id = "device";
+#endif
 	const char *vId = obs_get_latest_input_type_id(videoSourceId);
 	_videoCaptureSource = obs_source_create_private(
 		vId, "elgato-cloud-video-config", videoSettings);
 
 	obs_properties_t *vProps = obs_source_properties(_videoCaptureSource);
-	obs_property_t *vDevices =
-		obs_properties_get(vProps, "video_device_id");
+	obs_property_t *vDevices = obs_properties_get(vProps, vd_id);
+
 	_videoSources->addItem("None");
 	_videoSourceIds.push_back("NONE");
 	for (size_t i = 0; i < obs_property_list_item_count(vDevices); i++) {
@@ -397,7 +410,7 @@ void DefaultAVWidget::_setupTempVideoSource(obs_data_t *videoSettings)
 	obs_properties_destroy(vProps);
 
 	obs_data_t *vSettings = obs_source_get_settings(_videoCaptureSource);
-	std::string vDevice = obs_data_get_string(vSettings, "video_device_id");
+	std::string vDevice = obs_data_get_string(vSettings, vd_id);
 	if (vDevice != "") {
 		auto it = std::find(_videoSourceIds.begin(),
 				    _videoSourceIds.end(), vDevice);

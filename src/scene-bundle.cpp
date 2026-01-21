@@ -28,6 +28,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <QMessageBox>
 #include <QThread>
 #include <QMetaObject>
+#include <QTemporaryDir>
 #include <vector>
 #include <set>
 #include <string>
@@ -44,6 +45,10 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include "setup-wizard.hpp"
 #include "api.hpp"
 #include "export-wizard.hpp"
+
+#ifdef __APPLE__
+#include <sys/stat.h>
+#endif
 
 const std::map<std::string, std::string> extensionMap{
 	{".jpg", "/images/"},     {".jpeg", "/images/"},
@@ -74,6 +79,7 @@ SceneBundle::~SceneBundle()
 
 bool SceneBundle::FromCollection(std::string collection_name)
 {
+	UNUSED_PARAMETER(collection_name);
 	_reset();
 	// Get the path to the currently active scene collection file.
 	std::string scene_collections_path = get_scene_collections_path();
@@ -221,7 +227,7 @@ bool SceneBundle::MergeCollection(std::string collection_name,
 	std::map<std::string, std::string> videoSettings,
 	std::string audioSettings, std::string id)
 {
-	const auto userConf = GetUserConfig();
+	//const auto userConf = GetUserConfig();
 	_backupCurrentCollection();
 	auto curCollectionPath = _currentCollectionPath();
 	char* collection_str = os_quick_read_utf8_file(curCollectionPath.c_str());
@@ -473,7 +479,7 @@ bool SceneBundle::ToCollection(std::string collection_name,
 			       std::string productName, std::string productId,
 			       std::string productSlug)
 {
-	const auto userConf = GetUserConfig();
+	//const auto userConf = GetUserConfig();
 	_backupCurrentCollection();
 
 	std::string collection_file_path = _packPath + "/collection.json";
@@ -571,6 +577,63 @@ bool SceneBundle::ToCollection(std::string collection_name,
 
 	_collection["modules"]["elgato_marketplace_connect"] = module_info;
 
+	std::string idKey = "id";
+	std::string versionedIdKey = "versioned_id";
+
+#ifdef WIN32
+	if (_collection.contains("sources")) {
+		for (auto& source : _collection["sources"]) {
+			if(source.contains(versionedIdKey) && source[versionedIdKey] != "") {
+				continue;
+			}
+			std::string id = source[idKey];
+			std::string versionedId = obs_get_latest_input_type_id(id.c_str());
+			source[versionedIdKey] = versionedId;
+		}
+	}
+#elif __APPLE__
+	if (_collection.contains("sources")) {
+		for (auto& source : _collection["sources"]) {
+			std::string id = "";
+			if (source[idKey] == "dshow_input") {
+			// Convert to MacOS video capture
+				id = "macos-avcapture";
+			} else if (source[idKey] == "wasapi_input_capture") {
+			// Convert to MacOS Audio input capture
+				id = "coreaudio_input_capture";
+			} else if (source[idKey] == "wasapi_output_capture") { 
+			// Convert to MacOS Audio Output capture
+				id = "sck_audio_capture";
+				source["settings"] = {};
+			} else if (source[idKey] == "window_capture") {
+			// Convert to MacOS window capture
+				id = "screen_capture";
+				source["settings"] = {};
+				// screen_capture type 1 is window
+				source["settings"]["type"] = 1;
+			} else if (source[idKey] == "monitor_capture") {
+			// Convert to MacOS display capture
+				id = "screen_capture";
+				// screen capture without settings defaults to display
+				source["settings"] = {};
+			} else if (source[idKey] == "game_capture") {
+			// Convert to MacOS game capture
+				id = "syphon-input";
+			} else if (source[idKey] == "text_gdiplus") {
+			// Conver to MacOS Text
+				id = "text_ft2_source";
+			}
+
+			if(id != "") {
+				std::string versionedId = obs_get_latest_input_type_id(id.c_str());
+				source[idKey] = id;
+				source[versionedIdKey] = versionedId;
+			}
+
+		}
+	}
+#endif
+
 	return _createSceneCollection(collection_name);
 }
 
@@ -598,12 +661,9 @@ bool SceneBundle::_createSceneCollection(std::string collection_name)
 		this);
 
 	// 6. Get new collection name and filename
-	std::string newCollectionName =
-		config_get_string(userConf, "Basic", "SceneCollection");
-	std::string newCollectionFileName =
-		get_current_scene_collection_filename();
-	newCollectionFileName =
-		get_scene_collections_path() + newCollectionFileName;
+	std::string newCollectionName = config_get_string(userConf, "Basic", "SceneCollection");
+	std::string newCollectionFileName = get_current_scene_collection_filename();
+	newCollectionFileName = get_scene_collections_path() + newCollectionFileName;
 
 	//config_set_string(userConf, "Basic", "SceneCollection", "elgatompplugintemp");
 	//config_set_string(userConf, "Basic", "SceneCollectionFile", "elgatompplugintemp");
@@ -612,46 +672,42 @@ bool SceneBundle::_createSceneCollection(std::string collection_name)
 	_waiting = true;
 
 	// 8. Add a callback for scene collection change
-obs_frontend_add_event_callback(SceneBundle::SceneCollectionChanged,
-	this);
+	obs_frontend_add_event_callback(SceneBundle::SceneCollectionChanged, this);
 
-// 9. Switch back to old scene collection so we can manually write the new
-//    collection json file
-obs_frontend_set_current_scene_collection(current_collection);
+	// 9. Switch back to old scene collection so we can manually write the new
+	//    collection json file
+	obs_frontend_set_current_scene_collection(current_collection);
 
-// 10. Wait until _wating is set to false
-while (_waiting)
-; // do nothing
+	// 10. Wait until _wating is set to false
+	while (_waiting); // do nothing
 
-// 11. Replace newCollectionFileName with imported json data
-obs_data_t* data =
-obs_data_create_from_json(_collection.dump().c_str());
-bool success = obs_data_save_json_safe(
-	data, newCollectionFileName.c_str(), "tmp", "bak");
-obs_data_release(data);
+	// 11. Replace newCollectionFileName with imported json data
+	obs_data_t* data =
+	obs_data_create_from_json(_collection.dump().c_str());
+	bool success = obs_data_save_json_safe(data, newCollectionFileName.c_str(), "tmp", "bak");
+	obs_data_release(data);
 
-bfree(current_collection);
+	bfree(current_collection);
 
-if (!success) {
-	obs_log(LOG_ERROR, "Unable to create scene collection.");
+	if (!success) {
+		obs_log(LOG_ERROR, "Unable to create scene collection.");
+		obs_frontend_remove_event_callback(SceneBundle::SceneCollectionChanged,
+			this);
+		return false;
+	}
+
+	_waiting = true;
+
+	// 12. Load in the new scene collection with the new data.
+	obs_frontend_set_current_scene_collection(newCollectionName.c_str());
+
+	while (_waiting);
+
+	// 13. Remove the callback
 	obs_frontend_remove_event_callback(SceneBundle::SceneCollectionChanged,
 		this);
-	return false;
-}
 
-_waiting = true;
-
-// 12. Load in the new scene collection with the new data.
-obs_frontend_set_current_scene_collection(newCollectionName.c_str());
-
-while (_waiting)
-;
-
-// 13. Remove the callback
-obs_frontend_remove_event_callback(SceneBundle::SceneCollectionChanged,
-	this);
-
-return true;
+	return true;
 }
 
 void SceneBundle::_backupCurrentCollection()
@@ -940,9 +996,55 @@ void SceneBundle::_ProcessJsonObj(nlohmann::json &obj)
 {
 	std::string settingsRepalce = "";
 	std::string idKey = "id";
+	std::string versionedIdKey = "versioned_id";
 	std::string nameKey = "name";
 	if (obj.contains(std::string{idKey})) {
 		std::string name = obj[nameKey];
+		if (obj[idKey] == "macos-avcapture" || obj[idKey] == "av_capture_input") {
+			// Convert MacOS video capture device to Windows
+			obj[idKey] = "dshow_input";
+			obj[versionedIdKey] = "";
+		} else if (obj[idKey] == "coreaudio_input_capture") {
+			// Convert MacOS Audio input capture to Windows
+			obj[idKey] = "wasapi_input_capture";
+			obj[versionedIdKey] = "";
+		} else if (obj[idKey] == "sck_audio_capture") {
+			bool hasType = obj.contains("settings") && obj["settings"].contains("type");
+			if(hasType && obj["settings"]["type"] == 1) {
+				// Application Audio
+				// TODO- switch this to application audio
+				obj[idKey] = "wasapi_output_capture";
+				obj[versionedIdKey] = "";
+				obj["settings"] = {};
+			} else {
+				// Desktop Audio
+				obj[idKey] = "wasapi_output_capture";
+				obj[versionedIdKey] = "";
+				obj["settings"] = {};
+			}
+		} else if (obj[idKey] == "screen_capture") {
+			bool hasType = obj.contains("settings") && obj["settings"].contains("type");
+			if(hasType && obj["settings"]["type"] == 1) {
+				// Window capture
+				obj[idKey] = "window_capture";
+				obj[versionedIdKey] = "";
+				obj["settings"] = {};
+			} else {
+				// Screen Capture
+				obj[idKey] = "monitor_capture";
+				obj[versionedIdKey] = "";
+				obj["settings"] = {};
+			}
+		} else if (obj[idKey] == "syphon-input") {
+			// Convert MacOS game capture to Windows
+			obj[idKey] = "game_capture";
+			obj[versionedIdKey] = "";
+		} else if (obj[idKey] == "text_ft2_source") {
+			// Convert MacOS text to Windows
+			obj[idKey] = "text_gdiplus";
+			obj[versionedIdKey] = "";
+		}
+
 		if (obj[idKey] == "dshow_input") {
 			obj.erase("settings");
 			obj["settings"] = "{" + name + "}";
@@ -955,7 +1057,7 @@ void SceneBundle::_ProcessJsonObj(nlohmann::json &obj)
 		} else if (obj[idKey] == "wasapi_input_capture") {
 			obj.erase("settings");
 			obj["settings"] = "{AUDIO_CAPTURE_SETTINGS}";
-		} // TODO: add for Mac/Linux
+		}
 	}
 
 	for (auto &[key, item] : obj.items()) {
@@ -1286,7 +1388,7 @@ void SdaFile::parse_()
 		}
 
 		// Extract Controllers Actions "0,0" first state
-		auto& controllers = manifest["Controllers"];
+		//auto& controllers = manifest["Controllers"];
 		for (auto& controller : manifest["Controllers"]) {
 			if (!controller.contains("Actions")) continue;
 			auto& actions = controller["Actions"];
