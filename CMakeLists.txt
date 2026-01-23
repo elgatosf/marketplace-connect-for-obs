@@ -125,7 +125,16 @@ if(OS_WINDOWS)
   add_executable(${CMAKE_PROJECT_NAME}-loader loader/main.cpp)
   install(TARGETS ${CMAKE_PROJECT_NAME}-loader RUNTIME DESTINATION helper-app)
 elseif(OS_MACOS)
-
+  add_executable(${CMAKE_PROJECT_NAME}-loader MACOSX_BUNDLE loader/main-macos.cpp)
+  set_target_properties(${CMAKE_PROJECT_NAME}-loader PROPERTIES
+    MACOSX_BUNDLE_INFO_PLIST
+    ${CMAKE_CURRENT_SOURCE_DIR}/loader/Info.plist.in
+  )
+  set_target_properties(${CMAKE_PROJECT_NAME}-loader PROPERTIES
+    MACOSX_BUNDLE_BUNDLE_NAME "Elgato Marketplace Connect"
+    OUTPUT_NAME "Elgato Marketplace Connect"
+  )
+  install(TARGETS ${CMAKE_PROJECT_NAME}-loader BUNDLE DESTINATION helper-app)
 else()
 
 endif()
