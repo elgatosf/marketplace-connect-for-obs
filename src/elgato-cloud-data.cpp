@@ -421,7 +421,7 @@ void ElgatoCloud::StartLogin()
 #ifdef WIN32
 	ShellExecuteA(NULL, NULL, url.c_str(), NULL, NULL, SW_SHOW);
 #elif __APPLE__
-	// TODO: Implement Apple Login
+	openURL(url);
 #endif
 }
 
@@ -637,6 +637,7 @@ void ElgatoCloud::_LoadUserData(bool loadData)
 
 void ElgatoCloud::_SaveState()
 {
+#ifdef WIN32
 	std::string accessTokenEncrypted = "";
 	std::string refreshTokenEncrypted = "";
 	if (_accessToken != "") {
@@ -648,6 +649,10 @@ void ElgatoCloud::_SaveState()
 
 	obs_data_set_string(_config, "AccessToken", accessTokenEncrypted.c_str());
 	obs_data_set_string(_config, "RefreshToken", refreshTokenEncrypted.c_str());
+#elif __APPLE__
+	storeInKeychain("com.elgato.marketplace-connect", "access_token", _accessToken);
+	storeInKeychain("com.elgato.marketplace-connect", "refresh_token", _refreshToken);
+#endif
 	obs_data_set_int(_config, "AccessTokenExpiration",
 			 _accessTokenExpiration);
 	obs_data_set_int(_config, "RefreshTokenExpiration",
@@ -658,6 +663,7 @@ void ElgatoCloud::_SaveState()
 
 void ElgatoCloud::_GetSavedState()
 {
+#ifdef WIN32
 	std::string accessTokenEncrypted = obs_data_get_string(_config, "AccessToken");
 	std::string refreshTokenEncrypted = obs_data_get_string(_config, "RefreshToken");
 	if (accessTokenEncrypted.size() > 25) {
@@ -673,6 +679,10 @@ void ElgatoCloud::_GetSavedState()
 	} else {
 		_refreshToken = "";
 	}
+#elif __APPLE__
+	_accessToken = retrieveFromKeychain("com.elgato.marketplace-connect", "access_token");
+	_refreshToken = retrieveFromKeychain("com.elgato.marketplace-connect", "refresh_token");
+#endif
 
 	_accessTokenExpiration =
 		obs_data_get_int(_config, "AccessTokenExpiration");

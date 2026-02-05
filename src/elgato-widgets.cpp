@@ -35,6 +35,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include "elgato-styles.hpp"
 #include "obs-utils.hpp"
 #include "util.h"
+#include "plugin-support.h"
 
 namespace elgatocloud {
 
@@ -107,10 +108,15 @@ VideoCaptureSourceSelector::VideoCaptureSourceSelector(QWidget *parent,
 		[this](int index) {
 			_loading = true;
 			if (index > 0) {
+#ifdef WIN32
+				const char* vd_id = "video_device_id";
+#elif __APPLE__
+				const char* vd_id = "device";
+#endif	
 				auto vSettings = obs_data_create();
 				std::string id = _videoSourceIds[index];
 				obs_data_set_string(vSettings,
-						    "video_device_id",
+						    vd_id,
 						    id.c_str());
 				_changeSource(vSettings);
 				obs_data_release(vSettings);
@@ -152,6 +158,9 @@ void VideoCaptureSourceSelector::_setupTempSource(obs_data_t *videoData)
 	for (size_t i = 0; i < obs_property_list_item_count(vDevices); i++) {
 		std::string name = obs_property_list_item_name(vDevices, i);
 		std::string id = obs_property_list_item_string(vDevices, i);
+		if(id == "") {
+			continue;
+		}
 		_videoSourceIds.push_back(id);
 		_videoSources->addItem(name.c_str());
 	}
@@ -169,14 +178,20 @@ void VideoCaptureSourceSelector::_setupTempSource(obs_data_t *videoData)
 	}
 	obs_data_release(vSettings);
 
+	_addDrawCallback();
+
+	//_videoPreview->show();
+	//obs_data_release(videoSettings);
+}
+
+void VideoCaptureSourceSelector::_addDrawCallback()
+{
 	auto addDrawCallback = [this]() {
 		obs_display_add_draw_callback(
 			_videoPreview->GetDisplay(),
 			VideoCaptureSourceSelector::DrawVideoPreview, this);
 	};
-	connect(_videoPreview, &OBSQTDisplay::DisplayCreated, addDrawCallback);
-	//_videoPreview->show();
-	//obs_data_release(videoSettings);
+	_previewVideoCallback = connect(_videoPreview, &OBSQTDisplay::DisplayCreated, addDrawCallback);
 }
 
 void VideoCaptureSourceSelector::resizeEvent(QResizeEvent* event)
@@ -190,6 +205,18 @@ void VideoCaptureSourceSelector::resizeEvent(QResizeEvent* event)
 
 void VideoCaptureSourceSelector::_changeSource(obs_data_t *vSettings)
 {
+	if (_previewVideoCallback.has_value()) {
+		disconnect(_previewVideoCallback.value());
+		_previewVideoCallback.reset();
+	}
+#ifdef WIN32
+	const char *videoSourceId = "dshow_input";
+	//const char* vd_id = "video_device_id";
+#elif __APPLE__
+	const char *videoSourceId = "av_capture_input";
+	//const char* vd_id = "device";
+#endif	
+
 	if (vSettings != nullptr) {
 		if (_videoCaptureSource) {
 			obs_source_t *tmp = _videoCaptureSource;
@@ -197,12 +224,12 @@ void VideoCaptureSourceSelector::_changeSource(obs_data_t *vSettings)
 			obs_source_release(tmp);
 		}
 
-		const char *videoSourceId = "dshow_input";
 		const char *vId = obs_get_latest_input_type_id(videoSourceId);
 		_videoCaptureSource = obs_source_create_private(
 			vId, "elgato-cloud-video-config", vSettings);
 
 		this->_noneSelected = false;
+		_addDrawCallback();
 		_stack->setCurrentIndex(1);
 	} else {
 		this->_noneSelected = true;

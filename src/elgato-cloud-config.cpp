@@ -404,6 +404,9 @@ void DefaultAVWidget::_setupTempVideoSource(obs_data_t *videoSettings)
 	for (size_t i = 0; i < obs_property_list_item_count(vDevices); i++) {
 		std::string name = obs_property_list_item_name(vDevices, i);
 		std::string id = obs_property_list_item_string(vDevices, i);
+		if(id == "") {
+			continue;
+		}
 		_videoSourceIds.push_back(id);
 		_videoSources->addItem(name.c_str());
 	}

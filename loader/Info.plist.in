@@ -35,6 +35,8 @@
       </array>
     </dict>
   </array>
+  <key>LSBackgroundOnly</key>
+  <false/>
 
 </dict>
 </plist>

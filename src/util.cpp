@@ -47,7 +47,23 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <Windows.h>
 #include <Wincrypt.h>
 #define MY_ENCODING_TYPE  (PKCS_7_ASN_ENCODING | X509_ASN_ENCODING)
+#elif __APPLE__
+#include <Security/Security.h>
+#include <CoreFoundation/CoreFoundation.h>
+#include <CoreServices/CoreServices.h>
+#include "util-macos.h"
 #endif
+
+std::string getUserDataDir()
+{
+#ifdef WIN32
+	return "/AppData/Local/Elgato/MarketplaceConnect";
+#elif __APPLE__
+	return "/Library/Application Support/elgato/Marketplace Connect for OBS";
+#else
+	#error "User data directory not defined for this platform."
+#endif
+}
 
 obs_data_t *get_module_config()
 {
@@ -69,7 +85,8 @@ obs_data_t *get_module_config()
 
 	// TODO: Default scene collections path for MacOS
 	std::string path = QDir::homePath().toStdString();
-	path += "/AppData/Local/Elgato/MarketplaceConnect/SceneCollections";
+	path += getUserDataDir() + "/SceneCollections";
+
 	os_mkdirs(path.c_str());
 	obs_data_set_default_string(config, "InstallLocation", path.c_str());
 	obs_data_set_default_bool(config, "MakerTools", false);
@@ -163,10 +180,11 @@ std::string get_current_scene_collection_filename()
 std::string fetch_string_from_get(std::string url, std::string token)
 {
 	std::string result;
-	CURL *curl_instance = curl_easy_init();
+	CURL *curl_instance = nullptr;
+	curl_instance = curl_easy_init();
 	curl_easy_setopt(curl_instance, CURLOPT_URL, url.c_str());
 	curl_easy_setopt(curl_instance, CURLOPT_WRITEFUNCTION,
-			 write_data<std::string>);
+			 write_data_string);
 	curl_easy_setopt(curl_instance, CURLOPT_WRITEDATA,
 			 static_cast<void *>(&result));
 	std::string useragent = USERAGENT " ";
@@ -181,17 +199,19 @@ std::string fetch_string_from_get(std::string url, std::string token)
 	curl_easy_setopt(curl_instance, CURLOPT_CONNECTTIMEOUT, 0);
 	curl_easy_setopt(curl_instance, CURLOPT_TIMEOUT, 0);
 	CURLcode res = curl_easy_perform(curl_instance);
-	curl_easy_cleanup(curl_instance);
+	
 	if (res == CURLE_OK && result != "") {
 		long http_code = 0;
 		curl_easy_getinfo(curl_instance, CURLINFO_RESPONSE_CODE,
 				  &http_code);
+		curl_easy_cleanup(curl_instance);
 		return result;
 	} else if (res == CURLE_OPERATION_TIMEDOUT || (res == CURLE_OK && result == "")) {
 		obs_log(LOG_WARNING, "Error in fetching GET value - Timed out");
 		obs_log(LOG_WARNING, "   url: %s", url.c_str());
 		obs_log(LOG_WARNING, "   code: %i", res);
 		obs_log(LOG_WARNING, "   response: %s", result.c_str());
+		curl_easy_cleanup(curl_instance);
 		return "{\"error\": \"Connection Timed Out\"}";
 	}
 	long http_code = 0;
@@ -201,6 +221,7 @@ std::string fetch_string_from_get(std::string url, std::string token)
 	obs_log(LOG_WARNING, "   curl code: %i", res);
 	obs_log(LOG_WARNING, "   http code: %i", http_code);
 	obs_log(LOG_WARNING, "   response: %s", result.c_str());
+	curl_easy_cleanup(curl_instance);
 	return "{\"error\": \"Unspecified Error\"}";
 }
 
@@ -248,9 +269,8 @@ std::string fetch_string_from_post(std::string url, std::string postdata, std::s
 	useragent += PLUGIN_VERSION;
 	curl_easy_setopt(curl_instance, CURLOPT_USERAGENT, useragent.c_str());
 	CURLcode res = curl_easy_perform(curl_instance);
-
-	curl_easy_cleanup(curl_instance);
 	if (res == CURLE_OK) {
+		curl_easy_cleanup(curl_instance);
 		return result;
 	}
 
@@ -261,6 +281,7 @@ std::string fetch_string_from_post(std::string url, std::string postdata, std::s
 	obs_log(LOG_WARNING, "   curl code: %i", res);
 	obs_log(LOG_WARNING, "   http code: %i", http_code);
 	obs_log(LOG_WARNING, "   response: %s", result.c_str());
+	curl_easy_cleanup(curl_instance);
 	return "{\"error\": \"Unspecified Error\"}";
 }
 
@@ -691,23 +712,101 @@ std::string decryptString(std::string input)
 }
 #elif __APPLE__
 
-// TODO: Provide functions to encrypt/decrypt strings on apple
-//       using keychain.
-
-// Encrypts a string, and returns string of encrypted binary data
-// as a formatted BASE 64 encoded string.
-std::string encryptString(std::string input)
+static CFDataRef stringToCFData(const std::string& str)
 {
-	return input;
+    return CFDataCreate(
+        kCFAllocatorDefault,
+        reinterpret_cast<const UInt8*>(str.data()),
+        str.size()
+    );
 }
 
-// Decrypts a formatted base64 encoded string.  First
-// converts string to binary blob, then uses windows
-// cryto API to decrypt the binary blob into a usable
-// string
-std::string decryptString(std::string input)
+bool storeInKeychain(const std::string& service,
+                        const std::string& account,
+                        const std::string& secret)
 {
-	return input;
+    CFDataRef secretData = stringToCFData(secret);
+    if (!secretData)
+        return false;
+
+    // Base query
+    CFMutableDictionaryRef query = CFDictionaryCreateMutable(
+        nullptr, 0,
+        &kCFTypeDictionaryKeyCallBacks,
+        &kCFTypeDictionaryValueCallBacks
+    );
+
+    CFDictionarySetValue(query, kSecClass, kSecClassGenericPassword);
+    CFDictionarySetValue(query, kSecAttrService,
+                         CFStringCreateWithCString(nullptr, service.c_str(), kCFStringEncodingUTF8));
+    CFDictionarySetValue(query, kSecAttrAccount,
+                         CFStringCreateWithCString(nullptr, account.c_str(), kCFStringEncodingUTF8));
+
+    // Attributes to update
+    CFMutableDictionaryRef attributes = CFDictionaryCreateMutable(
+        nullptr, 0,
+        &kCFTypeDictionaryKeyCallBacks,
+        &kCFTypeDictionaryValueCallBacks
+    );
+
+    CFDictionarySetValue(attributes, kSecValueData, secretData);
+
+    OSStatus status = SecItemUpdate(query, attributes);
+
+    if (status == errSecItemNotFound) {
+        // Add new item
+        CFDictionarySetValue(query, kSecValueData, secretData);
+        status = SecItemAdd(query, nullptr);
+    }
+
+    CFRelease(secretData);
+    CFRelease(attributes);
+    CFRelease(query);
+
+    if (status != errSecSuccess) {
+        obs_log(LOG_ERROR, "Keychain store failed: %d", status);
+        return false;
+    }
+
+    return true;
+}
+
+std::string retrieveFromKeychain(const std::string& service,
+                               const std::string& account)
+{
+    CFMutableDictionaryRef query = CFDictionaryCreateMutable(
+        nullptr, 0,
+        &kCFTypeDictionaryKeyCallBacks,
+        &kCFTypeDictionaryValueCallBacks
+    );
+
+    CFDictionarySetValue(query, kSecClass, kSecClassGenericPassword);
+    CFDictionarySetValue(query, kSecAttrService,
+                         CFStringCreateWithCString(nullptr, service.c_str(), kCFStringEncodingUTF8));
+    CFDictionarySetValue(query, kSecAttrAccount,
+                         CFStringCreateWithCString(nullptr, account.c_str(), kCFStringEncodingUTF8));
+
+    CFDictionarySetValue(query, kSecReturnData, kCFBooleanTrue);
+    CFDictionarySetValue(query, kSecMatchLimit, kSecMatchLimitOne);
+
+    CFTypeRef result = nullptr;
+    OSStatus status = SecItemCopyMatching(query, &result);
+
+    CFRelease(query);
+
+    if (status != errSecSuccess) {
+        obs_log(LOG_ERROR, "Keychain fetch failed: %d", status);
+        return "";
+    }
+
+    CFDataRef data = static_cast<CFDataRef>(result);
+    std::string secret(
+        reinterpret_cast<const char*>(CFDataGetBytePtr(data)),
+        CFDataGetLength(data)
+    );
+
+    CFRelease(data);
+    return secret;
 }
 
 #endif
@@ -724,7 +823,7 @@ std::string getImagesPath()
 //       of streamdeck installed on MacOS
 bool isProtocolHandlerRegistered(const std::wstring &protocol)
 {
-	#ifdef WIN32
+#ifdef WIN32
 	HKEY hKey;
 	std::wstring keyPath = protocol; // e.g. L"streamdeck"
 
@@ -743,17 +842,19 @@ bool isProtocolHandlerRegistered(const std::wstring &protocol)
 	RegCloseKey(hKey);
 
 	return (result == ERROR_SUCCESS && type == REG_SZ);
-	#elif __APPLE__
-		UNUSED_PARAMETER(protocol);
-		return false;
-	#endif
+#elif __APPLE__
+	return isProtocolHandlerRegisteredMacOS(protocol);
+#else
+	UNUSED_PARAMETER(protocol);
+	return false;
+#endif
 }
 
 StreamDeckInfo getStreamDeckInfo()
 {
 	StreamDeckInfo info{false, ""};
 
-	#ifdef WIN32
+#ifdef WIN32
 	HKEY hKey;
 	const std::string uninstallPath =
 		"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall";
@@ -819,16 +920,17 @@ StreamDeckInfo getStreamDeckInfo()
 
 		++index;
 	}
-
 	RegCloseKey(hKey);
-	#elif __APPLE__
 
-	#endif
-	return info; // not installed
+#elif __APPLE__
+	return getStreamDeckInfoMacOS();
+#endif
+	return info;
 }
 
 int compareVersions(const std::string &v1, const std::string &v2)
 {
+	obs_log(LOG_INFO, "v1: %s, v2: %s", v1.c_str(), v2.c_str());
 	std::istringstream s1(v1);
 	std::istringstream s2(v2);
 

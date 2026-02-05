@@ -238,9 +238,12 @@ void Downloader::DownloadEntry::Finish()
 			fileName = random_name();
 		}
 		std::string target = targetDirectory + fileName;
+		obs_log(LOG_INFO, "donwloader target: %s", target.c_str());
+#ifdef WIN32
 		char *absPath = os_get_abs_path_ptr(target.c_str());
 		target = std::string(absPath, strlen(absPath));
 		bfree(absPath);
+#endif
 		parent->moveRequests.push_back(
 			{tmpTargetName, target.c_str(), callbackData, completeCallback});
 	}

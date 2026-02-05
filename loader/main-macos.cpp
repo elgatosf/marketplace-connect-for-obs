@@ -1,123 +1,196 @@
-#include <iostream>
-#include <string>
-#include <vector>
-#include <cstring>
+#include <Carbon/Carbon.h>
 #include <unistd.h>
 #include <sys/socket.h>
 #include <sys/un.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <signal.h>
-#include <spawn.h>
-#include <errno.h>
+#include <fcntl.h>
+#include <cstring>
+#include <iostream>
+#include <string>
+#include <atomic>
 
-extern char **environ;
+// --------------------------------------------------
+// Logging
+// --------------------------------------------------
+static void redirect_stdio_to_file()
+{
+    std::string path = std::string(getenv("HOME")) +
+                       "/Library/Logs/ElgatoMarketplaceConnect.log";
 
-// ---- Configuration ----
+    int fd = open(path.c_str(), O_WRONLY | O_CREAT | O_APPEND, 0644);
+    if (fd < 0) return;
 
-//static const char* OBS_APP_PATH = "/Applications/OBS.app";
-static const char* OBS_BINARY_PATH = "/Applications/OBS.app/Contents/MacOS/OBS";
+    dup2(fd, STDOUT_FILENO);
+    dup2(fd, STDERR_FILENO);
+    close(fd);
 
-// Match this with your OBS plugin
-static const char* SOCKET_BASE_PATH =
-    "/tmp/elgato_mp_connect";
+    setvbuf(stdout, nullptr, _IONBF, 0);
+    setvbuf(stderr, nullptr, _IONBF, 0);
+}
 
+// --------------------------------------------------
+// Apple Event handling
+// --------------------------------------------------
+static std::string g_payload;
+static std::atomic<bool> g_received{false};
+
+static OSStatus handle_get_url(const AppleEvent* event,
+                               AppleEvent* /*reply*/,
+                               long /*refcon*/)
+{
+    AEDesc desc;
+    if (AEGetParamDesc(event, keyDirectObject, typeChar, &desc) == noErr) {
+        Size size = AEGetDescDataSize(&desc);
+        if (size > 0 && size < 16 * 1024) {
+            std::string url(size, '\0');
+            AEGetDescData(&desc, url.data(), size);
+            g_payload = url;
+            g_received = true;
+            std::cerr << "[INFO] Received URL via Apple Event: " << g_payload << "\n";
+        }
+        AEDisposeDesc(&desc);
+    }
+    return noErr;
+}
+
+static OSStatus generic_apple_event_handler(const AppleEvent* event,
+                                            AppleEvent* /*reply*/,
+                                            long /*refcon*/)
+{
+    if (!event) return noErr;
+
+    // Use AEGetAttributeDesc and AEGetDescData to read class/id
+    AEDesc classDesc;
+    AEDesc idDesc;
+    AEEventClass eventClass = 0;
+    AEEventID eventID = 0;
+
+    if (AEGetAttributeDesc(event, keyEventClassAttr, typeType, &classDesc) == noErr) {
+        AEGetDescData(&classDesc, &eventClass, sizeof(eventClass));
+        AEDisposeDesc(&classDesc);
+    }
+
+    if (AEGetAttributeDesc(event, keyEventIDAttr, typeType, &idDesc) == noErr) {
+        AEGetDescData(&idDesc, &eventID, sizeof(eventID));
+        AEDisposeDesc(&idDesc);
+    }
+
+    std::cerr << "[DEBUG] Apple Event received: class=0x"
+              << std::hex << eventClass
+              << " id=0x" << eventID << "\n";
+
+    return noErr;
+}
+
+
+static void install_event_handlers()
+{
+    // Log any application open events
+    AEInstallEventHandler(kCoreEventClass, kAEOpenApplication,
+                          reinterpret_cast<AEEventHandlerUPP>(generic_apple_event_handler),
+                          0, false);
+
+    // Install the main URL handler
+    AEInstallEventHandler(kInternetEventClass, kAEGetURL,
+                          reinterpret_cast<AEEventHandlerUPP>(handle_get_url),
+                          0, false);
+}
+
+// --------------------------------------------------
+// OBS / Unix socket
+// --------------------------------------------------
+static const char* SOCKET_BASE_PATH = "/tmp/elgato_cloud";
 static const int MAX_SOCKET_INDEX = 10;
-static const int CONNECT_RETRIES_SHORT = 6;
-static const int CONNECT_RETRIES_LONG  = 60;
 
-bool is_obs_running() {
+static int send_to_obs_socket(const std::string& payload,
+                              int retries,
+                              int sleep_seconds)
+{
+    for (int attempt = 0; attempt < retries; ++attempt) {
+        for (int i = 0; i < MAX_SOCKET_INDEX; ++i) {
+            std::string socket_path = std::string(SOCKET_BASE_PATH) + std::to_string(i);
+
+            int fd = socket(AF_UNIX, SOCK_STREAM, 0);
+            if (fd < 0) continue;
+
+            sockaddr_un addr{};
+            addr.sun_family = AF_UNIX;
+            std::strncpy(addr.sun_path, socket_path.c_str(), sizeof(addr.sun_path)-1);
+
+            if (connect(fd, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) == 0) {
+                ssize_t written = write(fd, payload.c_str(), payload.size());
+                close(fd);
+                if (written == static_cast<ssize_t>(payload.size())) {
+                    std::cerr << "[INFO] Sent payload to OBS: " << payload << "\n";
+                    return 0;
+                }
+            }
+            close(fd);
+        }
+        sleep(sleep_seconds);
+    }
+    std::cerr << "[ERROR] Could not connect to OBS socket\n";
+    return 1;
+}
+
+// --------------------------------------------------
+// OBS launch
+// --------------------------------------------------
+static bool is_obs_running()
+{
     FILE* pipe = popen("pgrep -x OBS", "r");
     if (!pipe) return false;
-
     char buffer[16];
     bool running = fgets(buffer, sizeof(buffer), pipe) != nullptr;
     pclose(pipe);
     return running;
 }
 
-int launch_obs() {
-    if (is_obs_running()) {
-        return 0;
+static int launch_obs_if_needed()
+{
+    if (is_obs_running()) return 0;
+    std::cerr << "[INFO] Launching OBS\n";
+    pid_t pid = fork();
+    if (pid == 0) {
+        execl("/Applications/OBS.app/Contents/MacOS/OBS", "OBS", nullptr);
+        _exit(1);
     }
-
-    pid_t pid;
-    char* args[] = {
-        const_cast<char*>(OBS_BINARY_PATH),
-        nullptr
-    };
-
-    int status = posix_spawn(
-        &pid,
-        OBS_BINARY_PATH,
-        nullptr,
-        nullptr,
-        args,
-        environ
-    );
-
-    if (status != 0) {
-        std::cerr << "[ERROR] Failed to launch OBS: " << strerror(status) << std::endl;
-        return 1;
-    }
-
     return 0;
 }
 
-int connect_and_send(const std::string& payload, int retries, int sleep_seconds) {
-    for (int attempt = 0; attempt < retries; ++attempt) {
-        for (int i = 0; i < MAX_SOCKET_INDEX; ++i) {
-            std::string socket_path =
-                std::string(SOCKET_BASE_PATH) + std::to_string(i);
+// --------------------------------------------------
+// Main
+// --------------------------------------------------
+int main()
+{
+    // Transform process to foreground GUI app
+    ProcessSerialNumber psn = { 0, kCurrentProcess };
+    TransformProcessType(&psn, kProcessTransformToForegroundApplication);
 
-            int fd = socket(AF_UNIX, SOCK_STREAM, 0);
-            if (fd < 0)
-                continue;
+    redirect_stdio_to_file();
+    std::cerr << "[INFO] Helper launched\n";
 
-            sockaddr_un addr {};
-            addr.sun_family = AF_UNIX;
-            std::strncpy(addr.sun_path, socket_path.c_str(),
-                         sizeof(addr.sun_path) - 1);
+    install_event_handlers();
 
-            if (connect(fd, reinterpret_cast<sockaddr*>(&addr),
-                        sizeof(addr)) == 0) {
-                ssize_t written = write(fd, payload.c_str(), payload.size());
-                close(fd);
-
-                if (written == static_cast<ssize_t>(payload.size())) {
-                    std::cout << "Connected to OBS plugin\n";
-                    return 0;
-                }
-            }
-
-            close(fd);
-        }
-
-        sleep(sleep_seconds);
+    // Run CFRunLoop until URL is received or timeout (5 seconds)
+    int wait_iterations = 500; // 500 * 10ms = 5s
+    for (int i = 0; i < wait_iterations && !g_received; ++i) {
+        CFRunLoopRunInMode(kCFRunLoopDefaultMode, 0.01, false);
     }
 
-    std::cerr << "[ERROR] Could not connect to OBS plugin socket.\n";
-    return 1;
-}
-
-int main(int argc, char* argv[]) {
-    if (argc < 2) {
-        std::cerr << "[ERROR] No argument provided.\n";
+    if (!g_received || g_payload.empty()) {
+        std::cerr << "[ERROR] No URL payload received\n";
         return 1;
     }
 
-    std::string payload = argv[1];
+    std::cerr << "[INFO] Final payload: " << g_payload << "\n";
 
-    // OAuth callback
-    if (payload.rfind("elgatolink://auth", 0) == 0) {
-        return connect_and_send(payload, CONNECT_RETRIES_SHORT, 2);
+    // OAuth return → send immediately
+    if (g_payload.rfind("elgatolink://auth", 0) == 0) {
+        return send_to_obs_socket(g_payload, 6, 2);
     }
 
-    // Otherwise: ensure OBS is running, then open plugin window
-    if (launch_obs() != 0) {
-        return 1;
-    }
+    // Otherwise: ensure OBS is running, then send open command
+    if (launch_obs_if_needed() != 0) return 1;
 
-    std::string open_payload = "elgatolink://open";
-    return connect_and_send(open_payload, CONNECT_RETRIES_LONG, 1);
+    return send_to_obs_socket("elgatolink://open", 60, 1);
 }

@@ -19,6 +19,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <fstream>
 #include <algorithm>
 #include <nlohmann/json.hpp>
+#include "plugin-support.h"
 
 namespace elgatocloud {
 
@@ -68,14 +69,28 @@ void PluginInfo::_loadApproved()
 	std::string dataPath = obs_get_module_data_path(obs_current_module());
 	std::ifstream f(dataPath + "/plugins.json");
 	nlohmann::json plugins = nlohmann::json::parse(f);
+	obs_log(LOG_INFO, "INSTALLED PLUGINS:");
+	for (auto &p : _installedPlugins) {
+		obs_log(LOG_INFO, "  %s", p.c_str());
+	}
 	for (auto &plugin : plugins["supported_plugins"]) {
-		std::string filename = plugin["files"][0];
+		//std::string filename = plugin["files"][0];
 		std::string url = plugin["url"];
 		std::string name = plugin["name"];
 		std::vector<std::string> files = plugin["files"];
-		bool installed = std::find(_installedPlugins.begin(),
-					   _installedPlugins.end(),
-					   filename) != _installedPlugins.end();
+		bool installed = false;
+		obs_log(LOG_INFO, "Searching for: %s", name.c_str());
+		for (auto filename : files) {
+			obs_log(LOG_INFO, "   - %s", filename.c_str());
+			bool findInstall = std::find(_installedPlugins.begin(),
+				_installedPlugins.end(),
+				filename) != _installedPlugins.end();
+			if(findInstall) {
+				installed = true;
+				obs_log(LOG_INFO, "      FOUND!");
+				break;
+			}
+		}
 		_approvedPlugins.push_back({installed, name, url, files});
 	}
 }

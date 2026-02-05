@@ -886,6 +886,7 @@ StreamDeckProfilesInstallListItem::StreamDeckProfilesInstallListItem(
 	auto *layout = new QHBoxLayout(this);
 	layout->setContentsMargins(4, 2, 4, 2);
 	layout->setSpacing(6);
+	setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 	setAttribute(Qt::WA_StyledBackground, true);
 	setAutoFillBackground(true);
 	setObjectName("StreamDeckProfilesInstallListItem");
@@ -964,12 +965,17 @@ StreamDeckProfilesInstallListContainer::StreamDeckProfilesInstallListContainer(
 	  legacy_(true)
 {
 	setWidgetResizable(true);
+	setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+	setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+	setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Minimum);
+	setMinimumHeight(0);
 
 	innerWidget_ = new QWidget(this);
+	innerWidget_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Minimum);
 	layout_ = new QVBoxLayout(innerWidget_);
 	layout_->setContentsMargins(4, 4, 4, 4);
 	layout_->setSpacing(4);
-	layout_->addStretch();
+	//layout_->addStretch();
 
 	innerWidget_->setLayout(layout_);
 	setWidget(innerWidget_);

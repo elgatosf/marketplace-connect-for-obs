@@ -33,6 +33,8 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <elgato-product.hpp>
 #include <util.h>
 
+#include <curl/curl.h>
+
 OBS_DECLARE_MODULE()
 OBS_MODULE_USE_DEFAULT_LOCALE(PLUGIN_NAME, "en-US")
 
@@ -76,6 +78,7 @@ bool obs_module_load(void)
 {
 	obs_log(LOG_INFO, "plugin loaded successfully (version %s)",
 		PLUGIN_VERSION);
+	curl_global_init(CURL_GLOBAL_DEFAULT);
 	elgatocloud::InitElgatoCloud(obs_current_module());
 	auto config = elgatocloud::GetElgatoCloudConfig();
 	bool makerTools = obs_data_get_bool(config, "MakerTools");
@@ -94,4 +97,5 @@ void obs_module_unload(void)
 {
 	elgatocloud::ShutDown();
 	obs_log(LOG_INFO, "plugin unloaded");
+	curl_global_cleanup();
 }

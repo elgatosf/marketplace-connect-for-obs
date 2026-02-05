@@ -125,16 +125,59 @@ if(OS_WINDOWS)
   add_executable(${CMAKE_PROJECT_NAME}-loader loader/main.cpp)
   install(TARGETS ${CMAKE_PROJECT_NAME}-loader RUNTIME DESTINATION helper-app)
 elseif(OS_MACOS)
-  add_executable(${CMAKE_PROJECT_NAME}-loader MACOSX_BUNDLE loader/main-macos.cpp)
+  target_sources(
+    ${CMAKE_PROJECT_NAME} PRIVATE 
+    src/util-macos.mm
+    src/util-macos.h
+  )
+
+  target_link_libraries(
+    ${CMAKE_PROJECT_NAME}
+    PRIVATE
+    "-framework Security"
+    "-framework CoreFoundation"
+  )
+  add_executable(${CMAKE_PROJECT_NAME}-loader MACOSX_BUNDLE
+    loader/macos/main.mm
+    loader/macos/urlHandler.cpp)
+
+  target_link_libraries(
+    ${CMAKE_PROJECT_NAME}-loader
+    PRIVATE
+    "-framework Cocoa"
+  )
+
+  target_include_directories(${CMAKE_PROJECT_NAME}-loader PRIVATE
+      ${CMAKE_CURRENT_SOURCE_DIR}/loader/macos
+  )
+
+  set_source_files_properties(loader/macos/main.mm PROPERTIES
+      LANGUAGE OBJCXX
+  )
+
   set_target_properties(${CMAKE_PROJECT_NAME}-loader PROPERTIES
     MACOSX_BUNDLE_INFO_PLIST
-    ${CMAKE_CURRENT_SOURCE_DIR}/loader/Info.plist.in
+    ${CMAKE_CURRENT_SOURCE_DIR}/loader/macos/Info.plist.in
   )
   set_target_properties(${CMAKE_PROJECT_NAME}-loader PROPERTIES
     MACOSX_BUNDLE_BUNDLE_NAME "Elgato Marketplace Connect"
     OUTPUT_NAME "Elgato Marketplace Connect"
   )
   install(TARGETS ${CMAKE_PROJECT_NAME}-loader BUNDLE DESTINATION helper-app)
+
+  # Ad-hoc sign the .app bundle after build
+  add_custom_command(
+    TARGET ${CMAKE_PROJECT_NAME}-loader
+    POST_BUILD
+    COMMAND /usr/bin/codesign
+            --force
+            --sign -
+            --timestamp
+            -o runtime
+            --generate-entitlement-der
+            "$<TARGET_BUNDLE_DIR:${CMAKE_PROJECT_NAME}-loader>"
+    COMMENT "Ad-hoc signing helper app bundle"
+  )
 else()
 
 endif()

@@ -46,11 +46,11 @@ namespace elgatocloud {
 ElgatoProduct::ElgatoProduct(nlohmann::json &productData) : _fileSize(0)
 {
 	thumbnailPath = QDir::homePath().toStdString();
-	thumbnailPath += "/AppData/Local/Elgato/MarketplaceConnect/Thumbnails";
+	thumbnailPath += getUserDataDir() + "/Thumbnails";
 	os_mkdirs(thumbnailPath.c_str());
 
 	std::string savePath = QDir::homePath().toStdString();
-	savePath += "/AppData/Local/Elgato/MarketplaceConnect/Downloads";
+	savePath += getUserDataDir() + "/Downloads";
 	os_mkdirs(savePath.c_str());
 
 	_thumbnailReady = false;
@@ -118,7 +118,7 @@ bool ElgatoProduct::DownloadProduct()
 	}
 
 	std::string savePath = QDir::homePath().toStdString();
-	savePath += "/AppData/Local/Elgato/MarketplaceConnect/Downloads/";
+	savePath += getUserDataDir() + "/Downloads/";
 	os_mkdirs(savePath.c_str());
 
 	std::shared_ptr<Downloader> dl = Downloader::getInstance("");
@@ -142,7 +142,7 @@ void ElgatoProduct::StopProductDownload()
 void ElgatoProduct::_downloadThumbnail()
 {
 	std::string savePath = QDir::homePath().toStdString();
-	savePath += "/AppData/Local/Elgato/MarketplaceConnect/Thumbnails/";
+	savePath += getUserDataDir() + "/Thumbnails/";
 	std::shared_ptr<Downloader> dl = Downloader::getInstance("");
 	dl->Enqueue(thumbnailUrl, savePath, ElgatoProduct::ThumbnailProgress, ElgatoProduct::SetThumbnail,
 		    this);

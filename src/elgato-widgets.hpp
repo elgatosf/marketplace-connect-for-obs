@@ -19,6 +19,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #pragma once
 
 #include <string>
+#include <optional>
 #include <obs-module.h>
 
 #include <QWidget>
@@ -56,6 +57,7 @@ protected:
 	void resizeEvent(QResizeEvent* event) override;
 
 private:
+    void _addDrawCallback();
 	obs_source_t *_videoCaptureSource = nullptr;
 	VideoPreviewWidget* _videoPreviewWidget = nullptr;
 	OBSQTDisplay *_videoPreview = nullptr;
@@ -69,6 +71,7 @@ private:
 	bool _noneSelected;
 	bool _loading;
 	bool _deactivated;
+	std::optional<QMetaObject::Connection> _previewVideoCallback;
 };
 
 class VideoPreviewWidget : public QWidget {

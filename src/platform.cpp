@@ -32,7 +32,11 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <windows.h>
 #include <io.h>
 #elif __APPLE__
+#include <sys/socket.h>
+#include <sys/un.h>
 #include <unistd.h>
+#include <errno.h>
+#include <cstring>
 #include <sys/stat.h>
 #include <CoreFoundation/CoreFoundation.h>
 #include <ApplicationServices/ApplicationServices.h>
@@ -149,11 +153,11 @@ bool path_begins_with(const std::string &haystack, const std::string &needle)
 #endif
 }
 
+#ifdef WIN32
 // Just blindly listens on a named pipe waiting for a string, and submits it to the callback
 bool listen_on_pipe(const std::string &pipe_name,
 		    std::function<void(std::string)> callback)
 {
-#ifdef WIN32
 	int pipe_number = 0;
 	std::string base_name = "\\\\.\\pipe\\" + pipe_name;
 	std::string attempt_name;
@@ -223,13 +227,110 @@ bool listen_on_pipe(const std::string &pipe_name,
 	}
 
 	obs_log(LOG_INFO, "Ended");
-#elif __APPLE__
-// TODO: Apple implementation of pipe to helper app.
-	UNUSED_PARAMETER(pipe_name);
-	UNUSED_PARAMETER(callback);
 	return true;
-#endif
 }
+#elif __APPLE__
+
+bool listen_on_pipe(const std::string &pipe_name,
+			std::function<void(std::string)> callback)
+{
+	const int MAX_PIPE_NUMBER = 10;
+	const size_t BUFFER_SIZE = 2048;
+
+	while (true) {
+		int server_fd = -1;
+		std::string socket_path;
+
+		obs_log(LOG_INFO, "Creating Unix socket...");
+
+		// Try numbered socket paths like Windows version
+		for (int pipe_number = 0; pipe_number < MAX_PIPE_NUMBER;
+				++pipe_number) {
+			socket_path =
+				"/tmp/" + pipe_name + std::to_string(pipe_number);
+
+			// Remove stale socket if it exists
+			unlink(socket_path.c_str());
+
+			server_fd = socket(AF_UNIX, SOCK_STREAM, 0);
+			if (server_fd < 0) {
+				continue;
+			}
+
+			sockaddr_un addr {};
+			addr.sun_family = AF_UNIX;
+			std::strncpy(addr.sun_path,
+						socket_path.c_str(),
+						sizeof(addr.sun_path) - 1);
+
+			if (bind(server_fd,
+					reinterpret_cast<sockaddr *>(&addr),
+					sizeof(addr)) == 0) {
+				break;
+			}
+
+			close(server_fd);
+			server_fd = -1;
+		}
+
+		if (server_fd < 0) {
+			obs_log(LOG_ERROR,
+				"Could not create Unix socket!");
+			return false;
+		}
+
+		if (listen(server_fd, SOMAXCONN) != 0) {
+			obs_log(LOG_ERROR,
+				"listen() failed on socket");
+			close(server_fd);
+			unlink(socket_path.c_str());
+			return false;
+		}
+
+		obs_log(LOG_INFO, "Listening on %s",
+			socket_path.c_str());
+
+		// Accept loop
+		while (true) {
+			int client_fd = accept(server_fd, nullptr, nullptr);
+			if (client_fd < 0) {
+				obs_log(LOG_ERROR,
+					"accept() failed");
+				break;
+			}
+
+			obs_log(LOG_INFO, "Client connected");
+
+			// Read loop
+			while (true) {
+				char buffer[BUFFER_SIZE];
+				ssize_t bytes_read =
+					read(client_fd, buffer, sizeof(buffer));
+
+				if (bytes_read <= 0) {
+					obs_log(LOG_INFO,
+						"Client disconnected");
+					break;
+				}
+
+				std::string message(buffer,
+							static_cast<size_t>(bytes_read));
+				callback(message);
+			}
+
+			close(client_fd);
+		}
+
+		close(server_fd);
+		unlink(socket_path.c_str());
+
+		obs_log(LOG_INFO, "Restarting socket listener");
+	}
+
+	return true;
+}
+#endif
+
 
 FILE *open_tmp_file(const char *mode, std::string &outFilename)
 {
