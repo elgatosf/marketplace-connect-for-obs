@@ -226,6 +226,7 @@ ${_usage_host:-}"
     } else {
       log_group "Archiving ${product_name}..."
       pushd ${project_root}/release/${config}
+      ls -lah
       XZ_OPT=-T0 tar "-${_tarflags}" ${project_root}/release/${output_name}.tar.xz ${product_name}.plugin
       popd
     }
