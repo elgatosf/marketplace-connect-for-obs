@@ -89,7 +89,7 @@ jobs:
             '.buildNumber = $buildNumber' \
             buildspec.json > tmp.json
             mv tmp.json buildspec.json
-            
+
       - name: Set Up Environment 🔧
         id: setup
         run: |
@@ -108,11 +108,14 @@ jobs:
 
           local product_name
           local product_version
-          read -r product_name product_version <<< \
-            "$(jq -r '. | {name, version} | join(" ")' buildspec.json)"
 
-          print "pluginName=${product_name}" >> $GITHUB_OUTPUT
-          print "pluginVersion=${product_version}" >> $GITHUB_OUTPUT
+          read -r product_name product_version <<< \
+            "$(jq -r '[.name,
+                      "\(.versionMajor).\(.versionMinor).\(.versionPatch).\(.buildNumber)"
+                      ] | join(" ")' buildspec.json)"
+
+          print "pluginName=${product_name}" >> "$GITHUB_OUTPUT"
+          print "pluginVersion=${product_version}" >> "$GITHUB_OUTPUT"
 
       - uses: actions/cache@v4
         id: ccache-cache
