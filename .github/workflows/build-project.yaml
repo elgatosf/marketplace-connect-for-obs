@@ -83,7 +83,13 @@ jobs:
         with:
           submodules: recursive
           fetch-depth: 0
-
+      - name: Update Build Number ⬆️
+        run: |
+          jq --argjson buildNumber "${{ github.run_number }}" \
+            '.buildNumber = $buildNumber' \
+            buildspec.json > tmp.json
+            mv tmp.json buildspec.json
+            
       - name: Set Up Environment 🔧
         id: setup
         run: |
