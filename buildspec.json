@@ -33,7 +33,8 @@
     },
     "platformConfig": {
         "macos": {
-            "bundleId": "com.elgato.marketplace-connect"
+            "bundleId": "com.elgato.marketplace-connect",
+            "helperBundleId": "com.elgato.marketplace-connect-loader"
         }
     },
     "name": "elgato-marketplace-connect",
