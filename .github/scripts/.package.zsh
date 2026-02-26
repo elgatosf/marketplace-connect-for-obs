@@ -163,8 +163,12 @@ ${_usage_host:-}"
 
   local product_name
   local product_version
+
   read -r product_name product_version <<< \
-    "$(jq -r '. | {name, version} | join(" ")' ${buildspec_file})"
+    "$(jq -r '[.name,
+              "\(.versionMajor).\(.versionMinor).\(.versionPatch).\(.buildNumber)"
+              ] | join(" ")' ${buildspec_file})"
+
 
   if [[ ${host_os} == macos ]] {
     autoload -Uz check_packages read_codesign read_codesign_installer read_codesign_pass
