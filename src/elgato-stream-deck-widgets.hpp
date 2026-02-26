@@ -268,11 +268,26 @@ private:
 
 class StreamDeckSetupWidget : public QWidget
 {
-	Q_OBJECT
+    Q_OBJECT
 public:
-	explicit StreamDeckSetupWidget(
-		std::vector<SDFileDetails> const &sdaFiles,
-		std::vector<SDFileDetails> const &profileFiles,
-		bool disabled,
-		QWidget *parent = nullptr);
+    explicit StreamDeckSetupWidget(
+        std::vector<SDFileDetails> const &sdaFiles,
+        std::vector<SDFileDetails> const &profileFiles,
+        bool disabled,
+        QWidget *parent = nullptr);
+
+protected:
+    void resizeEvent(QResizeEvent *event) override;
+
+private:
+    QVBoxLayout *layout_ = nullptr;
+
+    QLabel *profilesLabel_ = nullptr;
+    QLabel *actionsLabel_ = nullptr;
+
+    QScrollArea *profilesArea_ = nullptr;
+    QScrollArea *actionsArea_ = nullptr;
+
+    QWidget *profilesEmpty_ = nullptr;
+    QWidget *actionsEmpty_ = nullptr;
 };

@@ -281,6 +281,12 @@ void UserMenu::disable(bool setDisable)
 
 void UserMenu::_showModalMenu()
 {
+	QPoint menuPos = this->mapToGlobal(QPoint(0, this->height()));
+
+#ifdef __APPLE__
+    _menu->exec(menuPos);
+    return;
+#else
 	// Transparent modal overlay to enforce modality
 	// Create a transparent non-modal QWidget to act as an overlay
 	QWidget* overlay = new QWidget(nullptr, Qt::Tool | Qt::FramelessWindowHint);
@@ -292,11 +298,12 @@ void UserMenu::_showModalMenu()
 	overlay->show();
 
 	// Position and show the menu
-	QPoint menuPos = this->mapToGlobal(QPoint(0, this->height()));
+	//QPoint menuPos = this->mapToGlobal(QPoint(0, this->height()));
 	_menu->popup(menuPos);
 
 	// Close the overlay when the menu is dismissed
 	connect(_menu, &QMenu::aboutToHide, overlay, &QWidget::close);
+#endif
 }
 
 WindowToolBar::WindowToolBar(QWidget *parent) : QWidget(parent)
@@ -1144,7 +1151,7 @@ ElgatoProductItem::ElgatoProductItem(QWidget *parent, ElgatoProduct *product)
 	: QWidget(parent),
 	  _product(product)
 {
-	setFixedWidth(220);
+	setFixedWidth(212);
 	std::string imageBaseDir = GetDataPath();
 	imageBaseDir += "/images/";
 

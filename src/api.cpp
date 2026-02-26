@@ -49,6 +49,12 @@ MarketplaceApi::MarketplaceApi()
 {
 	std::string dataPath = obs_get_module_data_path(obs_current_module());
 	dataPath += "/" + std::string(API_URLS_FILE);
+
+	if(!os_file_exists(dataPath.c_str())) {
+		dataPath = QDir::homePath().toStdString();
+		dataPath += getUserDataDir() + "/" + std::string(API_URLS_FILE);
+	}
+
 	if (os_file_exists(dataPath.c_str())) {
 		std::ifstream f(dataPath);
 		try {
