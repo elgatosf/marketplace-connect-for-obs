@@ -225,10 +225,17 @@ ${_usage_host:-}"
       popd
     } else {
       log_group "Archiving ${product_name}..."
-      pushd ${project_root}/release/${config}
-      ls -lah
-      ls -lah helper-app
-      XZ_OPT=-T0 tar "-${_tarflags}" ${project_root}/release/${output_name}.tar.xz ${product_name}.plugin
+
+      pushd "${project_root}/release/${config}"
+
+      mkdir -p staging/plugin staging/helper-app
+      cp -R "${product_name}.plugin" staging/plugin/
+      cp -R helper-app/*.app staging/helper-app/
+
+      XZ_OPT=-T0 tar -${_tarflags} "${project_root}/release/${output_name}.tar.xz" -C staging .
+
+      rm -rf staging
+
       popd
     }
 
