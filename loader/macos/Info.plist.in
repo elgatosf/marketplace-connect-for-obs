@@ -16,13 +16,13 @@
     <string>APPL</string>
 
     <key>CFBundleVersion</key>
-    <string>1</string>
+    <string>@PLUGIN_BUILDNUMBER@</string>
 
     <key>CFBundleShortVersionString</key>
-    <string>1.0</string>
+    <string>@PLUGIN_VERSION@</string>
 
     <key>LSMinimumSystemVersion</key>
-    <string>10.13</string>
+    <string>11.0</string>
 
     <!-- Register custom URL scheme -->
     <key>CFBundleURLTypes</key>
@@ -41,5 +41,8 @@
     <!-- Helper app: hide dock icon -->
     <key>LSUIElement</key>
     <true/>
+
+    <key>NSHumanReadableCopyright</key>
+    <string>(c) @CURRENT_YEAR@ @PLUGIN_AUTHOR@</string>
 </dict>
 </plist>
