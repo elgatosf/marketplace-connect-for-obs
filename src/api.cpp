@@ -230,14 +230,14 @@ void MarketplaceApi::OpenStoreInBrowser() const
 	std::string storeUrl =
 		_storeUrl +
 		"/obs/scene-collections?utm_source=mp_connect&utm_medium=direct_software&utm_campaign=v_1.0";
-	std::string url;
-	if (accessToken != "") {
-		std::string storeUrlEnc = url_encode(storeUrl);
-		url = _storeUrl + "/api/auth/login?token=" + accessToken + "&redirect=" + storeUrlEnc;
-	}
-	else {
-		url = storeUrl;
-	}
+	std::string url = storeUrl;
+	//if (accessToken != "") {
+	//	std::string storeUrlEnc = url_encode(storeUrl);
+	//	url = _storeUrl + "/api/auth/login?token=" + accessToken + "&redirect=" + storeUrlEnc;
+	//}
+	//else {
+	//	url = storeUrl;
+	//}
 #ifdef WIN32
 	ShellExecuteA(NULL, NULL, url.c_str(), NULL, NULL, SW_SHOW);
 #elif __APPLE__

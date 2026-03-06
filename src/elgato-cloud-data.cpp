@@ -445,8 +445,13 @@ void ElgatoCloud::LogOut()
 void ElgatoCloud::CheckUpdates(bool forceCheck)
 {
 	try {
+#ifdef WIN32
 		std::string updateUrl =
 			"https://gc-updates.elgato.com/windows/marketplace-plugin-for-obs/final/app-version-check.json.php";
+#elif __APPLE__
+		std::string updateUrl =
+			"https://gc-updates.elgato.com/mac/marketplace-plugin-for-obs/final/app-version-check.json.php";
+#endif
 		auto response = fetch_string_from_get(updateUrl, "");
 		auto responseJson = nlohmann::json::parse(response);
 		if (responseJson.contains("Automatic")) {

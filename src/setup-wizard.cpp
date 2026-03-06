@@ -73,7 +73,6 @@ SceneCollectionInfo GetBundleInfo(std::string filename)
 	return data;
 }
 
-
 StepsSideBar::StepsSideBar(std::vector<std::string> const& steps, std::string name, std::string thumbnailPath, QWidget* parent)
 	: QWidget(parent)
 {
@@ -1134,129 +1133,6 @@ void StreamPackageSetupWizard::OpenArchive()
 				}
 			});		
 	});
-	// _future =
-	// 	QtConcurrent::run(GetBundleInfo, _filename)
-	// 		.then([this](SceneCollectionInfo bundleInfoData) {
-	// 			// We are now in a different thread, so we need to execute this
-	// 			// back in the gui thread.  See, threading hell.
-	// 			QMetaObject::invokeMethod(
-	// 				QCoreApplication::instance()
-	// 					->thread(), // main GUI thread
-	// 				[this, bundleInfoData]() {
-	// 					sdFilesPath_ = bundleInfoData.streamDeckPath;
-	// 					nlohmann::json bundleInfo;
-	// 					bool error = false;
-	// 					try {
-	// 						bundleInfo = nlohmann::
-	// 							json::parse(
-	// 								bundleInfoData.bundleInfo);
-	// 					} catch (
-	// 						const nlohmann::json::
-	// 							parse_error &e) {
-	// 						obs_log(LOG_ERROR,
-	// 							"Parsing Error.\n  message: %s\n  id: %i",
-	// 							e.what(), e.id);
-	// 						error = true;
-	// 					}
-	// 					if (error ||
-	// 					    bundleInfo.contains(
-	// 						    "Error")) {
-	// 						obs_log(LOG_ERROR,
-	// 							"Invalid file.");
-	// 						int ret = QMessageBox::warning(
-	// 							this,
-	// 							obs_module_text("SetupWizard.IncompatibleFile.Title"),
-	// 							obs_module_text("SetupWizard.IncompatibleFile.Text"),
-	// 							QMessageBox::Ok);
-	// 						UNUSED_PARAMETER(ret);
-	// 						close();
-	// 						return;
-	// 					}
-
-	// 					std::vector<SDFileDetails> streamDeckActions;
-	// 					std::vector<SDFileDetails> streamDeckProfiles;
-	// 					std::string actionsDir =
-	// 						sdFilesPath_ +
-	// 						"/Assets/stream-deck/stream-deck-actions/";
-
-	// 					std::string profilesDir =
-	// 							sdFilesPath_ +
-	// 						"/Assets/stream-deck/stream-deck-profiles/";
-
-
-	// 					if (bundleInfo.contains("stream_deck_actions")) {
-	// 						for (auto const &action : bundleInfo["stream_deck_actions"]) {
-	// 							std::string filename = action["filename"];
-	// 							streamDeckActions.push_back({
-	// 									actionsDir + filename,
-	// 									action["label"]
-	// 							});
-	// 						}
-	// 					}
-
-	// 					if (bundleInfo.contains("stream_deck_profiles")) {
-	// 						for (auto const &action : bundleInfo["stream_deck_profiles"]) {
-	// 							std::string filename = action["filename"];
-	// 							streamDeckProfiles.push_back({
-	// 									profilesDir + filename,
-	// 									action["label"]
-	// 							});
-	// 						}
-	// 					}
-
-	// 					std::map<std::string,
-	// 						 std::string>
-	// 						videoSourceLabels = bundleInfo
-	// 							["video_devices"];
-	// 					std::vector<std::string>
-	// 						requiredPlugins = bundleInfo
-	// 							["plugins_required"];
-	// 					std::vector<OutputScene> outputScenes = {};
-	// 					if (bundleInfo.contains("output_scenes")) {
-	// 						for (auto const& outputScene : bundleInfo["output_scenes"]) {
-	// 							if (outputScene.contains("name") && outputScene.contains("id")) {
-	// 								outputScenes.push_back({
-	// 									outputScene["id"],
-	// 									outputScene["name"],
-	// 									true
-	// 								});
-	// 							}
-	// 						}
-	// 					}
-
-	// 					// In case the setup wizard was closed while the
-	// 					// archive was being extracted, stop execution before
-	// 					// anything is called on the now null setupWizard pointer.
-	// 					auto setupWizard = GetSetupWizard();
-	// 					if (!setupWizard) {
-	// 						return;
-	// 					}
-
-	// 					// Disable all video capture sources so that single-thread
-	// 					// capture sources, such as the Elgato Facecam, can be properly
-	// 					// selected in the wizard.  Will re-enable any disabled sources
-	// 					// in the wizard destructor.
-	// 					obs_enum_sources(
-	// 						&StreamPackageSetupWizard::
-	// 							DisableVideoCaptureSources,
-	// 						this);
-
-	// 					PluginInfo pi;
-	// 					std::vector<PluginDetails>
-	// 						missing = pi.missing(
-	// 							requiredPlugins);
-	// 					if (missing.size() > 0) {
-	// 						_buildMissingPluginsUI(
-	// 							missing);
-	// 					} else {
-	// 						_buildSetupUI(
-	// 							videoSourceLabels, outputScenes, streamDeckActions, streamDeckProfiles);
-	// 					}
-	// 				});
-	// 		})
-	// 		.onCanceled([]() {
-
-	// 		});
 }
 
 bool StreamPackageSetupWizard::DisableVideoCaptureSources(void *data,
@@ -1310,7 +1186,6 @@ void StreamPackageSetupWizard::_buildMissingPluginsUI(
 	std::vector<PluginDetails> &missing)
 {
 	setFixedSize(640, 512);
-	//QVBoxLayout *layout = new QVBoxLayout(this);
 
 	auto missingPlugins =
 		new MissingPlugins(this, _productName, _thumbnailPath, missing);
