@@ -20,6 +20,8 @@ with this program.If not, see < https://www.gnu.org/licenses/>
 
 #include <map>
 #include <string>
+#include <future>
+#include <atomic>
 
 #include <obs-module.h>
 #include <obs-frontend-api.h>
@@ -33,7 +35,6 @@ with this program.If not, see < https://www.gnu.org/licenses/>
 #include <QComboBox>
 #include <QStackedWidget>
 #include <QMovie>
-#include <QTConcurrent>
 #include <QStyledItemDelegate>
 #include <QFontMetrics>
 
@@ -296,7 +297,9 @@ private:
 	QStackedWidget *_steps;
 	SceneBundle _bundle;
 	std::vector<obs_module_t *> _modules;
-	QFuture<void> _future;
+	//QFuture<void> _future;
+	std::future<void> _future;
+	std::atomic<bool> _canceled{false};
 	bool _waiting;
 };
 

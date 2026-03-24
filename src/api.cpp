@@ -20,6 +20,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include "downloader.h"
 #include "util.h"
 #include "elgato-cloud-data.hpp"
+#include "platform.h"
 #include <plugin-support.h>
 
 #include <fstream>
@@ -48,6 +49,12 @@ MarketplaceApi::MarketplaceApi()
 {
 	std::string dataPath = obs_get_module_data_path(obs_current_module());
 	dataPath += "/" + std::string(API_URLS_FILE);
+
+	if(!os_file_exists(dataPath.c_str())) {
+		dataPath = QDir::homePath().toStdString();
+		dataPath += getUserDataDir() + "/" + std::string(API_URLS_FILE);
+	}
+
 	if (os_file_exists(dataPath.c_str())) {
 		std::ifstream f(dataPath);
 		try {
@@ -151,7 +158,8 @@ void MarketplaceApi::setUserDetails(nlohmann::json &data)
 					_avatarUrl = it["asset_cdn"];
 					_hasAvatar = true;
 					std::string avatarPath = QDir::homePath().toStdString();
-					avatarPath += "/AppData/Local/Elgato/MarketplaceConnect/Thumbnails";
+					avatarPath += getUserDataDir() + "/Thumbnails";
+					obs_log(LOG_INFO, "avatarPath: %s", avatarPath.c_str());
 					os_mkdirs(avatarPath.c_str());
 
 					auto found = _avatarUrl.find_last_of("/");
@@ -185,7 +193,7 @@ void MarketplaceApi::_downloadAvatar()
 	_avatarDownloading = true;
 	_avatarReady = false;
 	std::string savePath = QDir::homePath().toStdString();
-	savePath += "/AppData/Local/Elgato/MarketplaceConnect/Thumbnails/";
+	savePath += getUserDataDir() + "/Thumbnails";
 	std::shared_ptr<Downloader> dl = Downloader::getInstance("");
 	dl->Enqueue(_avatarUrl, savePath, MarketplaceApi::AvatarProgress, MarketplaceApi::AvatarDownloadComplete,
 		this);
@@ -222,15 +230,19 @@ void MarketplaceApi::OpenStoreInBrowser() const
 	std::string storeUrl =
 		_storeUrl +
 		"/obs/scene-collections?utm_source=mp_connect&utm_medium=direct_software&utm_campaign=v_1.0";
-	std::string url;
-	if (accessToken != "") {
-		std::string storeUrlEnc = url_encode(storeUrl);
-		url = _storeUrl + "/api/auth/login?token=" + accessToken + "&redirect=" + storeUrlEnc;
-	}
-	else {
-		url = storeUrl;
-	}
+	std::string url = storeUrl;
+	//if (accessToken != "") {
+	//	std::string storeUrlEnc = url_encode(storeUrl);
+	//	url = _storeUrl + "/api/auth/login?token=" + accessToken + "&redirect=" + storeUrlEnc;
+	//}
+	//else {
+	//	url = storeUrl;
+	//}
+#ifdef WIN32
 	ShellExecuteA(NULL, NULL, url.c_str(), NULL, NULL, SW_SHOW);
+#elif __APPLE__
+	openURL(url);
+#endif
 }
 
 void MarketplaceApi::OpenAccountInBrowser() const
@@ -248,7 +260,11 @@ void MarketplaceApi::OpenAccountInBrowser() const
 	else {
 		url = storeUrl;
 	}
+#ifdef WIN32
 	ShellExecuteA(NULL, NULL, url.c_str(), NULL, NULL, SW_SHOW);
+#elif __APPLE__
+	openURL(url);
+#endif
 }
 
 } // namespace elgatocloud

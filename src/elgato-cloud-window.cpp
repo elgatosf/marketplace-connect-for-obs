@@ -57,7 +57,9 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <QDrag>
 #include <QDesktopServices>
 
+#ifdef WIN32
 #include <Windows.h>
+#endif
 
 #include <plugin-support.h>
 
@@ -85,6 +87,7 @@ void Avatar::update()
 
 void Avatar::paintEvent(QPaintEvent *e)
 {
+	UNUSED_PARAMETER(e);
 	QPainter paint;
 	paint.begin(this);
 	paint.setRenderHint(QPainter::Antialiasing);
@@ -278,6 +281,12 @@ void UserMenu::disable(bool setDisable)
 
 void UserMenu::_showModalMenu()
 {
+	QPoint menuPos = this->mapToGlobal(QPoint(0, this->height()));
+
+#ifdef __APPLE__
+    _menu->exec(menuPos);
+    return;
+#else
 	// Transparent modal overlay to enforce modality
 	// Create a transparent non-modal QWidget to act as an overlay
 	QWidget* overlay = new QWidget(nullptr, Qt::Tool | Qt::FramelessWindowHint);
@@ -289,11 +298,12 @@ void UserMenu::_showModalMenu()
 	overlay->show();
 
 	// Position and show the menu
-	QPoint menuPos = this->mapToGlobal(QPoint(0, this->height()));
+	//QPoint menuPos = this->mapToGlobal(QPoint(0, this->height()));
 	_menu->popup(menuPos);
 
 	// Close the overlay when the menu is dismissed
 	connect(_menu, &QMenu::aboutToHide, overlay, &QWidget::close);
+#endif
 }
 
 WindowToolBar::WindowToolBar(QWidget *parent) : QWidget(parent)
@@ -368,7 +378,6 @@ void WindowToolBar::disableLogout(bool disabled)
 
 void WindowToolBar::updateState()
 {
-	auto api = MarketplaceApi::getInstance();
 	_userMenu->setHidden(!elgatoCloud->loggedIn);
 }
 
@@ -703,16 +712,6 @@ ElgatoCloudWindow::~ElgatoCloudWindow()
 
 void ElgatoCloudWindow::initialize()
 {
-	const char *zip_path = "D:\\big-video.elgatoscene";
-
-	ZipArchive zip(this);
-	zip.openExisting(zip_path);
-	auto files = zip.listEntries();
-
-	for (auto &f : files) {
-		obs_log(LOG_INFO, "%s", f.toStdString().c_str());
-	}
-
 	setWindowTitle(QString("Elgato Marketplace Connect"));
 	//setFixedSize(1140, 600);
 
@@ -914,6 +913,8 @@ void ProgressThumbnail::setDownloading(bool downloading)
 
 void ProgressThumbnail::paintEvent(QPaintEvent* event)
 {
+	UNUSED_PARAMETER(event);
+
 	if (_pixmap.isNull()) return;
 
 	QPainter painter(this);
@@ -960,6 +961,7 @@ void ProgressThumbnail::paintEvent(QPaintEvent* event)
 
 void ProgressThumbnail::onHoverEnter(QHoverEvent* event)
 {
+	UNUSED_PARAMETER(event);
 	if (_hoverDisabled) {
 		return;
 	}
@@ -969,6 +971,7 @@ void ProgressThumbnail::onHoverEnter(QHoverEvent* event)
 
 void ProgressThumbnail::onHoverLeave(QHoverEvent* event)
 {
+	UNUSED_PARAMETER(event);
 	if (_hoverDisabled) {
 		return;
 	}
@@ -1138,7 +1141,7 @@ ElgatoProductItem::ElgatoProductItem(QWidget *parent, ElgatoProduct *product)
 	: QWidget(parent),
 	  _product(product)
 {
-	setFixedWidth(220);
+	setFixedWidth(212);
 	std::string imageBaseDir = GetDataPath();
 	imageBaseDir += "/images/";
 
@@ -1684,6 +1687,7 @@ extern void CheckForUpdates(bool forceCheck)
 extern void CheckForUpdatesOnLaunch(enum obs_frontend_event event,
 				    void *private_data)
 {
+	UNUSED_PARAMETER(private_data);
 	if (event == OBS_FRONTEND_EVENT_FINISHED_LOADING) {
 		obs_frontend_remove_event_callback(CheckForUpdatesOnLaunch,
 						   nullptr);

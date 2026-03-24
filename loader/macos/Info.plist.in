@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+ "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleExecutable</key>
+    <string>@EXECUTABLE_NAME@</string>
+
+    <key>CFBundleIdentifier</key>
+    <string>@MACOS_HELPER_BUNDLEID@</string>
+
+    <key>CFBundleName</key>
+    <string>@PRODUCT_NAME@</string>
+
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+
+    <key>CFBundleVersion</key>
+    <string>@PLUGIN_BUILDNUMBER@</string>
+
+    <key>CFBundleShortVersionString</key>
+    <string>@PLUGIN_VERSION@</string>
+
+    <key>LSMinimumSystemVersion</key>
+    <string>11.0</string>
+
+    <!-- Register custom URL scheme -->
+    <key>CFBundleURLTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleURLName</key>
+            <string>ElgatoLink URL Handler</string>
+
+            <key>CFBundleURLSchemes</key>
+            <array>
+                <string>elgatolink</string>
+            </array>
+        </dict>
+    </array>
+
+    <!-- Helper app: hide dock icon -->
+    <key>LSUIElement</key>
+    <true/>
+
+    <key>NSHumanReadableCopyright</key>
+    <string>(c) @CURRENT_YEAR@ @PLUGIN_AUTHOR@</string>
+</dict>
+</plist>

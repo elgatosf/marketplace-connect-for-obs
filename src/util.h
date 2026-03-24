@@ -37,10 +37,20 @@ static size_t write_data(void *ptr, size_t size, size_t nmemb, void *userdata)
 	return size * nmemb;
 };
 
+static size_t write_data_string(void *ptr, size_t size, size_t nmemb, void *userdata)
+{
+    size_t total = size * nmemb;
+    auto* result = static_cast<std::string*>(userdata);
+    result->append(static_cast<const char*>(ptr), total);
+    return total;
+}
+
 struct StreamDeckInfo {
 	bool installed;
 	std::string version;
 };
+
+std::string getUserDataDir();
 
 obs_data_t *get_module_config();
 void save_module_config(obs_data_t *config);
@@ -95,8 +105,18 @@ std::string versionNoBuild();
 std::string buildNumber();
 std::string releaseType();
 
+#ifdef WIN32
 std::string encryptString(std::string input);
 std::string decryptString(std::string input);
+#elif __APPLE__
+bool storeInKeychain(const std::string& service,
+                        const std::string& account,
+                        const std::string& secret);
+
+std::string retrieveFromKeychain(const std::string& service,
+                               const std::string& account);
+#endif
+
 std::string getImagesPath();
 bool isProtocolHandlerRegistered(const std::wstring &protocol);
 bool endsWith(const std::string &str, const std::string &suffix);

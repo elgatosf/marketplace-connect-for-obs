@@ -22,7 +22,6 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 std::string get_scene_collections_path();
 bool is_symlink(std::string path);
 bool is_directory(std::string path);
-std::string get_plugin_data_path();
 bool path_begins_with(const std::string &haystack, const std::string &needle);
 
 // Just blindly listens on a named pipe waiting for a string, and submits it to the callback
@@ -34,3 +33,7 @@ bool move_file(const std::string &from, const std::string &to);
 
 // Moves file from 'from' to 'to' but renames it if there's a collision
 std::string move_file_safe(const std::string &from, const std::string &to);
+
+#ifdef __APPLE__
+void openURL(const std::string& url);
+#endif

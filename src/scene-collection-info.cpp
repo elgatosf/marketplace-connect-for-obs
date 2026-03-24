@@ -172,8 +172,7 @@ StreamDeckInstallWidget::StreamDeckInstallWidget(nlohmann::json scData,
 
 
 	StreamDeckSetupWidget *widget = new StreamDeckSetupWidget(sdaFiles, sdProfileFiles, disabled, this);
-	widget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
-	widget->setFixedHeight(400);
+	widget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 	layout->addWidget(widget);
 
 }

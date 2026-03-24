@@ -50,7 +50,7 @@ signals:
 	void clicked();
 
 protected:
-	void paintEvent(QPaintEvent *e);
+	void paintEvent(QPaintEvent *e) override;
 	void mousePressEvent(QMouseEvent* event) override;
 
 private:
@@ -115,7 +115,7 @@ public:
 	virtual void setDisabled(bool disabled);
 protected:
 	void paintEvent(QPaintEvent* event) override;
-	virtual void resizeEvent(QResizeEvent* event);
+	virtual void resizeEvent(QResizeEvent* event) override;
 
 private:
 	QPixmap _pixmap, _pixmapScaled, _pixmapScaledDisabled;
@@ -145,7 +145,7 @@ signals:
 	void cancelDownloadClicked();
 
 protected:
-	bool event(QEvent* e);
+	bool event(QEvent* e) override;
 	void resizeEvent(QResizeEvent* event) override;
 
 private:

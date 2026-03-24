@@ -22,8 +22,8 @@ if(ENABLE_FRONTEND_API)
 endif()
 
 if(ENABLE_QT)
-  find_qt(COMPONENTS Widgets Core Concurrent Svg)
-  target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE Qt::Core Qt::Widgets Qt::Concurrent Qt::Svg)
+  find_qt(COMPONENTS Widgets Core Svg)
+  target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE Qt::Core Qt::Widgets Qt::Svg)
   target_compile_options(
     ${CMAKE_PROJECT_NAME} PRIVATE $<$<C_COMPILER_ID:Clang,AppleClang>:-Wno-quoted-include-in-framework-header
                                   -Wno-comma>)
@@ -56,6 +56,12 @@ add_subdirectory(deps/libzip)
 
 if(MSVC AND TARGET zip)
     target_compile_options(zip PRIVATE /wd4244)
+elseif(OS_MACOS AND TARGET zip)
+    target_compile_options(zip PRIVATE
+        -Wno-unused-parameter
+        -Wno-unreachable-code
+        -Wno-newline-eof
+        -Wno-ambiguous-macro)
 endif()
 
 # Add libzip include directory
@@ -115,7 +121,68 @@ target_sources(
           src/elgato-widgets.cpp
           src/elgato-widgets.hpp)
 
-add_executable(${CMAKE_PROJECT_NAME}-loader loader/main.cpp)
-install(TARGETS ${CMAKE_PROJECT_NAME}-loader RUNTIME DESTINATION helper-app)
+if(OS_WINDOWS)
+  add_executable(${CMAKE_PROJECT_NAME}-loader loader/main.cpp)
+  install(TARGETS ${CMAKE_PROJECT_NAME}-loader RUNTIME DESTINATION helper-app)
+elseif(OS_MACOS)
+  target_sources(
+    ${CMAKE_PROJECT_NAME} PRIVATE 
+    src/util-macos.mm
+    src/util-macos.h
+  )
+
+  target_link_libraries(
+    ${CMAKE_PROJECT_NAME}
+    PRIVATE
+    "-framework Security"
+    "-framework CoreFoundation"
+  )
+  add_executable(${CMAKE_PROJECT_NAME}-loader MACOSX_BUNDLE
+    loader/macos/main.mm
+    loader/macos/urlHandler.cpp)
+
+  target_link_libraries(
+    ${CMAKE_PROJECT_NAME}-loader
+    PRIVATE
+    "-framework Cocoa"
+  )
+
+  target_include_directories(${CMAKE_PROJECT_NAME}-loader PRIVATE
+      ${CMAKE_CURRENT_SOURCE_DIR}/loader/macos
+  )
+
+  set_source_files_properties(loader/macos/main.mm PROPERTIES
+      LANGUAGE OBJCXX
+  )
+
+  set_target_properties(${CMAKE_PROJECT_NAME}-loader PROPERTIES
+    MACOSX_BUNDLE_INFO_PLIST
+    ${CMAKE_CURRENT_SOURCE_DIR}/loader/macos/Info.plist.in
+  )
+  set_target_properties(${CMAKE_PROJECT_NAME}-loader PROPERTIES
+    MACOSX_BUNDLE_BUNDLE_NAME "Elgato Marketplace Connect"
+    OUTPUT_NAME "Elgato Marketplace Connect"
+    XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER ${MACOS_HELPER_BUNDLEID}
+    XCODE_ATTRIBUTE_CURRENT_PROJECT_VERSION ${PLUGIN_BUILDNUMBER}
+    XCODE_ATTRIBUTE_MARKETING_VERSION ${PLUGIN_VERSION}
+  )
+  install(TARGETS ${CMAKE_PROJECT_NAME}-loader BUNDLE DESTINATION helper-app)
+
+  # Ad-hoc sign the .app bundle after build
+  add_custom_command(
+    TARGET ${CMAKE_PROJECT_NAME}-loader
+    POST_BUILD
+    COMMAND /usr/bin/codesign
+            --force
+            --sign -
+            --timestamp
+            -o runtime
+            --generate-entitlement-der
+            "$<TARGET_BUNDLE_DIR:${CMAKE_PROJECT_NAME}-loader>"
+    COMMENT "Ad-hoc signing helper app bundle"
+  )
+else()
+
+endif()
 
 set_target_properties_plugin(${CMAKE_PROJECT_NAME} PROPERTIES OUTPUT_NAME ${_name})

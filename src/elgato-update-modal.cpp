@@ -99,7 +99,11 @@ ElgatoUpdateModal::ElgatoUpdateModal(QWidget* parent, std::string version, std::
 	});
 
 	connect(downloadButton, &QPushButton::released, this, [this, downloadUrl]() {
+	#ifdef WIN32
 		ShellExecuteA(NULL, NULL, downloadUrl.c_str(), NULL, NULL, SW_SHOW);
+	#elif __APPLE__
+		// TODO: MacOS Download Button
+	#endif
 		close();
 	});
 

@@ -163,8 +163,12 @@ ${_usage_host:-}"
 
   local product_name
   local product_version
+
   read -r product_name product_version <<< \
-    "$(jq -r '. | {name, version} | join(" ")' ${buildspec_file})"
+    "$(jq -r '[.name,
+              "\(.versionMajor).\(.versionMinor).\(.versionPatch).\(.buildNumber)"
+              ] | join(" ")' ${buildspec_file})"
+
 
   if [[ ${host_os} == macos ]] {
     autoload -Uz check_packages read_codesign read_codesign_installer read_codesign_pass
@@ -225,8 +229,17 @@ ${_usage_host:-}"
       popd
     } else {
       log_group "Archiving ${product_name}..."
-      pushd ${project_root}/release/${config}
-      XZ_OPT=-T0 tar "-${_tarflags}" ${project_root}/release/${output_name}.tar.xz ${product_name}.plugin
+
+      pushd "${project_root}/release/${config}"
+
+      mkdir -p staging/plugin staging/helper-app
+      cp -R "${product_name}.plugin" staging/plugin/
+      cp -R helper-app/*.app staging/helper-app/
+
+      XZ_OPT=-T0 tar -${_tarflags} "${project_root}/release/${output_name}.tar.xz" -C staging .
+
+      rm -rf staging
+
       popd
     }
 

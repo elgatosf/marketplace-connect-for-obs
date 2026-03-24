@@ -37,7 +37,10 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <QMap>
 #include <QRegularExpression>
 #include <QRegularExpressionValidator>
-
+#include <QTimer>
+#include <QMetaObject>
+#include <QThread>
+#include <QCoreApplication>
 #include <QDragEnterEvent>
 
 #include "elgato-stream-deck-widgets.hpp"
@@ -495,9 +498,9 @@ VideoSourceLabels::VideoSourceLabels(std::string name,
 		videoGrid->addWidget(currentLabel, 0, 0, Qt::AlignLeft);
 		videoGrid->addWidget(newLabel, 0, 2);
 
-		int i = 1;
 		int row = 1;
-		for (auto const &[key, val] : devices) {
+		for (auto const &[key, value] : devices) {
+			std::string val = value;
 			auto label = new IconLabel(cameraIconPath, val.c_str(), this);
 
 			QLabel* arrow = new QLabel(this);
@@ -573,10 +576,7 @@ VideoSourceLabels::VideoSourceLabels(std::string name,
 		iconLabel->setFixedSize(iconSize);
 		iconLayout->addStretch();
 		iconLayout->addWidget(iconLabel);
-		iconLayout->addStretch();
-
-		auto noneLayout = new QHBoxLayout();
-		
+		iconLayout->addStretch();		
 
 		auto noVCDevicesSub = new QLabel(obs_module_text("ExportWizard.VideoSourceLabels.NoCaptureSourcesSub"), this);
 		noVCDevicesSub->setAlignment(Qt::AlignCenter);
@@ -730,6 +730,7 @@ RequiredPlugins::RequiredPlugins(std::string name,
 				 std::vector<obs_module_t *> installedPlugins, QWidget* parent)
 	: QWidget(parent)
 {
+	UNUSED_PARAMETER(installedPlugins);
 	PluginInfo pi;
 
 	auto installed = pi.installed();
@@ -1384,6 +1385,7 @@ std::vector<std::string> RequiredPlugins::RequiredPluginList()
 Exporting::Exporting(std::string name, QWidget *parent) : QWidget(parent)
 {
 	QVBoxLayout *layout = new QVBoxLayout(this);
+	UNUSED_PARAMETER(name);
 
 	auto spacerTop = new QWidget(this);
 	spacerTop->setSizePolicy(QSizePolicy::Preferred,
@@ -1447,6 +1449,7 @@ void Exporting::updateProgress(double progress)
 
 void Exporting::updateFileProgress(const QString &fileName, double progress)
 {
+	UNUSED_PARAMETER(progress);
 	if (subTitle_) {
 		subTitle_->setText(fileName);
 	}
@@ -1577,40 +1580,28 @@ void StreamPackageExportWizard::SetupUI()
 				filename += ".elgatoscene";
 			}
 			_steps->setCurrentIndex(8);
-			std::string filename_utf8 =
-				filename.toUtf8().constData();
+			std::string filename_utf8 = filename.toUtf8().constData();
 			// This is a bit of threading hell.
 			// Find a better way to set this up, perhaps in an
 			// installer handler thread handling object.
-			_future =
-				QtConcurrent::run(createBundle, filename_utf8,
-						  plugins, thirdParty, oScenes,
-						  vidDevLabels, sdaFiles, sdProfileFiles, version.toStdString(), this)
-					.then([this](SceneBundleStatus status) {
-						// We are now in a different thread, so we need to execute this
-						// back in the gui thread.  See, threading hell.
-						QMetaObject::invokeMethod(
-							QCoreApplication::instance()
-								->thread(), // main GUI thread
-							[this, status]() {
-								if (status ==
-								    SceneBundleStatus::
-									    Success) {
-									_steps->setCurrentIndex(
-										9);
-								} else if (
-									status ==
-									SceneBundleStatus::
-										Cancelled) {
-									_steps->setCurrentIndex(
-										7);
-								}
-							});
-					})
-					.onCanceled([]() {
+			_canceled = false;
 
-					});
-		});
+			_future = std::async(std::launch::async, [filename_utf8,
+			 			 			plugins, thirdParty, oScenes,
+			 						vidDevLabels, sdaFiles, sdProfileFiles, version, this]() {
+				auto status = createBundle(filename_utf8, plugins, thirdParty, oScenes, vidDevLabels, sdaFiles, sdProfileFiles, version.toStdString(), this);
+				QMetaObject::invokeMethod(
+					QCoreApplication::instance()->thread(), // main GUI thread
+					[this, status]() {
+						if (status == SceneBundleStatus::Success) {
+							_steps->setCurrentIndex(9);
+						} else if (
+							status == SceneBundleStatus::Cancelled) {
+							_steps->setCurrentIndex(7);
+						}
+				});
+			});
+	});
 
 	connect(version, &Version::backPressed, this,
 		[this]() { _steps->setCurrentIndex(6); });

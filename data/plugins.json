@@ -4,182 +4,238 @@
             "name": "Move",
             "url": "https://obsproject.com/forum/resources/move.913/",
             "files" :[
-                "move-transition.dll"
+                "move-transition.dll",
+                "move-transition.plugin",
+                "move-transition"
+
             ]
         },
         {
             "name": "Replay Source",
             "url": "https://obsproject.com/forum/resources/replay-source.686/",
             "files" :[
-                "replay-source.dll"
+                "replay-source.dll",
+                "replay-source.plugin",
+                "replay-source"
             ]
         },
         {
             "name": "Source Clone",
             "url": "https://obsproject.com/forum/resources/source-clone.1632/",
             "files" :[
-                "source-clone.dll"
+                "source-clone.dll",
+                "source-clone.plugin",
+                "source-clone"
             ]
         },
         {
             "name": "obs-shaderfilter",
             "url": "https://obsproject.com/forum/resources/obs-shaderfilter.1736/",
             "files" :[
-                "obs-shaderfilter.dll"
+                "obs-shaderfilter.dll",
+                "obs-shaderfilter.plugin",
+                "obs-shaderfilter"
             ]
         },
         {
             "name": "Downstream Keyer",
             "url": "https://obsproject.com/forum/resources/downstream-keyer.1254/",
             "files" :[
-                "downstream-keyer.dll"
+                "downstream-keyer.dll",
+                "downstream-keyer.plugin",
+                "downstream-keyer"
             ]
         },
         {
             "name": "Browser Transition",
             "url": "https://obsproject.com/forum/resources/browser-transition.1653/",
             "files" :[
-                "browser-transition.dll"
+                "browser-transition.dll",
+                "browser-transition.plugin",
+                "browser-transition"
             ]
         },
         {
             "name": "Recursion Effect",
             "url": "https://obsproject.com/forum/resources/recursion-effect.1008/",
             "files" :[
-                "recursion-effect.dll"
+                "recursion-effect.dll",
+                "recursion-effect.plugin",
+                "recursion-effect"
             ]
         },
         {
             "name": "3D Effect",
             "url": "https://obsproject.com/forum/resources/3d-effect.1692/",
             "files" :[
-                "3d-effect.dll"
+                "3d-effect.dll",
+                "3d-effect.plugin",
+                "3d-effect"
             ]
         },
         {
             "name": "Gradient Source",
             "url": "https://obsproject.com/forum/resources/gradient-source.1172/",
             "files" :[
-                "gradient-source.dll"
+                "gradient-source.dll",
+                "gradient-source.plugin",
+                "gradient-source"
             ]
         },
         {
             "name": "Dynamic Delay",
             "url": "https://obsproject.com/forum/resources/dynamic-delay.1035/",
             "files" :[
-                "dynamic-delay.dll"
+                "dynamic-delay.dll",
+                "dynamic-delay.plugin",
+                "dynamic-delay"
             ]
         },
         {
             "name": "Time Warp Scan",
             "url": "https://obsproject.com/forum/resources/time-warp-scan.1167/",
             "files" :[
-                "time-warp-scan.dll"
+                "time-warp-scan.dll",
+                "time-warp-scan.plugin",
+                "time-warp-scan"
             ]
         },
         {
             "name": "Freeze Filter",
             "url": "https://obsproject.com/forum/resources/freeze-filter.950/",
             "files" :[
-                "freeze-filter.dll"
+                "freeze-filter.dll",
+                "freeze-filter.plugin",
+                "freeze-filter"
             ]
         },
         {
             "name": "Composite Blur",
             "url": "https://obsproject.com/forum/resources/composite-blur.1780/",
             "files" :[
-                "obs-composite-blur.dll"
+                "obs-composite-blur.dll",
+                "obs-composite-blur.plugin",
+                "obs-composite-blur"
             ]
         },
         {
             "name": "Stroke Glow Shadow",
             "url": "https://obsproject.com/forum/resources/stroke-glow-shadow.1800/",
             "files" :[
-                "obs-stroke-glow-shadow.dll"
+                "obs-stroke-glow-shadow.dll",
+                "obs-stroke-glow-shadow.plugin",
+                "obs-stroke-glow-shadow"
             ]
         },
         {
             "name": "Advanced Masks",
             "url": "https://obsproject.com/forum/resources/advanced-masks.1856/",
             "files" :[
-                "obs-advanced-masks.dll"
+                "obs-advanced-masks.dll",
+                "obs-advanced-masks.plugin",
+                "obs-advanced-masks"
             ]
         },
         {
             "name": "Noise",
             "url": "https://obsproject.com/forum/resources/noise.1916/",
             "files" :[
-                "obs-noise.dll"
+                "obs-noise.dll",
+                "obs-noise.plugin",
+                "obs-noise"
             ]
         },
         {
             "name": "Retro Effects",
             "url": "https://obsproject.com/forum/resources/retro-effects.1972/",
             "files" :[
-                "obs-retro-effects.dll"
+                "obs-retro-effects.dll",
+                "obs-retro-effects.plugin",
+                "obs-retro-effects"
             ]
         },
         {
             "name": "Advanced Scene Switcher",
             "url": "https://obsproject.com/forum/resources/advanced-scene-switcher.395/",
             "files" :[
-                "advanced-scene-switcher.dll"
+                "advanced-scene-switcher.dll",
+                "advanced-scene-switcher.plugin",
+                "advanced-scene-switcher"
             ]
         },
         {
             "name": "Scene as Transition",
             "url": "https://obsproject.com/forum/resources/scene-as-transition.1704/",
             "files" :[
-                "scene-as-transition.dll"
+                "scene-as-transition.dll",
+                "scene-as-transition.plugin",
+                "scene-as-transition",
+                "streamup-scene-as-transition.dll",
+                "streamup-scene-as-transition.plugin",
+                "streamup-scene-as-transition"
             ]
         },
         {
             "name": "Pixel Art",
             "url": "https://obsproject.com/forum/resources/pixel-art.1789/",
             "files" :[
-                "pixel-art.dll"
+                "pixel-art.dll",
+                "pixel-art.plugin",
+                "pixel-art"
             ]
         },
         {
             "name": "Waveform",
             "url": "https://obsproject.com/forum/resources/waveform.1423/",
             "files" :[
-                "waveform.dll"
+                "waveform.dll",
+                "waveform.plugin",
+                "waveform"
             ]
         },
         {
             "name": "Aitum Vertical",
             "url":  "https://obsproject.com/forum/resources/aitum-vertical.1715/",
             "files":  [
-                "vertical-canvas.dll"
+                "vertical-canvas.dll",
+                "vertical-canvas.plugin",
+                "vertical-canvas"
             ]
         },
         {
             "name": "Markdown Source",
             "url":  "https://obsproject.com/forum/resources/markdown-source.1764/",
             "files":  [
-                "markdown.dll"
+                "markdown.dll",
+                "markdown.plugin",
+                "markdown"
             ]
         },
         {
             "name": "Ashmanix Countdown Timer",
             "url":  "https://obsproject.com/forum/resources/ashmanix-countdown-timer.1610/",
             "files":  [
-                "obs-plugin-countdown.dll"
+                "obs-plugin-countdown.dll",
+                "obs-plugin-countdown.plugin",
+                "obs-plugin-countdown"
             ]
         },
         {
             "name": "SVG Source",
             "url":  "https://obsproject.com/forum/resources/svg-source.2174/",
             "files":  [
-                "svg-source.dll"
+                "svg-source.dll",
+                "svg-source.plugin",
+                "svg-source"
             ]
         },
         {
             "name": "Draw",
             "url":  "https://obsproject.com/forum/resources/draw.2081/",
             "files":  [
-                "draw-dock.dll"
+                "draw-dock.dll",
+                "draw-dock.plugin",
+                "draw-dock"
             ]
         }
     ]

@@ -55,6 +55,7 @@ set(_version "${_versionMajor}.${_versionMinor}.${_versionPatch}.${_buildNumber}
 string(JSON _releaseType GET ${buildspec} releaseType)
 
 string(JSON _bundleId GET ${buildspec} platformConfig macos bundleId)
+string(JSON _helperBundleId GET ${buildspec} platformConfig macos helperBundleId)
 string(JSON _windowsAppUUID GET ${buildspec} uuids windowsApp)
 # cmake-format: on
 
@@ -63,8 +64,10 @@ set(PLUGIN_WEBSITE ${_website})
 set(PLUGIN_EMAIL ${_email})
 set(PLUGIN_VERSION ${_version})
 set(PLUGIN_BUILDNUMBER ${_buildNumber})
+set(PLUGIN_BUILD_NUMBER ${_buildNumber})
 set(PLUGIN_RELEASETYPE ${_releaseType})
 set(MACOS_BUNDLEID ${_bundleId})
+set(MACOS_HELPER_BUNDLEID ${_helperBundleId})
 
 include(buildnumber)
 include(osconfig)
