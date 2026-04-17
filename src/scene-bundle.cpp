@@ -622,6 +622,25 @@ bool SceneBundle::ToCollection(std::string collection_name,
 			} else if (source[idKey] == "text_gdiplus") {
 			// Conver to MacOS Text
 				id = "text_ft2_source";
+				if(source["settings"].contains("color")) {
+					source["settings"]["color1"] = source["settings"]["color"];
+					source["settings"]["color2"] = source["settings"]["color"];
+					source["settings"].erase("color");
+				}
+				if(source["settings"].contains("gradient") && source["settings"]["gradient"] == true) {
+					if(source["settings"].contains("gradient_color")) {
+						source["settings"]["color2"] = source["settings"]["gradient_color"];
+						source["settings"].erase("gradient_color");
+					}
+				}
+				if(source["settings"].contains("gradient")) {
+					source["settings"].erase("gradient");
+				}
+				if(source["settings"].contains("font") && source["settings"]["font"].contains("size")) {
+					float originalSize = source["settings"]["font"]["size"].get<float>();
+					float newSize = originalSize * 0.70f;
+					source["settings"]["font"]["size"] = static_cast<int>(newSize);
+				}
 			}
 
 			if(id != "") {
@@ -1043,6 +1062,29 @@ void SceneBundle::_ProcessJsonObj(nlohmann::json &obj)
 			// Convert MacOS text to Windows
 			obj[idKey] = "text_gdiplus";
 			obj[versionedIdKey] = "";
+			if(obj.contains("settings") && obj["settings"].contains("font") && obj["settings"]["font"].contains("size")) {
+				float originalSize = obj["settings"]["font"]["size"].get<float>();
+				float newSize = originalSize / 0.70f;
+				obj["settings"]["font"]["size"] = static_cast<int>(newSize);
+			}
+
+			long color1 = obj.contains("settings") && obj["settings"].contains("color1") ? obj["settings"]["color1"].get<long>() : 4294967295;
+			long color2 = obj.contains("settings") && obj["settings"].contains("color2") ? obj["settings"]["color2"].get<long>() : 4294967295;
+
+			if(color1 == color2) {
+					obj["settings"]["color"] = color1;
+					obj["settings"]["gradient"] = false;
+					obj["settings"].erase("color1");
+					obj["settings"].erase("color2");
+			} else {
+					obj["settings"]["color"] = color1;
+					obj["settings"]["gradient"] = true;
+					obj["settings"]["gradient_color"] = color2;
+					obj["settings"]["gradient_opacity"] = 100;
+					obj["settings"]["gradient_direction"] = 90;
+					obj["settings"].erase("color1");
+					obj["settings"].erase("color2");
+			}
 		}
 
 		if (obj[idKey] == "dshow_input") {
