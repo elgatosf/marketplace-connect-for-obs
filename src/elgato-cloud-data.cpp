@@ -444,40 +444,57 @@ void ElgatoCloud::LogOut()
 
 void ElgatoCloud::CheckUpdates(bool forceCheck)
 {
-	try {
+	auto checkUpdateThread = std::thread([this, forceCheck]() {
+		try {
 #ifdef WIN32
-		std::string updateUrl =
-			"https://gc-updates.elgato.com/windows/marketplace-plugin-for-obs/final/app-version-check.json.php";
+			std::string updateUrl =
+				"https://gc-updates.elgato.com/windows/marketplace-plugin-for-obs/final/app-version-check.json.php";
 #elif __APPLE__
-		std::string updateUrl =
-			"https://gc-updates.elgato.com/mac/marketplace-plugin-for-obs/final/app-version-check.json.php";
+			std::string updateUrl =
+				"https://gc-updates.elgato.com/mac/marketplace-plugin-for-obs/final/app-version-check.json.php";
 #endif
-		auto response = fetch_string_from_get(updateUrl, "");
-		auto responseJson = nlohmann::json::parse(response);
-		if (responseJson.contains("Automatic")) {
-			auto details = responseJson["Automatic"];
-			std::string version = details["Version"];
-			std::string downloadUrl = details["downloadURL"];
-			auto updateVersion =
-				QVersionNumber::fromString(version);
-			auto currentVersion =
-				QVersionNumber::fromString(PLUGIN_VERSION);
-			std::string skip = _skipUpdate == "" ? "0.0.0"
-							     : _skipUpdate;
-			auto skipVersion = QVersionNumber::fromString(skip);
-			if ((forceCheck || skipVersion != updateVersion) &&
-			    updateVersion > currentVersion) {
-				// Reset the "skip this update" flag because we now have a
-				// new update.
-				_skipUpdate = !forceCheck ? "" : _skipUpdate;
-				openUpdateModal(version, downloadUrl);
+			auto response = fetch_string_from_get(updateUrl, "");
+			auto responseJson = nlohmann::json::parse(response);
+			if (responseJson.contains("Automatic")) {
+				auto details = responseJson["Automatic"];
+				std::string version = details["Version"];
+				std::string downloadUrl =
+					details["downloadURL"];
+				auto updateVersion =
+					QVersionNumber::fromString(version);
+				auto currentVersion =
+					QVersionNumber::fromString(
+						PLUGIN_VERSION);
+				std::string skip = _skipUpdate == ""
+							   ? "0.0.0"
+							   : _skipUpdate;
+				auto skipVersion =
+					QVersionNumber::fromString(skip);
+				if ((forceCheck ||
+				     skipVersion != updateVersion) &&
+				    updateVersion > currentVersion) {
+					// Reset the "skip this update" flag because we now have a
+					// new update.
+					_skipUpdate = !forceCheck ? ""
+								  : _skipUpdate;
+					QMetaObject::invokeMethod(
+						QCoreApplication::instance()
+							->thread(),
+						[this, version, downloadUrl]() {
+							openUpdateModal(
+								version,
+								downloadUrl);
+						});
+				}
+			} else {
+				throw("Error");
 			}
-		} else {
-			throw("Error");
+		} catch (...) {
+			blog(LOG_INFO, "Unable to contact update server.");
 		}
-	} catch (...) {
-		blog(LOG_INFO, "Unable to contact update server.");
-	}
+	});
+
+	checkUpdateThread.detach();
 }
 
 void ElgatoCloud::SetSkipVersion(std::string version)
