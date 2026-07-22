@@ -1105,7 +1105,7 @@ void SceneBundle::_ProcessJsonObj(nlohmann::json &obj)
 	for (auto &[key, item] : obj.items()) {
 		if (item.is_string()) {
 			std::string value = item.template get<std::string>();
-			if (os_file_exists(value.c_str())) {
+			if (value.size() > 3 && os_file_exists(value.c_str())) {
 				_CreateFileMap(item);
 				std::string item_value =
 					item.template get<std::string>();
